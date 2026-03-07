@@ -143,6 +143,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+
+      - name: Install Composer dependencies (production only)
+        run: composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+
       - name: WordPress Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
