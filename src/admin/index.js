@@ -314,12 +314,12 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 		installStatus === 'installing' ||
 		installStatus === 'removing'
 	) {
-		const busyLabel =
-			installStatus === 'building'
-				? __( 'Building…', 'dispatch' )
-				: installStatus === 'installing'
-				? __( 'Installing…', 'dispatch' )
-				: __( 'Removing…', 'dispatch' );
+		const busyLabels = {
+			building: __( 'Building…', 'dispatch' ),
+			installing: __( 'Installing…', 'dispatch' ),
+			removing: __( 'Removing…', 'dispatch' ),
+		};
+		const busyLabel = busyLabels[ installStatus ];
 		return (
 			<span
 				className="telex-badge telex-badge--loading"
@@ -469,7 +469,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	 *  2. If the server returns { status:'building' } it has queued the build.
 	 *     We poll GET /build every poll_interval seconds until ready (up to ~2 min).
 	 *  3. Once the build is ready we POST /install again and it completes normally.
-	 * @param successMessage
+	 * @param {string} successMessage
 	 */
 	async function executeInstall( successMessage ) {
 		setInstallStatus( project.publicId, 'installing' );
@@ -891,6 +891,9 @@ function ProjectsApp() {
 			}
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		},
+		// setError/setProjects/setInstalledProjects are stable dispatch references —
+		// adding them to the dep array causes unnecessary re-renders.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[ restUrl ]
 	);
 
