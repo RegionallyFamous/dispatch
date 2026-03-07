@@ -432,7 +432,7 @@ function ProjectsApp() {
 				<div
 					className="telex-project-grid"
 					role="list"
-					aria-label={ __( 'Telex projects', 'dispatch' ) }
+					aria-label={ __( 'Dispatch projects', 'dispatch' ) }
 					aria-live="polite"
 				>
 					{ filteredProjects.length === 0 && (
@@ -482,7 +482,7 @@ class TelexErrorBoundary extends Component {
 					<p>
 						<strong>
 							{ __(
-								'Telex encountered an unexpected error.',
+								'Dispatch encountered an unexpected error.',
 								'dispatch'
 							) }
 						</strong>{ ' ' }

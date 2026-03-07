@@ -60,8 +60,8 @@ class Telex_Admin {
 	 */
 	public static function register_menu(): void {
 		$hook = add_menu_page(
-			__( 'Telex', 'dispatch' ),
-			__( 'Telex', 'dispatch' ),
+			__( 'Dispatch', 'dispatch' ),
+			__( 'Dispatch', 'dispatch' ),
 			'manage_options',
 			'telex',
 			self::render_page( ... ),
@@ -135,7 +135,7 @@ class Telex_Admin {
 			}
 
 			Telex_Auth::disconnect();
-			self::set_notice( 'info', __( 'Disconnected from Telex.', 'dispatch' ) );
+			self::set_notice( 'info', __( 'Disconnected from Telex account.', 'dispatch' ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=telex' ) );
 			exit;
 		}
@@ -161,7 +161,7 @@ class Telex_Admin {
 		$per_page     = (int) ( false !== $per_page_opt && '' !== $per_page_opt ? $per_page_opt : 24 );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Telex', 'dispatch' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Dispatch', 'dispatch' ) . '</h1>';
 
 		// Transient-based notices (post-redirect-get pattern).
 		self::render_notices();
@@ -214,7 +214,7 @@ class Telex_Admin {
 		$table->prepare_items();
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Telex Audit Log', 'dispatch' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Dispatch Audit Log', 'dispatch' ) . '</h1>';
 		echo '<p class="description">' . esc_html__( 'A read-only record of security-relevant events: installs, updates, removals, and authentication changes.', 'dispatch' ) . '</p>';
 		echo '<form method="get">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
@@ -387,7 +387,7 @@ class Telex_Admin {
 	 */
 	public static function site_health_info( array $info ): array {
 		$info['telex'] = [
-			'label'  => __( 'Telex', 'dispatch' ),
+			'label'  => __( 'Dispatch', 'dispatch' ),
 			'fields' => [
 				'version'         => [
 					'label' => __( 'Plugin version', 'dispatch' ),
@@ -451,8 +451,8 @@ class Telex_Admin {
 				'label'       => __( 'Telex API is unreachable', 'dispatch' ),
 				'status'      => 'critical',
 				'badge'       => [
-					'label' => __( 'Telex', 'dispatch' ),
-					'color' => 'red',
+				'label' => __( 'Dispatch', 'dispatch' ),
+				'color' => 'red',
 				],
 				'description' => '<p>' . esc_html( $error_detail ) . '</p>',
 				'test'        => 'telex_api_reachable',
@@ -463,7 +463,7 @@ class Telex_Admin {
 			'label'       => __( 'Telex API is reachable', 'dispatch' ),
 			'status'      => 'good',
 			'badge'       => [
-				'label' => __( 'Telex', 'dispatch' ),
+				'label' => __( 'Dispatch', 'dispatch' ),
 				'color' => 'blue',
 			],
 			'description' => '<p>' . esc_html__( 'Your site can reach the Telex API.', 'dispatch' ) . '</p>',
