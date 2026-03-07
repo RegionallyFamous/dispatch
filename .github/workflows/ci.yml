@@ -70,12 +70,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           tools: composer
           coverage: none
+
+      - name: Install JS dependencies and build assets
+        # PHPStan statically follows the include() in class-telex-admin.php and
+        # requires the build/*.asset.php files to exist at analysis time.
+        run: npm ci && npm run build
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress
