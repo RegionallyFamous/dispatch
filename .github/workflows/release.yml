@@ -27,7 +27,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: openssl
-          tools: composer
+          tools: composer, wp-cli
           coverage: none
 
       - name: Install Node dependencies
