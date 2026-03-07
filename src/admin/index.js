@@ -469,6 +469,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	 *  2. If the server returns { status:'building' } it has queued the build.
 	 *     We poll GET /build every poll_interval seconds until ready (up to ~2 min).
 	 *  3. Once the build is ready we POST /install again and it completes normally.
+	 * @param successMessage
 	 */
 	async function executeInstall( successMessage ) {
 		setInstallStatus( project.publicId, 'installing' );
@@ -491,7 +492,9 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 
 				for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
 					// eslint-disable-next-line no-await-in-loop
-					await new Promise( ( r ) => setTimeout( r, pollInterval * 1000 ) );
+					await new Promise( ( r ) =>
+						setTimeout( r, pollInterval * 1000 )
+					);
 
 					// eslint-disable-next-line no-await-in-loop
 					const buildStatus = await apiFetch( {
@@ -580,7 +583,9 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 			setInstallStatus( project.publicId, 'idle' );
 			setNotice( {
 				type: 'error',
-				message: err.message || __( "Couldn't remove it. Try again?", 'dispatch' ),
+				message:
+					err.message ||
+					__( "Couldn't remove it. Try again?", 'dispatch' ),
 			} );
 		}
 	}
@@ -658,15 +663,17 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 								) }
 							</span>
 						) }
-					{ ! isInstalled && project.currentVersion && ! project.updatedAt && (
-						<span className="telex-meta-item">
-							{ sprintf(
-								/* translators: %s: version number */
-								__( 'Build #%s', 'dispatch' ),
-								project.currentVersion
-							) }
-						</span>
-					) }
+					{ ! isInstalled &&
+						project.currentVersion &&
+						! project.updatedAt && (
+							<span className="telex-meta-item">
+								{ sprintf(
+									/* translators: %s: version number */
+									__( 'Build #%s', 'dispatch' ),
+									project.currentVersion
+								) }
+							</span>
+						) }
 					{ project.slug && (
 						<code className="telex-slug">{ project.slug }</code>
 					) }
@@ -706,9 +713,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 					) }
 				>
 					{ ! isInstalled && (
-						<Tooltip
-							text={ 						__( 'Add to your site', 'dispatch' ) }
-						>
+						<Tooltip text={ __( 'Add to your site', 'dispatch' ) }>
 							<Button
 								variant="primary"
 								onClick={ handleInstall }
@@ -760,7 +765,10 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 
 					{ isInstalled && (
 						<Tooltip
-							text={ __( 'Uninstall from your site', 'dispatch' ) }
+							text={ __(
+								'Uninstall from your site',
+								'dispatch'
+							) }
 						>
 							<Button
 								variant="tertiary"
@@ -793,10 +801,10 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<p>
 							{ sprintf(
 								/* translators: %s: project name */
-						__(
-								"This will delete %s from your site for good — there's no undo.",
-								'dispatch'
-							),
+								__(
+									"This will delete %s from your site for good — there's no undo.",
+									'dispatch'
+								),
 								project.name
 							) }
 						</p>
@@ -807,15 +815,15 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 								onClick={ handleRemove }
 								__next40pxDefaultSize
 							>
-						{ __( 'Yes, remove it', 'dispatch' ) }
-						</Button>
-						<Button
-							variant="secondary"
-							onClick={ () => setConfirmRemove( null ) }
-							__next40pxDefaultSize
-						>
-							{ __( 'Keep it', 'dispatch' ) }
-						</Button>
+								{ __( 'Yes, remove it', 'dispatch' ) }
+							</Button>
+							<Button
+								variant="secondary"
+								onClick={ () => setConfirmRemove( null ) }
+								__next40pxDefaultSize
+							>
+								{ __( 'Keep it', 'dispatch' ) }
+							</Button>
 						</div>
 					</Modal>
 				) }
@@ -861,23 +869,30 @@ function ProjectsApp() {
 	);
 
 	// Fetch project list + installed tracker data.
-	const fetchData = useCallback( async ( forceRefresh = false ) => {
-		try {
-			const url = forceRefresh
-				? `${ restUrl }/projects?force_refresh=1`
-				: `${ restUrl }/projects`;
-			const data = await apiFetch( { url } );
-			setProjects( data.projects || [] );
-			if ( data.installed ) {
-				setInstalledProjects( data.installed );
+	const fetchData = useCallback(
+		async ( forceRefresh = false ) => {
+			try {
+				const url = forceRefresh
+					? `${ restUrl }/projects?force_refresh=1`
+					: `${ restUrl }/projects`;
+				const data = await apiFetch( { url } );
+				setProjects( data.projects || [] );
+				if ( data.installed ) {
+					setInstalledProjects( data.installed );
+				}
+			} catch ( err ) {
+				setError(
+					err.message ||
+						__(
+							"Couldn't load your projects. Check your connection and try again.",
+							'dispatch'
+						)
+				);
 			}
-		} catch ( err ) {
-			setError(
-				err.message || __( "Couldn't load your projects. Check your connection and try again.", 'dispatch' )
-			);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ restUrl ] );
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		},
+		[ restUrl ]
+	);
 
 	useEffect( () => {
 		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
@@ -905,8 +920,12 @@ function ProjectsApp() {
 			}
 		};
 
-		window.jQuery( document ).on( 'heartbeat-send.telex-admin', onHeartbeatSend );
-		window.jQuery( document ).on( 'heartbeat-tick.telex-admin', onHeartbeatTick );
+		window
+			.jQuery( document )
+			.on( 'heartbeat-send.telex-admin', onHeartbeatSend );
+		window
+			.jQuery( document )
+			.on( 'heartbeat-tick.telex-admin', onHeartbeatTick );
 
 		return () => {
 			window.jQuery( document ).off( 'heartbeat-send.telex-admin' );
@@ -1010,12 +1029,14 @@ function ProjectsApp() {
 				<div className="telex-toolbar-right">
 					<Button
 						variant="secondary"
-					onClick={ () => {
-						setLoading( true );
-						fetchData( true ).finally( () => setLoading( false ) );
-					} }
-					disabled={ loading }
-					aria-label={ __( 'Check for new builds', 'dispatch' ) }
+						onClick={ () => {
+							setLoading( true );
+							fetchData( true ).finally( () =>
+								setLoading( false )
+							);
+						} }
+						disabled={ loading }
+						aria-label={ __( 'Check for new builds', 'dispatch' ) }
 						__next40pxDefaultSize
 					>
 						{ loading ? <Spinner /> : __( 'Refresh', 'dispatch' ) }
@@ -1118,13 +1139,13 @@ class TelexErrorBoundary extends Component {
 					style={ { margin: '16px 0' } }
 				>
 					<p>
-					<strong>
-						{ __( 'Uh oh — something crashed.', 'dispatch' ) }
-					</strong>{ ' ' }
-					{ __(
-						'Try reloading the page. If it keeps happening, check the browser console.',
-						'dispatch'
-					) }
+						<strong>
+							{ __( 'Uh oh — something crashed.', 'dispatch' ) }
+						</strong>{ ' ' }
+						{ __(
+							'Try reloading the page. If it keeps happening, check the browser console.',
+							'dispatch'
+						) }
 					</p>
 					{ this.state.message && (
 						<details>

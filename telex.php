@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Dispatch for Telex
  * Plugin URI:        https://telex.automattic.ai
- * Description:       Install blocks and themes from your Telex projects.
+ * Description:       Deploy blocks and themes built with Telex, Automattic AI Labs' natural language WordPress builder, directly from your WordPress admin.
  * Version:           1.0.0
  * Requires at least: 6.7
  * Tested up to:      6.8
@@ -84,7 +84,7 @@ if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
 	$telex_bail(
 		sprintf(
 			/* translators: %s: current PHP version */
-			__( 'PHP 8.2 or later is required. Your server is running PHP&nbsp;%s. Contact your host to upgrade.', 'dispatch' ),
+			__( 'Dispatch needs PHP 8.2 or later. Your server is running PHP&nbsp;%s — ask your host to upgrade.', 'dispatch' ),
 			esc_html( PHP_VERSION )
 		)
 	);
@@ -102,7 +102,7 @@ if ( isset( $wp_version ) && version_compare( $wp_version, '6.7', '<' ) ) {
 	$telex_bail(
 		sprintf(
 			/* translators: %s: current WordPress version */
-			__( 'WordPress 6.7 or later is required. Your site is running WordPress&nbsp;%s.', 'dispatch' ),
+			__( 'Dispatch needs WordPress 6.7 or later. You\'re on&nbsp;%s — time to update!', 'dispatch' ),
 			esc_html( $wp_version )
 		)
 	);
@@ -117,7 +117,7 @@ if ( isset( $wp_version ) && version_compare( $wp_version, '6.7', '<' ) ) {
 // -----------------------------------------------------------------------------
 if ( ! extension_loaded( 'openssl' ) ) {
 	$telex_bail(
-		__( 'The PHP <code>openssl</code> extension is required for encrypted token storage but is not enabled on your server. Contact your host to enable it.', 'dispatch' )
+		__( 'The PHP <code>openssl</code> extension is missing. Ask your host to enable it — Dispatch needs it for secure token storage.', 'dispatch' )
 	);
 	unset( $telex_bail );
 	return;
@@ -130,7 +130,7 @@ if ( ! extension_loaded( 'openssl' ) ) {
 // -----------------------------------------------------------------------------
 if ( ! class_exists( 'ZipArchive' ) ) {
 	$telex_bail(
-		__( 'The PHP <code>zip</code> extension is required for project installation but is not enabled on your server. Contact your host to enable it.', 'dispatch' )
+		__( 'The PHP <code>zip</code> extension is missing. Ask your host to enable it — Dispatch needs it to install projects.', 'dispatch' )
 	);
 	unset( $telex_bail );
 	return;

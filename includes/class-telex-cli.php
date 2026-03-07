@@ -39,7 +39,7 @@ class Telex_CLI extends \WP_CLI_Command {
 	 */
 	public function list( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundBeforeLastUsed
 		if ( ! Telex_Auth::is_connected() ) {
-			\WP_CLI::error( __( 'Not connected to Telex. Run: wp telex connect', 'dispatch' ) );
+			\WP_CLI::error( __( 'Not connected. Run: wp telex connect', 'dispatch' ) );
 		}
 
 		$client = Telex_Auth::get_client();
@@ -111,7 +111,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		\WP_CLI::log(
 			sprintf(
 			/* translators: %s: project ID */
-				__( 'Installing project %s…', 'dispatch' ),
+				__( 'Installing %s…', 'dispatch' ),
 				$public_id
 			)
 		);
@@ -125,7 +125,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		\WP_CLI::success(
 			sprintf(
 			/* translators: %s: project ID */
-				__( 'Project %s installed successfully.', 'dispatch' ),
+				__( '%s installed!', 'dispatch' ),
 				$public_id
 			)
 		);
@@ -151,7 +151,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		$public_id  = $args[0] ?? '';
 
 		if ( ! $update_all && empty( $public_id ) ) {
-			\WP_CLI::error( __( 'Provide a project ID or use --all.', 'dispatch' ) );
+			\WP_CLI::error( __( 'Provide a project ID, or use --all to update everything.', 'dispatch' ) );
 		}
 
 		if ( $update_all ) {
@@ -176,7 +176,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			}
 
 			if ( empty( $to_update ) ) {
-				\WP_CLI::log( __( 'All projects are up to date.', 'dispatch' ) );
+				\WP_CLI::log( __( 'Everything is up to date!', 'dispatch' ) );
 				return;
 			}
 
@@ -197,7 +197,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			\WP_CLI::success(
 				sprintf(
 				/* translators: %d: count */
-					__( 'Updated %d project(s).', 'dispatch' ),
+					__( 'Updated %d project(s)!', 'dispatch' ),
 					count( $to_update )
 				)
 			);
@@ -209,7 +209,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			\WP_CLI::success(
 				sprintf(
 				/* translators: %s: project ID */
-					__( 'Project %s updated.', 'dispatch' ),
+					__( '%s updated!', 'dispatch' ),
 					$public_id
 				)
 			);
@@ -240,7 +240,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		\WP_CLI::confirm(
 			sprintf(
 				/* translators: %s: project ID */
-				__( 'Remove project %s?', 'dispatch' ),
+				__( 'Remove %s from this site?', 'dispatch' ),
 				$public_id
 			),
 			$assoc_args
@@ -255,7 +255,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		\WP_CLI::success(
 			sprintf(
 			/* translators: %s: project ID */
-				__( 'Project %s removed.', 'dispatch' ),
+				__( '%s removed!', 'dispatch' ),
 				$public_id
 			)
 		);
@@ -270,7 +270,7 @@ class Telex_CLI extends \WP_CLI_Command {
 	 */
 	public function connect( array $_args, array $_assoc_args ): void {
 		if ( Telex_Auth::is_connected() ) {
-			\WP_CLI::log( __( 'Already connected to Telex.', 'dispatch' ) );
+			\WP_CLI::log( __( 'Already connected!', 'dispatch' ) );
 			return;
 		}
 
@@ -292,7 +292,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		$expires     = time() + $flow['expires_in'];
 		$device_code = (string) get_transient( Telex_Auth::TRANSIENT_DEVICE );
 
-		\WP_CLI::log( __( 'Polling for authorization…', 'dispatch' ) );
+		\WP_CLI::log( __( 'Waiting for you to approve in Telex…', 'dispatch' ) );
 
 		while ( time() < $expires ) {
 			sleep( $interval );
@@ -305,7 +305,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			}
 
 			if ( true === $result ) {
-				\WP_CLI::success( __( 'Connected to Telex!', 'dispatch' ) );
+				\WP_CLI::success( __( 'Connected! You\'re all set.', 'dispatch' ) );
 				return;
 			}
 
@@ -315,7 +315,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			}
 		}
 
-		\WP_CLI::error( __( 'Device code expired. Please try again.', 'dispatch' ) );
+		\WP_CLI::error( __( 'Code expired. Run the command again to get a new one.', 'dispatch' ) );
 	}
 
 	/**
@@ -327,7 +327,7 @@ class Telex_CLI extends \WP_CLI_Command {
 	 */
 	public function disconnect( array $_args, array $_assoc_args ): void {
 		Telex_Auth::disconnect();
-		\WP_CLI::success( __( 'Disconnected from Telex.', 'dispatch' ) );
+		\WP_CLI::success( __( 'Disconnected!', 'dispatch' ) );
 	}
 
 	/**
@@ -347,7 +347,7 @@ class Telex_CLI extends \WP_CLI_Command {
 
 		if ( 'reset' === $sub ) {
 			Telex_Circuit_Breaker::reset();
-			\WP_CLI::success( __( 'Circuit breaker reset to CLOSED.', 'dispatch' ) );
+			\WP_CLI::success( __( 'Circuit breaker reset.', 'dispatch' ) );
 			return;
 		}
 
@@ -377,7 +377,7 @@ class Telex_CLI extends \WP_CLI_Command {
 
 		if ( 'clear' === $subcommand ) {
 			Telex_Cache::bust_all();
-			\WP_CLI::success( __( 'Telex cache cleared.', 'dispatch' ) );
+			\WP_CLI::success( __( 'Cache cleared.', 'dispatch' ) );
 		} else {
 			\WP_CLI::error(
 				sprintf(

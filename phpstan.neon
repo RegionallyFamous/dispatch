@@ -29,8 +29,13 @@ parameters:
     # this prevents false-positive "always true/false" narrowing errors.
     treatPhpDocTypesAsCertain: false
 
-    # WP-CLI add_command call in the main plugin file is guarded by
-    # `defined('WP_CLI') && WP_CLI`. Suppress the one unavoidable reference.
     ignoreErrors:
+        # WP-CLI add_command call in the main plugin file is guarded by
+        # `defined('WP_CLI') && WP_CLI`. Suppress the one unavoidable reference.
         - message: '#Call to static method add_command\(\) on an unknown class WP_CLI#'
           path: telex.php
+
+        # build/*.asset.php files are Webpack output — they don't exist at
+        # analysis time. The runtime file_exists() guard already handles this.
+        - identifier: include.fileNotFound
+          path: includes/class-telex-admin.php

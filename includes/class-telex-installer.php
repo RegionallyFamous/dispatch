@@ -45,7 +45,7 @@ class Telex_Installer {
 	public static function install( string $public_id, bool $activate = false ): true|\WP_Error {
 		$client = Telex_Auth::get_client();
 		if ( ! $client ) {
-			return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'dispatch' ) );
+			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Link your account from the Dispatch page.", 'dispatch' ) );
 		}
 
 		try {
@@ -53,17 +53,17 @@ class Telex_Installer {
 			$type    = ProjectType::from_api( $project['projectType'] ?? null );
 
 			if ( ! current_user_can( $type->install_capability() ) ) {
-				return new \WP_Error( 'telex_caps', __( 'You do not have permission to install this type of project.', 'dispatch' ) );
+				return new \WP_Error( 'telex_caps', __( "You don't have permission to install this type of project.", 'dispatch' ) );
 			}
 
 			$build = $client->projects->getBuild( $public_id );
 
 			if ( isset( $build['status'] ) && 'not_ready' === $build['status'] ) {
-				return new \WP_Error( 'telex_not_ready', __( 'Build is not ready yet. Please try again in a moment.', 'dispatch' ) );
+				return new \WP_Error( 'telex_not_ready', __( "This build isn't ready yet — give it a second and try again.", 'dispatch' ) );
 			}
 
 			if ( empty( $build['files'] ) ) {
-				return new \WP_Error( 'telex_no_files', __( 'This build has no files to install.', 'dispatch' ) );
+				return new \WP_Error( 'telex_no_files', __( 'This build looks empty. Contact the project author.', 'dispatch' ) );
 			}
 
 			$build_files = array_map( Telex_Build_File::from_array( ... ), $build['files'] );
@@ -160,21 +160,21 @@ class Telex_Installer {
 	public static function remove( string $public_id ): true|\WP_Error {
 		$tracked = Telex_Tracker::get( $public_id );
 		if ( ! $tracked ) {
-			return new \WP_Error( 'telex_not_installed', __( 'Project is not installed.', 'dispatch' ) );
+			return new \WP_Error( 'telex_not_installed', __( "This project isn't installed on your site.", 'dispatch' ) );
 		}
 
 		$type = ProjectType::from( $tracked['type'] );
 		$slug = $tracked['slug'];
 
 		if ( ! current_user_can( $type->remove_capability() ) ) {
-			return new \WP_Error( 'telex_caps', __( 'You do not have permission to remove this type of project.', 'dispatch' ) );
+			return new \WP_Error( 'telex_caps', __( "You don't have permission to remove this type of project.", 'dispatch' ) );
 		}
 
 		if ( ProjectType::Theme === $type ) {
 			$theme = wp_get_theme( $slug );
 			if ( $theme->exists() ) {
 				if ( wp_get_theme()->get_stylesheet() === $slug ) {
-					return new \WP_Error( 'telex_active_theme', __( 'Cannot remove the active theme. Switch to a different theme first.', 'dispatch' ) );
+					return new \WP_Error( 'telex_active_theme', __( "That's your active theme! Switch themes first, then remove this one.", 'dispatch' ) );
 				}
 				$result = delete_theme( $slug );
 				if ( is_wp_error( $result ) ) {
@@ -390,7 +390,7 @@ class Telex_Installer {
 			if ( is_wp_error( $errors ) && $errors->has_errors() ) {
 				return $errors;
 			}
-			return new \WP_Error( 'telex_install', __( 'Installation failed.', 'dispatch' ) );
+			return new \WP_Error( 'telex_install', __( 'Installation failed. Check your connection and try again.', 'dispatch' ) );
 		}
 
 		return true;

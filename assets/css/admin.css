@@ -435,6 +435,19 @@
  * Connect (device flow) wrap + steps
  * ------------------------------------------------------------------------- */
 
+.telex-about {
+	margin-bottom: 24px;
+	padding-bottom: 24px;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-about p {
+	font-size: 14px;
+	color: #50575e;
+	line-height: 1.7;
+	margin: 0 0 10px;
+}
+
 .telex-connect-wrap {
 	max-width: 520px;
 	margin-top: 24px;

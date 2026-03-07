@@ -261,7 +261,7 @@ class Telex_Updater {
 		echo '<div class="update-message notice inline notice-warning notice-alt"><p>';
 		printf(
 			/* translators: 1: build number, 2: update URL */
-			wp_kses_post( __( 'A new build is available in Dispatch (build #%1$s). <a href="%2$s">Update now</a>.', 'dispatch' ) ),
+			wp_kses_post( __( 'Update available! Build #%1$s is ready in Dispatch. <a href="%2$s">Update now</a>.', 'dispatch' ) ),
 			esc_html( (string) $remote_version ),
 			esc_url( admin_url( 'admin.php?page=telex' ) )
 		);

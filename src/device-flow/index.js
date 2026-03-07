@@ -9,7 +9,13 @@
  * an independent polling loop.
  */
 import { render, useState, useEffect, useRef } from '@wordpress/element';
-import { Button, Icon, Notice, Spinner } from '@wordpress/components';
+import {
+	Button,
+	ExternalLink,
+	Icon,
+	Notice,
+	Spinner,
+} from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { copy, check, caution, plugins as pluginsIcon } from '@wordpress/icons';
@@ -25,10 +31,26 @@ const STATUS = {
 
 // Steps shown above the connect card.
 const STEPS = [
-	__( 'Get your code', 'dispatch' ),
-	__( 'Open Telex', 'dispatch' ),
-	__( "You're connected", 'dispatch' ),
+	__( 'Get a code', 'dispatch' ),
+	__( 'Approve in Telex', 'dispatch' ),
+	__( "You're in!", 'dispatch' ),
 ];
+
+function TelexAbout() {
+	return (
+		<div className="telex-about">
+			<p>
+				{ __(
+					'Telex is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English, and Telex generates a fully functional block or theme you can download and deploy.',
+					'dispatch'
+				) }
+			</p>
+			<ExternalLink href="https://telex.automattic.ai">
+				{ __( 'Learn more at telex.automattic.ai', 'dispatch' ) }
+			</ExternalLink>
+		</div>
+	);
+}
 
 function StepIndicator( { active } ) {
 	return (
@@ -140,7 +162,7 @@ function DeviceFlowApp() {
 			setErrorMsg(
 				err.message ||
 					__(
-						"Couldn't start the connection. Please try again.",
+						"Couldn't get a code from Telex. Give it another try.",
 						'dispatch'
 					)
 			);
@@ -177,7 +199,10 @@ function DeviceFlowApp() {
 			stopPolling();
 			setErrorMsg(
 				err.message ||
-					__( 'Authorization failed or code expired.', 'dispatch' )
+					__(
+						'Something went wrong — the code may have expired.',
+						'dispatch'
+					)
 			);
 			setStatus( STATUS.EXPIRED );
 		}
@@ -245,8 +270,8 @@ function DeviceFlowApp() {
 					<div className="telex-connect-success-icon">
 						<Icon icon={ check } size={ 40 } />
 					</div>
-					<h2>{ __( 'Connected!', 'dispatch' ) }</h2>
-					<p>{ __( 'Redirecting to your projects…', 'dispatch' ) }</p>
+					<h2>{ __( "You're in!", 'dispatch' ) }</h2>
+					<p>{ __( 'Taking you to your projects…', 'dispatch' ) }</p>
 					<Spinner />
 				</div>
 			</div>
@@ -256,30 +281,31 @@ function DeviceFlowApp() {
 	if ( status === STATUS.IDLE ) {
 		return (
 			<div className="telex-connect-wrap">
+				<TelexAbout />
 				<StepIndicator active={ 1 } />
 				<div className="telex-connect-card">
 					<div className="telex-connect-brand">
 						<Icon icon={ pluginsIcon } size={ 32 } />
 					</div>
-					<h2>{ __( 'Connect to Telex', 'dispatch' ) }</h2>
+					<h2>{ __( 'Link your Telex account', 'dispatch' ) }</h2>
 					<p>
 						{ __(
-							'Link your Telex account to browse and install your projects without leaving WordPress.',
+							'Your Telex projects, right here in WordPress. Connect once — install anything with a click.',
 							'dispatch'
 						) }
 					</p>
 					<div className="telex-connect-features">
 						<div className="telex-connect-feature">
 							<Icon icon={ check } size={ 14 } />
-							{ __( 'One-time authorisation', 'dispatch' ) }
+							{ __( "One-time setup — that's it", 'dispatch' ) }
 						</div>
 						<div className="telex-connect-feature">
 							<Icon icon={ check } size={ 14 } />
-							{ __( 'No password required', 'dispatch' ) }
+							{ __( 'No password to remember', 'dispatch' ) }
 						</div>
 						<div className="telex-connect-feature">
 							<Icon icon={ check } size={ 14 } />
-							{ __( 'Revoke access anytime', 'dispatch' ) }
+							{ __( 'Disconnect whenever you like', 'dispatch' ) }
 						</div>
 					</div>
 					<Button
@@ -287,7 +313,7 @@ function DeviceFlowApp() {
 						onClick={ startDeviceFlow }
 						__next40pxDefaultSize
 					>
-						{ __( 'Connect', 'dispatch' ) }
+						{ __( "Let's connect", 'dispatch' ) }
 					</Button>
 				</div>
 			</div>
@@ -303,7 +329,7 @@ function DeviceFlowApp() {
 					aria-live="polite"
 				>
 					<Spinner />
-					<span>{ __( 'Starting authorization…', 'dispatch' ) }</span>
+					<span>{ __( 'Getting your code…', 'dispatch' ) }</span>
 				</div>
 			</div>
 		);
@@ -314,10 +340,10 @@ function DeviceFlowApp() {
 			<div className="telex-connect-wrap">
 				<StepIndicator active={ 2 } />
 				<div className="telex-connect-card">
-					<h2>{ __( 'Enter your code', 'dispatch' ) }</h2>
+					<h2>{ __( "You're almost in", 'dispatch' ) }</h2>
 					<p>
 						{ __(
-							'Open the Telex app and enter the code below to authorize this site.',
+							"Open Telex, enter this code, and you're connected.",
 							'dispatch'
 						) }
 					</p>
@@ -359,13 +385,13 @@ function DeviceFlowApp() {
 						rel="noopener noreferrer"
 						__next40pxDefaultSize
 					>
-						{ __( 'Open Telex to authorize →', 'dispatch' ) }
+						{ __( 'Open Telex and approve →', 'dispatch' ) }
 					</Button>
 
 					<div className="telex-polling-status" aria-live="polite">
 						<Spinner />
 						<span>
-							{ __( 'Waiting for authorization…', 'dispatch' ) }
+							{ __( 'Waiting for you to approve…', 'dispatch' ) }
 						</span>
 					</div>
 
@@ -393,7 +419,7 @@ function DeviceFlowApp() {
 					<Notice status="error" isDismissible={ false }>
 						{ errorMsg ||
 							__(
-								'Device code expired. Please try again.',
+								'That code expired. Hit the button below to start over.',
 								'dispatch'
 							) }
 					</Notice>
@@ -402,7 +428,7 @@ function DeviceFlowApp() {
 						onClick={ startDeviceFlow }
 						__next40pxDefaultSize
 					>
-						{ __( 'Try Again', 'dispatch' ) }
+						{ __( 'Start over', 'dispatch' ) }
 					</Button>
 				</div>
 			</div>

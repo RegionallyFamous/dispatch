@@ -1,6 +1,6 @@
 === Dispatch for Telex ===
 Contributors: regionallyfamous
-Tags: blocks, themes, installer, telex, design system
+Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
 Stable tag: 1.0.0
@@ -8,17 +8,17 @@ Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Your Telex projects, one click from WordPress. Deploy custom blocks and themes without FTP, terminals, or waiting on a developer.
+Ship your Telex AI-generated blocks and themes to WordPress without FTP, terminals, or waiting on a developer.
 
 == Description ==
 
-**Dispatch for Telex** bridges the gap between the Telex design platform and your live WordPress site. The moment a new block or theme is ready in Telex, your team can ship it — directly from the WordPress admin, in seconds.
+[Telex](https://telex.automattic.ai) is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English, and Telex generates a fully functional block or theme you can download and install. **Dispatch for Telex** is the bridge that ships those creations to your live WordPress site — directly from the admin, in seconds.
 
 No FTP. No terminal. No deployment tickets.
 
 === Why Dispatch? ===
 
-Custom blocks and themes built on Telex deserve a first-class home in WordPress. Dispatch makes that happen with a native install experience that feels like it was always part of WordPress — because it was built to be.
+Blocks and themes built with Telex deserve a first-class home in WordPress. Dispatch makes that happen with a native install experience that feels like it was always part of WordPress — because it was built to be.
 
 === What You Can Do ===
 
@@ -53,9 +53,13 @@ Custom blocks and themes built on Telex deserve a first-class home in WordPress.
 
 == Frequently Asked Questions ==
 
+= What is Telex? =
+
+[Telex](https://telex.automattic.ai) is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English and Telex generates a fully functional block or theme you can download and deploy. Dispatch is the plugin that installs and manages those projects on your WordPress site.
+
 = Do I need a Telex account? =
 
-Yes. Dispatch is the WordPress delivery layer for the [Telex platform](https://telex.automattic.ai). Sign up at telex.automattic.ai to get started.
+Yes. Dispatch is the WordPress delivery layer for [Telex](https://telex.automattic.ai). Sign up at telex.automattic.ai to start building, then use Dispatch to deploy your projects to any WordPress site.
 
 = Does this plugin work on WordPress Multisite? =
 
