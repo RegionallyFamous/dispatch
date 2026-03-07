@@ -1,4 +1,9 @@
 <?php
+/**
+ * Local project tracker — records installed Telex projects in wp_options.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -25,6 +30,8 @@ class Telex_Tracker {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Returns all tracked projects keyed by public ID.
+	 *
 	 * @return array<string, array{version: int, type: string, slug: string, installed_at: string, updated_at: string}>
 	 */
 	public static function get_all(): array {
@@ -43,6 +50,9 @@ class Telex_Tracker {
 	}
 
 	/**
+	 * Returns a single tracked project entry, or null if not found.
+	 *
+	 * @param string $public_id The Telex project public ID.
 	 * @return array{version: int, type: string, slug: string, installed_at: string, updated_at: string}|null
 	 */
 	public static function get( string $public_id ): ?array {
@@ -50,10 +60,23 @@ class Telex_Tracker {
 		return $all[ $public_id ] ?? null;
 	}
 
+	/**
+	 * Returns true if the project is currently installed on this site.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @return bool
+	 */
 	public static function is_installed( string $public_id ): bool {
 		return null !== self::get( $public_id );
 	}
 
+	/**
+	 * Returns true if the remote version is newer than the installed version.
+	 *
+	 * @param string $public_id      The Telex project public ID.
+	 * @param int    $remote_version The latest version number from the API.
+	 * @return bool
+	 */
 	public static function needs_update( string $public_id, int $remote_version ): bool {
 		$info = self::get( $public_id );
 		return null !== $info && $remote_version > $info['version'];
@@ -63,6 +86,15 @@ class Telex_Tracker {
 	// Write
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Records or updates a tracked project entry.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @param int    $version   The installed version number.
+	 * @param string $type      The project type ('block' or 'theme').
+	 * @param string $slug      The WordPress plugin/theme directory slug.
+	 * @return void
+	 */
 	public static function track( string $public_id, int $version, string $type, string $slug ): void {
 		$all      = self::get_all();
 		$now      = gmdate( 'c' );
@@ -79,6 +111,12 @@ class Telex_Tracker {
 		self::save( $all );
 	}
 
+	/**
+	 * Removes a project from the tracker.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @return void
+	 */
 	public static function untrack( string $public_id ): void {
 		$all = self::get_all();
 		unset( $all[ $public_id ] );
@@ -121,7 +159,12 @@ class Telex_Tracker {
 	// Internal
 	// -------------------------------------------------------------------------
 
-	/** @param array<string, mixed> $data */
+	/**
+	 * Persists the tracker data to wp_options and busts the object cache.
+	 *
+	 * @param array<string, mixed> $data Tracker data keyed by public ID.
+	 * @return void
+	 */
 	private static function save( array $data ): void {
 		update_option( self::OPTION_KEY, wp_json_encode( $data ), false );
 		wp_cache_delete( self::CACHE_KEY, self::CACHE_GROUP );

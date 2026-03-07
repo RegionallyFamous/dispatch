@@ -1,4 +1,9 @@
 <?php
+/**
+ * Plugin activation and upgrade migration handler.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -9,6 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Activator {
 
+	/**
+	 * Runs on first activation: creates the audit table, records install time,
+	 * and schedules the cache warmup cron event.
+	 *
+	 * @return void
+	 */
 	public static function activate(): void {
 		Telex_Audit_Log::create_table();
 
@@ -29,7 +40,7 @@ class Telex_Activator {
 	 */
 	public static function maybe_upgrade(): void {
 		$stored = (string) get_option( 'telex_version', '' );
-		if ( $stored === TELEX_PLUGIN_VERSION ) {
+		if ( TELEX_PLUGIN_VERSION === $stored ) {
 			return;
 		}
 

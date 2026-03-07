@@ -12,6 +12,8 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       telex
+ *
+ * @package Dispatch_For_Telex
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -51,13 +53,14 @@ require_once TELEX_PLUGIN_DIR . 'includes/class-telex-tracker.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-wp-http-client.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-installer.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-updater.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-audit-log-table.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-admin.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-rest.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-fatal-handler.php';
 
 // Activation handler.
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-activator.php';
-register_activation_hook( __FILE__, Telex_Activator::activate(...) );
+register_activation_hook( __FILE__, Telex_Activator::activate( ... ) );
 
 // WP-CLI commands — only load in CLI context.
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
@@ -66,16 +69,19 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 }
 
 // Bootstrap all services after all plugins have loaded.
-add_action( 'plugins_loaded', static function (): void {
-	Telex_Fatal_Handler::register();
+add_action(
+	'plugins_loaded',
+	static function (): void {
+		Telex_Fatal_Handler::register();
 
-	// Version upgrade detection.
-	Telex_Activator::maybe_upgrade();
+		// Version upgrade detection.
+		Telex_Activator::maybe_upgrade();
 
-	Telex_Auth::init();
-	Telex_Admin::init();
-	Telex_Updater::init();
-} );
+		Telex_Auth::init();
+		Telex_Admin::init();
+		Telex_Updater::init();
+	}
+);
 
 // REST API routes.
-add_action( 'rest_api_init', Telex_REST::register_routes(...) );
+add_action( 'rest_api_init', Telex_REST::register_routes( ... ) );

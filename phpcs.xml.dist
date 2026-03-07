@@ -23,13 +23,20 @@
     <!-- Minimum WP version for deprecation checks -->
     <config name="minimum_wp_version" value="6.7" />
 
-    <!-- Allow short array syntax (PHP 5.4+) -->
+    <!-- Require short array syntax [] throughout (PHP 5.4+) -->
     <rule ref="Generic.Arrays.DisallowLongArraySyntax" />
+    <!-- Suppress the conflicting rule from phpcsstandards/phpcsextra -->
+    <rule ref="Universal.Arrays.DisallowShortArraySyntax.Found">
+        <severity>0</severity>
+    </rule>
 
     <!-- Relax line-length for complex strings -->
     <rule ref="WordPress.WP.AlternativeFunctions">
-        <!-- We use WP_Filesystem but allow file_put_contents in the fatal handler (last resort) -->
+        <!-- Allow file_put_contents in the fatal handler (last resort) -->
         <exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents" />
+        <!-- Allow direct unlink/rmdir in controlled cleanup paths -->
+        <exclude name="WordPress.WP.AlternativeFunctions.unlink_unlink" />
+        <exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_rmdir" />
     </rule>
 
     <!-- Allow PHP 8.2 readonly, enums, match, named args -->
@@ -37,5 +44,38 @@
         <properties>
             <property name="testVersion" value="8.2-" />
         </properties>
+    </rule>
+
+    <!-- Enum files follow PSR-4 PascalCase naming — suppress WP filename rules -->
+    <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+        <exclude-pattern>includes/Enums/*</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>includes/class-telex-dtos.php</exclude-pattern>
+    </rule>
+
+    <!-- DTOs and HTTP client/exception live in single files by design -->
+    <rule ref="Generic.Files.OneObjectStructurePerFile">
+        <exclude-pattern>includes/class-telex-dtos.php</exclude-pattern>
+        <exclude-pattern>includes/class-telex-wp-http-client.php</exclude-pattern>
+    </rule>
+
+    <!-- PHPCompatibility false positive: $this IS valid in PHP 8.1 backed enum methods -->
+    <rule ref="PHPCompatibility.Variables.ForbiddenThisUseContexts.OutsideObjectContext">
+        <exclude-pattern>includes/Enums/*</exclude-pattern>
+    </rule>
+
+    <!-- base64_encode/decode are used for AES-256-GCM token storage, not obfuscation -->
+    <rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode">
+        <severity>0</severity>
+    </rule>
+    <rule ref="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Tests intentionally use lowercase 'wordpress' as array keys; suppress
+         the CapitalPDangit sniff for the entire tests/ directory. -->
+    <rule ref="WordPress.WP.CapitalPDangit">
+        <exclude-pattern>tests/*</exclude-pattern>
     </rule>
 </ruleset>

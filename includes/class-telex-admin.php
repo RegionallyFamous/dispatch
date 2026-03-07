@@ -1,4 +1,9 @@
 <?php
+/**
+ * WordPress admin UI for Telex (menus, Site Health, Heartbeat).
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -20,51 +25,86 @@ class Telex_Admin {
 	// Init
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Registers all admin hooks. Called from plugins_loaded.
+	 *
+	 * @return void
+	 */
 	public static function init(): void {
 		if ( is_multisite() ) {
-			add_action( 'network_admin_menu', self::register_menu(...) );
+			add_action( 'network_admin_menu', self::register_menu( ... ) );
 		} else {
-			add_action( 'admin_menu', self::register_menu(...) );
+			add_action( 'admin_menu', self::register_menu( ... ) );
 		}
 
-		add_action( 'admin_init', self::handle_legacy_actions(...) );
-		add_filter( 'set-screen-option', self::save_screen_option(...), 10, 3 );
+		add_action( 'admin_init', self::handle_legacy_actions( ... ) );
+		add_filter( 'set-screen-option', self::save_screen_option( ... ), 10, 3 );
 
 		// Site Health integration.
-		add_filter( 'debug_information', self::site_health_info(...) );
-		add_filter( 'site_status_tests', self::site_health_tests(...) );
+		add_filter( 'debug_information', self::site_health_info( ... ) );
+		add_filter( 'site_status_tests', self::site_health_tests( ... ) );
 
 		// Heartbeat API — piggyback on WP's existing polling for auth status.
-		add_filter( 'heartbeat_received', self::heartbeat_received(...), 10, 2 );
-		add_filter( 'heartbeat_nopriv_received', self::heartbeat_nopriv_deny(...), 10, 2 );
+		add_filter( 'heartbeat_received', self::heartbeat_received( ... ), 10, 2 );
+		add_filter( 'heartbeat_nopriv_received', self::heartbeat_nopriv_deny( ... ), 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
 	// Menu
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Registers the Telex admin menu page and sub-pages.
+	 *
+	 * @return void
+	 */
 	public static function register_menu(): void {
 		$hook = add_menu_page(
 			__( 'Telex', 'telex' ),
 			__( 'Telex', 'telex' ),
 			'manage_options',
 			'telex',
-			self::render_page(...),
+			self::render_page( ... ),
 			'dashicons-layout',
 			59
 		);
 
-		add_action( "load-{$hook}", self::add_screen_options(...) );
+		add_action( "load-{$hook}", self::add_screen_options( ... ) );
+
+		add_submenu_page(
+			'telex',
+			__( 'Audit Log', 'telex' ),
+			__( 'Audit Log', 'telex' ),
+			'manage_options',
+			'telex-audit-log',
+			[ self::class, 'render_audit_log_page' ]
+		);
 	}
 
+	/**
+	 * Adds the "Projects per page" screen option on the Telex admin page.
+	 *
+	 * @return void
+	 */
 	public static function add_screen_options(): void {
-		add_screen_option( 'per_page', [
-			'label'   => __( 'Projects per page', 'telex' ),
-			'default' => 24,
-			'option'  => self::SCREEN_OPTION_PER_PAGE,
-		] );
+		add_screen_option(
+			'per_page',
+			[
+				'label'   => __( 'Projects per page', 'telex' ),
+				'default' => 24,
+				'option'  => self::SCREEN_OPTION_PER_PAGE,
+			]
+		);
 	}
 
+	/**
+	 * Persists the "Projects per page" screen option when saved.
+	 *
+	 * @param bool|int $status The current status (false to discard, int to save).
+	 * @param string   $option The option name being saved.
+	 * @param int      $value  The value entered by the user.
+	 * @return bool|int
+	 */
 	public static function save_screen_option( bool|int $status, string $option, int $value ): bool|int {
 		if ( self::SCREEN_OPTION_PER_PAGE === $option ) {
 			return $value;
@@ -76,6 +116,11 @@ class Telex_Admin {
 	// Legacy GET/POST action handler (redirect → React UI handles most actions)
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Handles legacy GET-based actions (e.g., disconnect via nonce URL).
+	 *
+	 * @return void
+	 */
 	public static function handle_legacy_actions(): void {
 		if ( ! isset( $_GET['page'] ) || 'telex' !== $_GET['page'] ) {
 			return;
@@ -100,6 +145,11 @@ class Telex_Admin {
 	// Page render — React shell
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Renders the Telex admin page shell div (React app mounts here).
+	 *
+	 * @return void
+	 */
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -107,7 +157,8 @@ class Telex_Admin {
 
 		self::enqueue_assets();
 
-		$per_page = (int) ( get_user_option( self::SCREEN_OPTION_PER_PAGE ) ?: 24 );
+		$per_page_opt = get_user_option( self::SCREEN_OPTION_PER_PAGE );
+		$per_page     = (int) ( false !== $per_page_opt && '' !== $per_page_opt ? $per_page_opt : 24 );
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Telex', 'telex' ) . '</h1>';
@@ -125,7 +176,13 @@ class Telex_Admin {
 		} else {
 			// Disconnect URL for the React app's "Disconnect" button.
 			$disconnect_url = wp_nonce_url(
-				add_query_arg( [ 'page' => 'telex', 'telex_action' => 'disconnect' ], admin_url( 'admin.php' ) ),
+				add_query_arg(
+					[
+						'page'         => 'telex',
+						'telex_action' => 'disconnect',
+					],
+					admin_url( 'admin.php' )
+				),
 				'telex_disconnect'
 			);
 
@@ -133,7 +190,7 @@ class Telex_Admin {
 				'<div id="telex-projects-app" data-rest-url="%s" data-nonce="%s" data-per-page="%d" data-disconnect-url="%s"></div>',
 				esc_attr( rest_url( 'telex/v1' ) ),
 				esc_attr( wp_create_nonce( 'wp_rest' ) ),
-				$per_page,
+				absint( $per_page ),
 				esc_attr( $disconnect_url )
 			);
 		}
@@ -141,10 +198,40 @@ class Telex_Admin {
 		echo '</div>';
 	}
 
+	/**
+	 * Renders the Audit Log sub-page.
+	 *
+	 * @return void
+	 */
+	public static function render_audit_log_page(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'telex' ) );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+
+		$table = new Telex_Audit_Log_Table();
+		$table->prepare_items();
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Telex Audit Log', 'telex' ) . '</h1>';
+		echo '<p class="description">' . esc_html__( 'A read-only record of security-relevant events: installs, updates, removals, and authentication changes.', 'telex' ) . '</p>';
+		echo '<form method="get">';
+		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
+		$table->display();
+		echo '</form>';
+		echo '</div>';
+	}
+
 	// -------------------------------------------------------------------------
 	// Asset enqueueing
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Enqueues the JS and CSS assets for the admin page.
+	 *
+	 * @return void
+	 */
 	private static function enqueue_assets(): void {
 		$is_connected = Telex_Auth::is_connected();
 		$handle       = $is_connected ? 'telex-admin' : 'telex-device-flow';
@@ -162,14 +249,17 @@ class Telex_Admin {
 			plugins_url( 'build/' . ( $is_connected ? 'admin' : 'device-flow' ) . '.js', TELEX_PLUGIN_FILE ),
 			$asset['dependencies'],
 			$asset['version'],
-			[ 'strategy' => 'defer', 'in_footer' => true ]
+			[
+				'strategy'  => 'defer',
+				'in_footer' => true,
+			]
 		);
 
 		wp_enqueue_style(
 			'telex-admin',
 			plugins_url( 'assets/css/admin.css', TELEX_PLUGIN_FILE ),
 			[],
-			filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) ?: TELEX_PLUGIN_VERSION
+			filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) !== false ? filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) : TELEX_PLUGIN_VERSION
 		);
 
 		wp_set_script_translations( $handle, 'telex', TELEX_PLUGIN_DIR . 'languages' );
@@ -179,14 +269,38 @@ class Telex_Admin {
 	// Transient-based notices (post-redirect-get)
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Returns the transient key for the current user's admin notice.
+	 *
+	 * @return string
+	 */
 	private static function notice_key(): string {
 		return self::NOTICE_TRANSIENT . get_current_user_id();
 	}
 
+	/**
+	 * Stores an admin notice in a transient for the current user.
+	 *
+	 * @param string $type    Notice type: 'success', 'error', 'warning', or 'info'.
+	 * @param string $message The notice message (plain text, escaped at render time).
+	 * @return void
+	 */
 	public static function set_notice( string $type, string $message ): void {
-		set_transient( self::notice_key(), [ 'type' => $type, 'message' => $message ], MINUTE_IN_SECONDS );
+		set_transient(
+			self::notice_key(),
+			[
+				'type'    => $type,
+				'message' => $message,
+			],
+			MINUTE_IN_SECONDS
+		);
 	}
 
+	/**
+	 * Renders any queued admin notice and clears it from the transient.
+	 *
+	 * @return void
+	 */
 	private static function render_notices(): void {
 		$notice = get_transient( self::notice_key() );
 		if ( ! is_array( $notice ) ) {
@@ -217,8 +331,8 @@ class Telex_Admin {
 	 *
 	 * The JS device-flow component sends `{ telex_poll: true }` in heartbeat data.
 	 *
-	 * @param array<string, mixed> $response
-	 * @param array<string, mixed> $data
+	 * @param array<string, mixed> $response The Heartbeat response data to be sent back to the client.
+	 * @param array<string, mixed> $data     The data sent by the Heartbeat client.
 	 * @return array<string, mixed>
 	 */
 	public static function heartbeat_received( array $response, array $data ): array {
@@ -227,8 +341,8 @@ class Telex_Admin {
 		}
 
 		$response['telex'] = [
-			'is_connected'    => Telex_Auth::is_connected(),
-			'circuit_status'  => Telex_Circuit_Breaker::status(),
+			'is_connected'   => Telex_Auth::is_connected(),
+			'circuit_status' => Telex_Circuit_Breaker::status(),
 		];
 
 		return $response;
@@ -237,11 +351,11 @@ class Telex_Admin {
 	/**
 	 * Ensure unauthenticated heartbeat requests never leak Telex data.
 	 *
-	 * @param array<string, mixed> $response
-	 * @param array<string, mixed> $data
+	 * @param array<string, mixed> $response The Heartbeat response data.
+	 * @param array<string, mixed> $_data    The incoming Heartbeat data (unused).
 	 * @return array<string, mixed>
 	 */
-	public static function heartbeat_nopriv_deny( array $response, array $data ): array {
+	public static function heartbeat_nopriv_deny( array $response, array $_data ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		unset( $response['telex'] );
 		return $response;
 	}
@@ -250,16 +364,21 @@ class Telex_Admin {
 	// Site Health
 	// -------------------------------------------------------------------------
 
-	/** @param array<string, mixed> $info */
+	/**
+	 * Adds Telex debug information to the Site Health info screen.
+	 *
+	 * @param array<string, mixed> $info The existing debug info sections.
+	 * @return array<string, mixed>
+	 */
 	public static function site_health_info( array $info ): array {
 		$info['telex'] = [
 			'label'  => __( 'Telex', 'telex' ),
 			'fields' => [
-				'version'    => [
+				'version'         => [
 					'label' => __( 'Plugin version', 'telex' ),
 					'value' => TELEX_PLUGIN_VERSION,
 				],
-				'connected'  => [
+				'connected'       => [
 					'label' => __( 'Connection status', 'telex' ),
 					'value' => Telex_Auth::is_connected()
 						? __( 'Connected', 'telex' )
@@ -278,26 +397,49 @@ class Telex_Admin {
 		return $info;
 	}
 
-	/** @param array<string, mixed> $tests */
+	/**
+	 * Registers the Telex API reachability test with Site Health.
+	 *
+	 * @param array<string, mixed> $tests The existing site health tests.
+	 * @return array<string, mixed>
+	 */
 	public static function site_health_tests( array $tests ): array {
 		$tests['async']['telex_api_reachable'] = [
 			'label'             => __( 'Telex API is reachable', 'telex' ),
 			'test'              => rest_url( 'telex/v1/site-health/api-reachable' ),
 			'has_rest'          => true,
-			'async_direct_test' => self::run_api_reachability_test(...),
+			'async_direct_test' => self::run_api_reachability_test( ... ),
 		];
 		return $tests;
 	}
 
+	/**
+	 * Performs the Telex API reachability test and returns a Site Health result array.
+	 *
+	 * @return array<string, mixed>
+	 */
 	public static function run_api_reachability_test(): array {
-		$response = wp_remote_head( TELEX_PUBLIC_URL, [ 'timeout' => 10, 'redirection' => 3 ] );
+		$client  = new Telex_WP_Http_Client( timeout: 10 );
+		$request = new \Nyholm\Psr7\Request( 'HEAD', TELEX_PUBLIC_URL );
 
-		if ( is_wp_error( $response ) ) {
+		try {
+			$client->sendRequest( $request );
+			$reachable    = true;
+			$error_detail = '';
+		} catch ( \Psr\Http\Client\ClientExceptionInterface $e ) {
+			$reachable    = false;
+			$error_detail = $e->getMessage();
+		}
+
+		if ( ! $reachable ) {
 			return [
 				'label'       => __( 'Telex API is unreachable', 'telex' ),
 				'status'      => 'critical',
-				'badge'       => [ 'label' => __( 'Telex', 'telex' ), 'color' => 'red' ],
-				'description' => '<p>' . esc_html( $response->get_error_message() ) . '</p>',
+				'badge'       => [
+					'label' => __( 'Telex', 'telex' ),
+					'color' => 'red',
+				],
+				'description' => '<p>' . esc_html( $error_detail ) . '</p>',
 				'test'        => 'telex_api_reachable',
 			];
 		}
@@ -305,7 +447,10 @@ class Telex_Admin {
 		return [
 			'label'       => __( 'Telex API is reachable', 'telex' ),
 			'status'      => 'good',
-			'badge'       => [ 'label' => __( 'Telex', 'telex' ), 'color' => 'blue' ],
+			'badge'       => [
+				'label' => __( 'Telex', 'telex' ),
+				'color' => 'blue',
+			],
 			'description' => '<p>' . esc_html__( 'Your site can reach the Telex API.', 'telex' ) . '</p>',
 			'test'        => 'telex_api_reachable',
 		];

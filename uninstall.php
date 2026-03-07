@@ -2,6 +2,8 @@
 /**
  * Uninstall — runs when the plugin is deleted via the WordPress admin.
  * Does NOT run on deactivation.
+ *
+ * @package Dispatch_For_Telex
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -38,6 +40,5 @@ $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 // Remove the fatal error log if present.
 $log_file = WP_CONTENT_DIR . '/telex-fatal.log';
 if ( file_exists( $log_file ) ) {
-	// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-	@unlink( $log_file );
+	wp_delete_file( $log_file );
 }

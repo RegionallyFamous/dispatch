@@ -1,4 +1,9 @@
 <?php
+/**
+ * AuthStatus enum — represents the OAuth connection state.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

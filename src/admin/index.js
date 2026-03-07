@@ -4,8 +4,13 @@
  * Renders the project card grid, handles install/update/remove,
  * and manages UI state via @wordpress/data.
  */
-import { render, useState, useEffect } from '@wordpress/element';
-import { createReduxStore, register, useDispatch, useSelect } from '@wordpress/data';
+import { render, useState, useEffect, Component } from '@wordpress/element';
+import {
+	createReduxStore,
+	register,
+	useDispatch,
+	useSelect,
+} from '@wordpress/data';
 import {
 	Button,
 	Card,
@@ -38,10 +43,17 @@ const actions = {
 	setLoading: ( loading ) => ( { type: 'SET_LOADING', loading } ),
 	setError: ( error ) => ( { type: 'SET_ERROR', error } ),
 	setSearchQuery: ( query ) => ( { type: 'SET_SEARCH', query } ),
-	setInstallStatus: ( publicId, status ) => ( { type: 'SET_INSTALL_STATUS', publicId, status } ),
+	setInstallStatus: ( publicId, status ) => ( {
+		type: 'SET_INSTALL_STATUS',
+		publicId,
+		status,
+	} ),
 	setNotice: ( notice ) => ( { type: 'SET_NOTICE', notice } ),
 	clearNotice: () => ( { type: 'SET_NOTICE', notice: null } ),
-	setConfirmRemove: ( publicId ) => ( { type: 'SET_CONFIRM_REMOVE', publicId } ),
+	setConfirmRemove: ( publicId ) => ( {
+		type: 'SET_CONFIRM_REMOVE',
+		publicId,
+	} ),
 };
 
 function reducer( state = DEFAULT_STATE, action ) {
@@ -55,7 +67,13 @@ function reducer( state = DEFAULT_STATE, action ) {
 		case 'SET_SEARCH':
 			return { ...state, searchQuery: action.query };
 		case 'SET_INSTALL_STATUS':
-			return { ...state, installing: { ...state.installing, [ action.publicId ]: action.status } };
+			return {
+				...state,
+				installing: {
+					...state.installing,
+					[ action.publicId ]: action.status,
+				},
+			};
 		case 'SET_NOTICE':
 			return { ...state, notice: action.notice };
 		case 'SET_CONFIRM_REMOVE':
@@ -73,7 +91,8 @@ const store = createReduxStore( 'telex/admin', {
 		isLoading: ( state ) => state.loading,
 		getError: ( state ) => state.error,
 		getSearchQuery: ( state ) => state.searchQuery,
-		getInstallStatus: ( state, publicId ) => state.installing[ publicId ] || 'idle',
+		getInstallStatus: ( state, publicId ) =>
+			state.installing[ publicId ] || 'idle',
 		getNotice: ( state ) => state.notice,
 		getConfirmRemove: ( state ) => state.confirmRemove,
 	},
@@ -86,19 +105,30 @@ register( store );
 // ---------------------------------------------------------------------------
 
 function StatusBadge( { publicId, remoteVersion, installed } ) {
-	const installStatus = useSelect( ( select ) => select( 'telex/admin' ).getInstallStatus( publicId ) );
+	const installStatus = useSelect( ( select ) =>
+		select( 'telex/admin' ).getInstallStatus( publicId )
+	);
 
 	if ( installStatus === 'installing' || installStatus === 'removing' ) {
 		return (
-			<span className="telex-badge telex-badge--loading" aria-live="polite">
+			<span
+				className="telex-badge telex-badge--loading"
+				aria-live="polite"
+			>
 				<Spinner />
-				{ installStatus === 'installing' ? __( 'Installing…', 'telex' ) : __( 'Removing…', 'telex' ) }
+				{ installStatus === 'installing'
+					? __( 'Installing…', 'telex' )
+					: __( 'Removing…', 'telex' ) }
 			</span>
 		);
 	}
 
 	if ( ! installed ) {
-		return <span className="telex-badge telex-badge--idle">{ __( 'Not installed', 'telex' ) }</span>;
+		return (
+			<span className="telex-badge telex-badge--idle">
+				{ __( 'Not installed', 'telex' ) }
+			</span>
+		);
 	}
 
 	if ( installed && remoteVersion > installed.version ) {
@@ -115,21 +145,30 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 	}
 
 	return (
-		<span className="telex-badge telex-badge--installed" aria-label={ __( 'Up to date', 'telex' ) }>
+		<span
+			className="telex-badge telex-badge--installed"
+			aria-label={ __( 'Up to date', 'telex' ) }
+		>
 			{ __( 'Up to date', 'telex' ) }
 		</span>
 	);
 }
 
-function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
-	const { setInstallStatus, setNotice, setConfirmRemove } = useDispatch( 'telex/admin' );
-	const confirmRemove = useSelect( ( select ) => select( 'telex/admin' ).getConfirmRemove() );
-	const installStatus = useSelect( ( select ) => select( 'telex/admin' ).getInstallStatus( project.publicId ) );
+function ProjectCard( { project, installedProjects, restUrl } ) {
+	const { setInstallStatus, setNotice, setConfirmRemove } =
+		useDispatch( 'telex/admin' );
+	const confirmRemove = useSelect( ( select ) =>
+		select( 'telex/admin' ).getConfirmRemove()
+	);
+	const installStatus = useSelect( ( select ) =>
+		select( 'telex/admin' ).getInstallStatus( project.publicId )
+	);
 
 	const installed = installedProjects[ project.publicId ];
 	const needsUpdate = installed && project.currentVersion > installed.version;
 	const isInstalled = !! installed;
-	const isBusy = installStatus === 'installing' || installStatus === 'removing';
+	const isBusy =
+		installStatus === 'installing' || installStatus === 'removing';
 
 	async function handleInstall( activate = false ) {
 		setInstallStatus( project.publicId, 'installing' );
@@ -139,16 +178,22 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 				method: 'POST',
 				data: { activate },
 			} );
-			setNotice( { type: 'success', message: sprintf(
-				/* translators: %s: project name */
-				__( '%s installed successfully.', 'telex' ),
-				project.name
-			) } );
+			setNotice( {
+				type: 'success',
+				message: sprintf(
+					/* translators: %s: project name */
+					__( '%s installed successfully.', 'telex' ),
+					project.name
+				),
+			} );
 			// Reload to sync state.
 			window.location.reload();
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'failed' );
-			setNotice( { type: 'error', message: err.message || __( 'Install failed.', 'telex' ) } );
+			setNotice( {
+				type: 'error',
+				message: err.message || __( 'Install failed.', 'telex' ),
+			} );
 		}
 	}
 
@@ -160,15 +205,21 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 				url: `${ restUrl }/projects/${ project.publicId }`,
 				method: 'DELETE',
 			} );
-			setNotice( { type: 'success', message: sprintf(
-				/* translators: %s: project name */
-				__( '%s removed.', 'telex' ),
-				project.name
-			) } );
+			setNotice( {
+				type: 'success',
+				message: sprintf(
+					/* translators: %s: project name */
+					__( '%s removed.', 'telex' ),
+					project.name
+				),
+			} );
 			window.location.reload();
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'idle' );
-			setNotice( { type: 'error', message: err.message || __( 'Remove failed.', 'telex' ) } );
+			setNotice( {
+				type: 'error',
+				message: err.message || __( 'Remove failed.', 'telex' ),
+			} );
 		}
 	}
 
@@ -176,7 +227,9 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 		<Card className="telex-project-card">
 			<CardHeader>
 				<strong>{ project.name }</strong>
-				<span className="telex-project-type">{ project.projectType || __( 'Block', 'telex' ) }</span>
+				<span className="telex-project-type">
+					{ project.projectType || __( 'Block', 'telex' ) }
+				</span>
 			</CardHeader>
 			<CardBody>
 				<StatusBadge
@@ -185,11 +238,15 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 					installed={ installed }
 				/>
 
-				<div className="telex-card-actions" role="group" aria-label={ sprintf(
-					/* translators: %s: project name */
-					__( 'Actions for %s', 'telex' ),
-					project.name
-				) }>
+				<div
+					className="telex-card-actions"
+					role="group"
+					aria-label={ sprintf(
+						/* translators: %s: project name */
+						__( 'Actions for %s', 'telex' ),
+						project.name
+					) }
+				>
 					{ ! isInstalled && (
 						<>
 							<Button
@@ -226,7 +283,9 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 						<Button
 							variant="tertiary"
 							isDestructive
-							onClick={ () => setConfirmRemove( project.publicId ) }
+							onClick={ () =>
+								setConfirmRemove( project.publicId )
+							}
 							disabled={ isBusy }
 							__next40pxDefaultSize
 						>
@@ -240,16 +299,27 @@ function ProjectCard( { project, installedProjects, restUrl, nonce } ) {
 						title={ __( 'Confirm removal', 'telex' ) }
 						onRequestClose={ () => setConfirmRemove( null ) }
 					>
-						<p>{ sprintf(
-							/* translators: %s: project name */
-							__( 'Remove %s from this site?', 'telex' ),
-							project.name
-						) }</p>
+						<p>
+							{ sprintf(
+								/* translators: %s: project name */
+								__( 'Remove %s from this site?', 'telex' ),
+								project.name
+							) }
+						</p>
 						<div className="telex-modal-actions">
-							<Button variant="primary" isDestructive onClick={ handleRemove } __next40pxDefaultSize>
+							<Button
+								variant="primary"
+								isDestructive
+								onClick={ handleRemove }
+								__next40pxDefaultSize
+							>
 								{ __( 'Remove', 'telex' ) }
 							</Button>
-							<Button variant="secondary" onClick={ () => setConfirmRemove( null ) } __next40pxDefaultSize>
+							<Button
+								variant="secondary"
+								onClick={ () => setConfirmRemove( null ) }
+								__next40pxDefaultSize
+							>
 								{ __( 'Cancel', 'telex' ) }
 							</Button>
 						</div>
@@ -266,16 +336,26 @@ function ProjectsApp() {
 	const nonce = container?.dataset?.nonce || '';
 	const disconnectUrl = container?.dataset?.disconnectUrl || '';
 
-	const { setProjects, setLoading, setError, setSearchQuery, clearNotice } = useDispatch( 'telex/admin' );
-	const projects = useSelect( ( select ) => select( 'telex/admin' ).getProjects() );
-	const loading = useSelect( ( select ) => select( 'telex/admin' ).isLoading() );
+	const { setProjects, setLoading, setError, setSearchQuery, clearNotice } =
+		useDispatch( 'telex/admin' );
+	const projects = useSelect( ( select ) =>
+		select( 'telex/admin' ).getProjects()
+	);
+	const loading = useSelect( ( select ) =>
+		select( 'telex/admin' ).isLoading()
+	);
 	const error = useSelect( ( select ) => select( 'telex/admin' ).getError() );
-	const searchQuery = useSelect( ( select ) => select( 'telex/admin' ).getSearchQuery() );
-	const notice = useSelect( ( select ) => select( 'telex/admin' ).getNotice() );
+	const searchQuery = useSelect( ( select ) =>
+		select( 'telex/admin' ).getSearchQuery()
+	);
+	const notice = useSelect( ( select ) =>
+		select( 'telex/admin' ).getNotice()
+	);
 
 	const [ installedProjects, setInstalledProjects ] = useState( {} );
 
-	// Fetch on mount.
+	// Fetch on mount — deps intentionally empty; nonce/restUrl are read once
+	// from the DOM on first render and never change.
 	useEffect( () => {
 		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
 
@@ -291,13 +371,18 @@ function ProjectsApp() {
 				setLoading( false );
 			} )
 			.catch( ( err ) => {
-				setError( err.message || __( 'Failed to load projects.', 'telex' ) );
+				setError(
+					err.message || __( 'Failed to load projects.', 'telex' )
+				);
 				setLoading( false );
 			} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
-	const filteredProjects = projects.filter( ( p ) =>
-		! searchQuery || p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
+	const filteredProjects = projects.filter(
+		( p ) =>
+			! searchQuery ||
+			p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
 	);
 
 	return (
@@ -318,19 +403,28 @@ function ProjectsApp() {
 					value={ searchQuery }
 					onChange={ setSearchQuery }
 				/>
-				<a href={ disconnectUrl } className="button button-secondary telex-disconnect">
+				<a
+					href={ disconnectUrl }
+					className="button button-secondary telex-disconnect"
+				>
 					{ __( 'Disconnect', 'telex' ) }
 				</a>
 			</div>
 
 			{ loading && (
-				<div className="telex-loading" aria-live="polite" aria-label={ __( 'Loading projects', 'telex' ) }>
+				<div
+					className="telex-loading"
+					aria-live="polite"
+					aria-label={ __( 'Loading projects', 'telex' ) }
+				>
 					<Spinner />
 				</div>
 			) }
 
 			{ error && (
-				<Notice status="error" isDismissible={ false }>{ error }</Notice>
+				<Notice status="error" isDismissible={ false }>
+					{ error }
+				</Notice>
 			) }
 
 			{ ! loading && ! error && (
@@ -360,10 +454,76 @@ function ProjectsApp() {
 }
 
 // ---------------------------------------------------------------------------
+// Error boundary
+// ---------------------------------------------------------------------------
+
+/**
+ * Catches any unhandled JS errors inside the React tree and renders a
+ * graceful fallback notice instead of a blank white panel.
+ */
+class TelexErrorBoundary extends Component {
+	constructor( props ) {
+		super( props );
+		this.state = { hasError: false, message: '' };
+	}
+
+	static getDerivedStateFromError( error ) {
+		return { hasError: true, message: error?.message ?? String( error ) };
+	}
+
+	render() {
+		if ( this.state.hasError ) {
+			return (
+				<div
+					className="notice notice-error"
+					style={ { margin: '16px 0' } }
+				>
+					<p>
+						<strong>
+							{ __(
+								'Telex encountered an unexpected error.',
+								'telex'
+							) }
+						</strong>{ ' ' }
+						{ __(
+							'Please reload the page. If the problem persists, check the browser console for details.',
+							'telex'
+						) }
+					</p>
+					{ this.state.message && (
+						<details>
+							<summary>
+								{ __( 'Technical details', 'telex' ) }
+							</summary>
+							<pre
+								style={ {
+									fontSize: '11px',
+									whiteSpace: 'pre-wrap',
+									wordBreak: 'break-word',
+								} }
+							>
+								{ this.state.message }
+							</pre>
+						</details>
+					) }
+				</div>
+			);
+		}
+
+		return this.props.children;
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 
 const appRoot = document.getElementById( 'telex-projects-app' );
 if ( appRoot ) {
-	render( <ProjectsApp />, appRoot );
+	render(
+		<TelexErrorBoundary>
+			<ProjectsApp />
+		</TelexErrorBoundary>,
+		appRoot
+	);
 }

@@ -14,25 +14,27 @@ import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
 const STATUS = {
-	IDLE:     'idle',
+	IDLE: 'idle',
 	STARTING: 'starting',
-	WAITING:  'waiting',
-	SUCCESS:  'success',
-	EXPIRED:  'expired',
-	ERROR:    'error',
+	WAITING: 'waiting',
+	SUCCESS: 'success',
+	EXPIRED: 'expired',
+	ERROR: 'error',
 };
 
 function DeviceFlowApp() {
 	const container = document.getElementById( 'telex-device-flow-app' );
 	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
-	const nonce   = container?.dataset?.nonce || '';
+	const nonce = container?.dataset?.nonce || '';
 
-	const [ status, setStatus ]       = useState( STATUS.IDLE );
+	const [ status, setStatus ] = useState( STATUS.IDLE );
 	const [ deviceData, setDeviceData ] = useState( null );
-	const [ errorMsg, setErrorMsg ]   = useState( '' );
+	const [ errorMsg, setErrorMsg ] = useState( '' );
 	const pollRef = useRef( null );
 
-	// Initialise nonce middleware and WP Heartbeat listener.
+	// Initialise nonce middleware and WP Heartbeat listener on mount only.
+	// nonce/status are intentionally excluded — nonce is stable, and status
+	// is read via the Heartbeat closure which is acceptable given its role.
 	useEffect( () => {
 		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
 
@@ -44,17 +46,22 @@ function DeviceFlowApp() {
 				stopPolling();
 				setStatus( STATUS.SUCCESS );
 				setTimeout( () => {
-					window.location.href = window.location.pathname + '?page=telex';
+					window.location.href =
+						window.location.pathname + '?page=telex';
 				}, 1200 );
 			}
 		};
 
 		if ( window.jQuery ) {
-			window.jQuery( document ).on( 'heartbeat-tick.telex', onHeartbeatTick );
+			window
+				.jQuery( document )
+				.on( 'heartbeat-tick.telex', onHeartbeatTick );
 			// Tell the server we want telex status on each tick.
-			window.jQuery( document ).on( 'heartbeat-send.telex', ( _e, data ) => {
-				data.telex_poll = true;
-			} );
+			window
+				.jQuery( document )
+				.on( 'heartbeat-send.telex', ( _e, data ) => {
+					data.telex_poll = true;
+				} );
 		}
 
 		return () => {
@@ -64,6 +71,7 @@ function DeviceFlowApp() {
 				window.jQuery( document ).off( 'heartbeat-send.telex' );
 			}
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
 	function stopPolling() {
@@ -87,7 +95,9 @@ function DeviceFlowApp() {
 			setStatus( STATUS.WAITING );
 			startPolling( data.interval || 5 );
 		} catch ( err ) {
-			setErrorMsg( err.message || __( 'Failed to start device flow.', 'telex' ) );
+			setErrorMsg(
+				err.message || __( 'Failed to start device flow.', 'telex' )
+			);
 			setStatus( STATUS.ERROR );
 		}
 	}
@@ -95,10 +105,10 @@ function DeviceFlowApp() {
 	function startPolling( intervalSeconds ) {
 		stopPolling();
 		const ms = intervalSeconds * 1000;
-		pollRef.current = setInterval( () => pollForToken( ms ), ms );
+		pollRef.current = setInterval( () => pollForToken(), ms );
 	}
 
-	async function pollForToken( currentIntervalMs ) {
+	async function pollForToken() {
 		try {
 			const data = await apiFetch( { url: `${ restUrl }/auth/device` } );
 
@@ -107,7 +117,8 @@ function DeviceFlowApp() {
 				setStatus( STATUS.SUCCESS );
 				// Give the success state a beat to render, then reload.
 				setTimeout( () => {
-					window.location.href = window.location.pathname + '?page=telex';
+					window.location.href =
+						window.location.pathname + '?page=telex';
 				}, 1200 );
 				return;
 			}
@@ -119,7 +130,10 @@ function DeviceFlowApp() {
 			}
 		} catch ( err ) {
 			stopPolling();
-			setErrorMsg( err.message || __( 'Authorization failed or code expired.', 'telex' ) );
+			setErrorMsg(
+				err.message ||
+					__( 'Authorization failed or code expired.', 'telex' )
+			);
 			setStatus( STATUS.EXPIRED );
 		}
 	}
@@ -127,7 +141,10 @@ function DeviceFlowApp() {
 	async function cancelDeviceFlow() {
 		stopPolling();
 		try {
-			await apiFetch( { url: `${ restUrl }/auth/device`, method: 'DELETE' } );
+			await apiFetch( {
+				url: `${ restUrl }/auth/device`,
+				method: 'DELETE',
+			} );
 		} catch {
 			// Ignore cancel errors.
 		}
@@ -153,8 +170,17 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-card">
 				<h2>{ __( 'Connect to Telex', 'telex' ) }</h2>
-				<p>{ __( 'Connect your account to browse and install your Telex projects.', 'telex' ) }</p>
-				<Button variant="primary" onClick={ startDeviceFlow } __next40pxDefaultSize>
+				<p>
+					{ __(
+						'Connect your account to browse and install your Telex projects.',
+						'telex'
+					) }
+				</p>
+				<Button
+					variant="primary"
+					onClick={ startDeviceFlow }
+					__next40pxDefaultSize
+				>
 					{ __( 'Connect', 'telex' ) }
 				</Button>
 			</div>
@@ -174,12 +200,18 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-card">
 				<div className="telex-device-code-block" aria-live="polite">
-					<p>{ __( 'Enter this code in the Telex app:', 'telex' ) }</p>
-					<div className="telex-user-code" role="status" aria-label={ sprintf(
-						/* translators: %s: user code */
-						__( 'Your device code is %s', 'telex' ),
-						deviceData.user_code
-					) }>
+					<p>
+						{ __( 'Enter this code in the Telex app:', 'telex' ) }
+					</p>
+					<div
+						className="telex-user-code"
+						role="status"
+						aria-label={ sprintf(
+							/* translators: %s: user code */
+							__( 'Your device code is %s', 'telex' ),
+							deviceData.user_code
+						) }
+					>
 						{ deviceData.user_code }
 					</div>
 					<Button
@@ -195,7 +227,9 @@ function DeviceFlowApp() {
 
 				<div className="telex-polling-status" aria-live="polite">
 					<Spinner />
-					<span id="telex-device-status">{ __( 'Waiting for authorization…', 'telex' ) }</span>
+					<span id="telex-device-status">
+						{ __( 'Waiting for authorization…', 'telex' ) }
+					</span>
 				</div>
 
 				<Button
@@ -214,9 +248,17 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-card" aria-live="assertive">
 				<Notice status="error" isDismissible={ false }>
-					{ errorMsg || __( 'Device code expired. Please try again.', 'telex' ) }
+					{ errorMsg ||
+						__(
+							'Device code expired. Please try again.',
+							'telex'
+						) }
 				</Notice>
-				<Button variant="primary" onClick={ startDeviceFlow } __next40pxDefaultSize>
+				<Button
+					variant="primary"
+					onClick={ startDeviceFlow }
+					__next40pxDefaultSize
+				>
 					{ __( 'Try Again', 'telex' ) }
 				</Button>
 			</div>

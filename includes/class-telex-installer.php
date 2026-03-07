@@ -1,4 +1,9 @@
 <?php
+/**
+ * Telex project installer and removal handler.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -11,7 +16,13 @@ class Telex_Installer {
 
 	/** File extensions that must never appear in a downloaded build. */
 	private const BLOCKED_EXTENSIONS = [
-		'phtml', 'phar', 'php5', 'shtml', 'php3', 'php4', 'php7',
+		'phtml',
+		'phar',
+		'php5',
+		'shtml',
+		'php3',
+		'php4',
+		'php7',
 	];
 
 	/**
@@ -25,6 +36,10 @@ class Telex_Installer {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Downloads, validates, and installs a Telex project via the WP Upgrader API.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @param bool   $activate  Whether to activate the plugin immediately after install.
 	 * @return true|\WP_Error
 	 */
 	public static function install( string $public_id, bool $activate = false ): true|\WP_Error {
@@ -51,7 +66,7 @@ class Telex_Installer {
 				return new \WP_Error( 'telex_no_files', __( 'Build has no files.', 'telex' ) );
 			}
 
-			$build_files = array_map( Telex_Build_File::from_array(...), $build['files'] );
+			$build_files = array_map( Telex_Build_File::from_array( ... ), $build['files'] );
 			$tmp_dir     = self::download_files( $client, $public_id, $build_files, $project['slug'] );
 			if ( is_wp_error( $tmp_dir ) ) {
 				return $tmp_dir;
@@ -71,9 +86,9 @@ class Telex_Installer {
 				MINUTE_IN_SECONDS
 			);
 
-			add_filter( 'upgrader_source_selection', self::verify_source(...), 10, 4 );
+			add_filter( 'upgrader_source_selection', self::verify_source( ... ), 10, 4 );
 			$result = self::run_upgrader( $zip_path, $type );
-			remove_filter( 'upgrader_source_selection', self::verify_source(...), 10 );
+			remove_filter( 'upgrader_source_selection', self::verify_source( ... ), 10 );
 
 			delete_transient( self::TRANSIENT_EXPECTED . md5( $public_id ) );
 			self::cleanup( $tmp_dir );
@@ -106,22 +121,29 @@ class Telex_Installer {
 				? AuditAction::Update
 				: AuditAction::Install;
 
-			Telex_Audit_Log::log( $action, $public_id, [
-				'slug'    => $project['slug'],
-				'version' => $version,
-				'type'    => $type->value,
-			] );
+			Telex_Audit_Log::log(
+				$action,
+				$public_id,
+				[
+					'slug'    => $project['slug'],
+					'version' => $version,
+					'type'    => $type->value,
+				]
+			);
 
 			return true;
 
 		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
 			return new \WP_Error( 'telex_api', $e->getMessage() );
 		} catch ( \Exception $e ) {
-			return new \WP_Error( 'telex_install', sprintf(
+			return new \WP_Error(
+				'telex_install',
+				sprintf(
 				/* translators: %s: error message */
-				__( 'Installation failed: %s', 'telex' ),
-				$e->getMessage()
-			) );
+					__( 'Installation failed: %s', 'telex' ),
+					$e->getMessage()
+				)
+			);
 		}
 	}
 
@@ -130,6 +152,9 @@ class Telex_Installer {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Removes an installed Telex project from this WordPress site.
+	 *
+	 * @param string $public_id The Telex project public ID.
 	 * @return true|\WP_Error
 	 */
 	public static function remove( string $public_id ): true|\WP_Error {
@@ -165,7 +190,7 @@ class Telex_Installer {
 				}
 				require_once ABSPATH . 'wp-admin/includes/plugin.php';
 				require_once ABSPATH . 'wp-admin/includes/file.php';
-				$result = delete_plugins( [ $plugin_file ?: $slug . '/' . $slug . '.php' ] );
+				$result = delete_plugins( [ '' !== $plugin_file ? $plugin_file : $slug . '/' . $slug . '.php' ] );
 				if ( is_wp_error( $result ) ) {
 					return $result;
 				}
@@ -175,10 +200,14 @@ class Telex_Installer {
 		Telex_Tracker::untrack( $public_id );
 		Telex_Cache::bust_project( $public_id );
 
-		Telex_Audit_Log::log( AuditAction::Remove, $public_id, [
-			'slug' => $slug,
-			'type' => $type->value,
-		] );
+		Telex_Audit_Log::log(
+			AuditAction::Remove,
+			$public_id,
+			[
+				'slug' => $slug,
+				'type' => $type->value,
+			]
+		);
 
 		return true;
 	}
@@ -188,8 +217,13 @@ class Telex_Installer {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * @param Telex_Build_File[] $files
-	 * @return string|\WP_Error
+	 * Downloads all build files into a temporary directory.
+	 *
+	 * @param \Telex\Sdk\TelexClient $client    An authenticated SDK client.
+	 * @param string                 $public_id The Telex project public ID.
+	 * @param Telex_Build_File[]     $files     List of build file descriptors.
+	 * @param string                 $slug      The WordPress plugin/theme slug.
+	 * @return string|\WP_Error The temp directory path, or a WP_Error on failure.
 	 */
 	private static function download_files(
 		\Telex\Sdk\TelexClient $client,
@@ -204,7 +238,7 @@ class Telex_Installer {
 			WP_Filesystem();
 		}
 
-		$tmp_dir     = wp_tempnam( 'telex_' ) . '_dir';
+		$tmp_dir = wp_tempnam( 'telex_' ) . '_dir';
 		// wp_tempnam creates a file; remove it and use as directory name.
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		@unlink( $tmp_dir );
@@ -221,22 +255,28 @@ class Telex_Installer {
 			// Path traversal check.
 			if ( str_contains( $path, '..' ) || str_starts_with( $path, '/' ) || str_starts_with( $path, '\\' ) ) {
 				self::cleanup( $tmp_dir );
-				return new \WP_Error( 'telex_path', sprintf(
+				return new \WP_Error(
+					'telex_path',
+					sprintf(
 					/* translators: %s: file path */
-					__( 'Unsafe file path rejected: %s', 'telex' ),
-					$path
-				) );
+						__( 'Unsafe file path rejected: %s', 'telex' ),
+						$path
+					)
+				);
 			}
 
 			// Extension blocklist — also checked in upgrader_source_selection, but defense-in-depth.
 			$extension = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
 			if ( in_array( $extension, self::BLOCKED_EXTENSIONS, true ) ) {
 				self::cleanup( $tmp_dir );
-				return new \WP_Error( 'telex_ext', sprintf(
+				return new \WP_Error(
+					'telex_ext',
+					sprintf(
 					/* translators: %s: file path */
-					__( 'Blocked file extension in: %s', 'telex' ),
-					$path
-				) );
+						__( 'Blocked file extension in: %s', 'telex' ),
+						$path
+					)
+				);
 			}
 
 			$file_path = $project_dir . '/' . $path;
@@ -244,11 +284,14 @@ class Telex_Installer {
 
 			if ( ! wp_mkdir_p( $dir ) ) {
 				self::cleanup( $tmp_dir );
-				return new \WP_Error( 'telex_mkdir', sprintf(
+				return new \WP_Error(
+					'telex_mkdir',
+					sprintf(
 					/* translators: %s: directory path */
-					__( 'Could not create directory: %s', 'telex' ),
-					$dir
-				) );
+						__( 'Could not create directory: %s', 'telex' ),
+						$dir
+					)
+				);
 			}
 
 			// ZipSlip protection: resolved path must stay within project directory.
@@ -257,11 +300,14 @@ class Telex_Installer {
 
 			if ( false === $real_dir || false === $real_project_dir || ! str_starts_with( $real_dir, $real_project_dir ) ) {
 				self::cleanup( $tmp_dir );
-				return new \WP_Error( 'telex_path', sprintf(
+				return new \WP_Error(
+					'telex_path',
+					sprintf(
 					/* translators: %s: file path */
-					__( 'File path escapes project directory: %s', 'telex' ),
-					$path
-				) );
+						__( 'File path escapes project directory: %s', 'telex' ),
+						$path
+					)
+				);
 			}
 
 			try {
@@ -269,11 +315,14 @@ class Telex_Installer {
 				$wp_filesystem->put_contents( $file_path, $content, FS_CHMOD_FILE );
 			} catch ( \Exception $e ) {
 				self::cleanup( $tmp_dir );
-				return new \WP_Error( 'telex_download', sprintf(
+				return new \WP_Error(
+					'telex_download',
+					sprintf(
 					/* translators: %s: file path */
-					__( 'Failed to download file: %s', 'telex' ),
-					$file->path
-				) );
+						__( 'Failed to download file: %s', 'telex' ),
+						$file->path
+					)
+				);
 			}
 		}
 
@@ -281,9 +330,13 @@ class Telex_Installer {
 	}
 
 	/**
-	 * @return string|\WP_Error
+	 * Creates a ZIP archive from the contents of a source directory.
+	 *
+	 * @param string $source_dir Path to the directory to zip.
+	 * @param string $slug       The plugin/theme slug (used for the ZIP entry root).
+	 * @return string|\WP_Error Path to the created ZIP, or a WP_Error on failure.
 	 */
-	private static function create_zip( string $source_dir, string $slug ): string|\WP_Error {
+	private static function create_zip( string $source_dir, string $slug ): string|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$zip_path = wp_tempnam( 'telex_' ) . '.zip';
 
 		$zip = new \ZipArchive();
@@ -309,6 +362,10 @@ class Telex_Installer {
 	}
 
 	/**
+	 * Runs the WordPress Upgrader to install a ZIP package.
+	 *
+	 * @param string      $zip_path Path to the ZIP file to install.
+	 * @param ProjectType $type     Whether to use Plugin_Upgrader or Theme_Upgrader.
 	 * @return true|\WP_Error
 	 */
 	private static function run_upgrader( string $zip_path, ProjectType $type ): true|\WP_Error {
@@ -344,17 +401,17 @@ class Telex_Installer {
 	 * directory but before it moves files into the plugin/theme directory.
 	 * Returning a WP_Error here aborts the install cleanly.
 	 *
-	 * @param string|\WP_Error $source    Temp dir path or existing error.
-	 * @param string           $remote    Remote package URL (unused).
-	 * @param \WP_Upgrader     $upgrader  Upgrader instance.
-	 * @param array<string,mixed> $hook_extra Extra args passed to upgrader.
+	 * @param string|\WP_Error    $source    Temp dir path or existing error.
+	 * @param string              $_remote     Remote package URL (unused).
+	 * @param object              $_upgrader   Upgrader instance (unused; WP_Upgrader at runtime).
+	 * @param array<string,mixed> $_hook_extra Extra args passed to upgrader (unused).
 	 * @return string|\WP_Error
 	 */
-	public static function verify_source(
+	public static function verify_source( // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- hook signature is fixed by WP_Upgrader
 		string|\WP_Error $source,
-		string $remote,
-		\WP_Upgrader $upgrader,
-		array $hook_extra
+		string $_remote,
+		object $_upgrader,
+		array $_hook_extra
 	): string|\WP_Error {
 		if ( is_wp_error( $source ) ) {
 			return $source;
@@ -386,6 +443,12 @@ class Telex_Installer {
 		return $source;
 	}
 
+	/**
+	 * Finds the main plugin file path for a given directory slug.
+	 *
+	 * @param string $slug The WordPress plugin directory slug.
+	 * @return string Plugin file path relative to plugins dir, or empty string.
+	 */
 	private static function find_plugin_file( string $slug ): string {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -398,6 +461,12 @@ class Telex_Installer {
 		return '';
 	}
 
+	/**
+	 * Recursively removes a temporary directory.
+	 *
+	 * @param string $dir Path to the directory to remove.
+	 * @return void
+	 */
 	private static function cleanup( string $dir ): void {
 		if ( ! is_dir( $dir ) ) {
 			return;

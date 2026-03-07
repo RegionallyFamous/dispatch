@@ -1,0 +1,49 @@
+---
+description: JavaScript and React standards for the Dispatch admin UI and device flow
+globs: src/**/*.js
+alwaysApply: false
+---
+
+# JavaScript Standards
+
+## WordPress-First
+
+`@wordpress/` packages are the only approved runtime dependencies. They are externals — provided by WordPress core at runtime, not bundled into the build.
+
+| Need | Package |
+|------|---------|
+| State management | `@wordpress/data` |
+| UI components | `@wordpress/components` |
+| REST API calls | `@wordpress/api-fetch` |
+| Translations | `@wordpress/i18n` (`__()`, `_n()`, `_x()`) |
+| React | `@wordpress/element` |
+
+Do not add new runtime npm dependencies. If a `@wordpress/*` package genuinely cannot cover the need, raise it for discussion before reaching for a third-party library.
+
+## Internationalization
+
+Every user-facing string must be wrapped for translation:
+
+```js
+// ✅ GOOD
+__( 'Install project', 'telex' )
+_n( '%d project installed', '%d projects installed', count, 'telex' )
+
+// ❌ BAD
+'Install project'
+```
+
+## State
+
+All async operations and shared state go through `@wordpress/data` stores. No component-local `useState` for data that needs to be shared or that triggers REST calls.
+
+## Code Quality
+
+- No `console.log`, `console.error`, `console.warn`, or `debugger` in committed code
+- ESLint (`npm run lint:js`) must pass with zero errors
+- Stylelint (`npm run lint:css`) must pass with zero errors
+- Production build (`npm run build`) must complete cleanly
+
+## Build Output
+
+The `build/` directory is generated — never commit it. Built assets are produced at release time by `make build`.

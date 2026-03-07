@@ -1,4 +1,9 @@
 <?php
+/**
+ * Audit log — persists security-relevant events to a custom DB table.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -12,13 +17,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Audit_Log {
 
+	/**
+	 * Returns the fully-qualified audit log table name.
+	 *
+	 * @return string
+	 */
 	public static function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'telex_audit_log';
 	}
 
 	/**
-	 * @param array<string, mixed> $context
+	 * Writes an audit event to the database.
+	 *
+	 * @param AuditAction          $action    The type of action being recorded.
+	 * @param string               $public_id The Telex project public ID (if applicable).
+	 * @param array<string, mixed> $context   Additional context data to serialize.
+	 * @return void
 	 */
 	public static function log( AuditAction $action, string $public_id = '', array $context = [] ): void {
 		global $wpdb;
@@ -37,27 +52,34 @@ class Telex_Audit_Log {
 	}
 
 	/**
+	 * Returns the most recent audit log entries.
+	 *
+	 * @param int $limit Maximum number of rows to return.
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function get_recent( int $limit = 50 ): array {
 		global $wpdb;
 
 		$table = self::table_name();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$table} ORDER BY id DESC LIMIT %d", $limit ),
-			ARRAY_A
-		);
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table comes from $wpdb->prefix, never user-supplied.
+		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY id DESC LIMIT %d", $limit );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
 
 		return is_array( $rows ) ? $rows : [];
 	}
 
+	/**
+	 * Creates the audit log table using dbDelta (safe to call on every activation).
+	 *
+	 * @return void
+	 */
 	public static function create_table(): void {
 		global $wpdb;
 
-		$table      = self::table_name();
-		$charset    = $wpdb->get_charset_collate();
-		$sql        = "CREATE TABLE IF NOT EXISTS {$table} (
+		$table   = self::table_name();
+		$charset = $wpdb->get_charset_collate();
+		$sql     = "CREATE TABLE IF NOT EXISTS {$table} (
 			id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			action     VARCHAR(32)     NOT NULL,
 			public_id  VARCHAR(128)    NOT NULL DEFAULT '',
@@ -74,6 +96,11 @@ class Telex_Audit_Log {
 		dbDelta( $sql );
 	}
 
+	/**
+	 * Drops the audit log table (called on plugin uninstall).
+	 *
+	 * @return void
+	 */
 	public static function drop_table(): void {
 		global $wpdb;
 		$table = self::table_name();

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Transient-based circuit breaker for the Telex API.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -63,15 +68,22 @@ class Telex_Circuit_Breaker {
 	 * Call after a failed API response.
 	 */
 	public static function record_failure(): void {
-		delete_transient( self::TRANSIENT_PROBE ); // Probe request just failed.
+		$probe_was_in_flight = self::probe_in_flight();
+		delete_transient( self::TRANSIENT_PROBE );
 
 		$failures = (int) get_transient( self::TRANSIENT_FAILURES );
-		$failures++;
+		++$failures;
 		set_transient( self::TRANSIENT_FAILURES, $failures, self::FAILURE_WINDOW );
 
-		if ( $failures >= self::FAILURE_THRESHOLD && ! self::is_open() ) {
-			// Open the circuit.
-			set_transient( self::TRANSIENT_OPENED, time(), self::FAILURE_WINDOW + self::RESET_TIMEOUT );
+		if ( $failures >= self::FAILURE_THRESHOLD ) {
+			if ( ! self::is_open() ) {
+				// Open the circuit for the first time.
+				set_transient( self::TRANSIENT_OPENED, time(), self::FAILURE_WINDOW + self::RESET_TIMEOUT );
+			} elseif ( $probe_was_in_flight ) {
+				// Half-open probe just failed — restart the reset timer so the circuit
+				// stays OPEN for a full RESET_TIMEOUT before allowing another probe.
+				set_transient( self::TRANSIENT_OPENED, time(), self::FAILURE_WINDOW + self::RESET_TIMEOUT );
+			}
 		}
 	}
 
@@ -101,10 +113,20 @@ class Telex_Circuit_Breaker {
 	// Internal
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Returns true if the circuit is currently open.
+	 *
+	 * @return bool
+	 */
 	private static function is_open(): bool {
 		return (bool) get_transient( self::TRANSIENT_OPENED );
 	}
 
+	/**
+	 * Returns true if the reset timeout has passed since the circuit opened.
+	 *
+	 * @return bool
+	 */
 	private static function reset_timeout_elapsed(): bool {
 		$opened_at = (int) get_transient( self::TRANSIENT_OPENED );
 		if ( ! $opened_at ) {
@@ -113,10 +135,20 @@ class Telex_Circuit_Breaker {
 		return ( time() - $opened_at ) >= self::RESET_TIMEOUT;
 	}
 
+	/**
+	 * Returns true if a half-open probe request is already in flight.
+	 *
+	 * @return bool
+	 */
 	private static function probe_in_flight(): bool {
 		return (bool) get_transient( self::TRANSIENT_PROBE );
 	}
 
+	/**
+	 * Marks a probe request as in-flight so only one can proceed at a time.
+	 *
+	 * @return void
+	 */
 	private static function mark_probe_in_flight(): void {
 		// Probe expires quickly — if the request hangs, we don't want to block all probes.
 		set_transient( self::TRANSIENT_PROBE, 1, 30 );

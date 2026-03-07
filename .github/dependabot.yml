@@ -1,0 +1,64 @@
+version: 2
+updates:
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci"
+
+  # Composer (PHP)
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
+    labels:
+      - dependencies
+      - php
+    commit-message:
+      prefix: "chore(deps)"
+    # Keep dev-only tools separate from runtime deps for easier review
+    groups:
+      phpcs-tools:
+        patterns:
+          - "squizlabs/php_codesniffer"
+          - "wp-coding-standards/wpcs"
+          - "phpcompatibility/*"
+          - "phpcsstandards/*"
+          - "dealerdirect/*"
+      phpunit-tools:
+        patterns:
+          - "phpunit/phpunit"
+          - "yoast/phpunit-polyfills"
+      static-analysis:
+        patterns:
+          - "phpstan/*"
+          - "szepeviktor/*"
+
+  # npm (JavaScript)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/New_York
+    labels:
+      - dependencies
+      - javascript
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      wordpress-scripts:
+        patterns:
+          - "@wordpress/*"

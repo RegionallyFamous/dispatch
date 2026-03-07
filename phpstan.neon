@@ -1,0 +1,36 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 6
+
+    paths:
+        - telex.php
+        - uninstall.php
+        - includes/
+        - lib/
+
+    excludePaths:
+        - vendor/
+        - node_modules/
+        # WP-CLI has no published PHPStan stubs; the CLI class is analysed
+        # separately when WP-CLI stubs become available.
+        - includes/class-telex-cli.php
+
+    # Bootstrap defines plugin constants for analysis time.
+    bootstrapFiles:
+        - phpstan-bootstrap.php
+
+    # WordPress stubs provide type information for core functions and classes.
+    stubFiles:
+        - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+
+    # PHPDoc types from WordPress stubs are not 100% accurate; disabling
+    # this prevents false-positive "always true/false" narrowing errors.
+    treatPhpDocTypesAsCertain: false
+
+    # WP-CLI add_command call in the main plugin file is guarded by
+    # `defined('WP_CLI') && WP_CLI`. Suppress the one unavoidable reference.
+    ignoreErrors:
+        - message: '#Call to static method add_command\(\) on an unknown class WP_CLI#'
+          path: telex.php

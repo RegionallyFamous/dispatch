@@ -1,0 +1,39 @@
+---
+description: Core philosophy, architecture, and universal code quality standards for Dispatch for Telex
+alwaysApply: true
+---
+
+# Dispatch for Telex — Core Standards
+
+## Guiding Principle
+
+This plugin will be scrutinized by people who are skeptical of AI-assisted development and actively looking for any excuse to dismiss it as "vibe-coded garbage." Every single line of code must be production-quality, rigorously defensible, and beyond reproach. There is no such thing as "good enough for now." If it wouldn't survive a WordPress core team code review, rewrite it.
+
+## Architecture
+
+The plugin follows a strict 5-layer architecture. Never skip or bypass layers:
+
+```
+React UI (src/)  →  REST API (Telex_REST)  →  Service Layer (includes/)  →  SDK (lib/telex-sdk/)  →  WP HTTP Client (Telex_WP_Http_Client)
+```
+
+- The React UI only talks to the REST layer — never calls PHP service classes directly
+- Service classes never make HTTP requests directly — always through the SDK and `Telex_WP_Http_Client`
+- DTOs (`Telex_Project`, `Telex_Build_File`, `Telex_Api_Credentials`) cross layer boundaries as immutable value objects
+
+## Universal Non-Negotiables
+
+- No `var_dump`, `error_log`, `print_r`, `console.log`, or `debugger` in committed code
+- No commented-out code blocks
+- No TODOs or FIXMEs left in committed code
+- No dead code — if it isn't used, remove it
+- PHPDoc on every public method: `@param`, `@return`, `@throws`
+- Imperative commit messages: "Add circuit breaker reset command", not "fixed stuff"
+
+## Before Every Commit
+
+```bash
+make lint    # ESLint + Stylelint + PHP_CodeSniffer — must pass with zero errors
+make test    # PHPUnit — must pass clean
+make build   # Webpack — must produce a clean output
+```

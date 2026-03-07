@@ -1,4 +1,9 @@
 <?php
+/**
+ * WP-CLI commands for Telex (wp telex <subcommand>).
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -29,8 +34,10 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * : Output format (table, json, csv). Default: table.
 	 *
 	 * @subcommand list
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative arguments (format).
 	 */
-	public function list( array $args, array $assoc_args ): void {
+	public function list( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundBeforeLastUsed
 		if ( ! Telex_Auth::is_connected() ) {
 			\WP_CLI::error( __( 'Not connected to Telex. Run: wp telex connect', 'telex' ) );
 		}
@@ -54,22 +61,25 @@ class Telex_CLI extends \WP_CLI_Command {
 
 		$installed = Telex_Tracker::get_all();
 
-		$rows = array_map( static function ( array $p ) use ( $installed ): array {
-			$id     = $p['publicId'] ?? '';
-			$status = isset( $installed[ $id ] )
+		$rows = array_map(
+			static function ( array $p ) use ( $installed ): array {
+				$id     = $p['publicId'] ?? '';
+				$status = isset( $installed[ $id ] )
 				? ( Telex_Tracker::needs_update( $id, (int) ( $p['currentVersion'] ?? 0 ) )
 					? 'update-available'
 					: 'installed' )
 				: 'not-installed';
 
-			return [
-				'ID'      => $id,
-				'Name'    => $p['name'] ?? '',
-				'Type'    => $p['projectType'] ?? '',
-				'Version' => $p['currentVersion'] ?? '',
-				'Status'  => $status,
-			];
-		}, $projects );
+				return [
+					'ID'      => $id,
+					'Name'    => $p['name'] ?? '',
+					'Type'    => $p['projectType'] ?? '',
+					'Version' => $p['currentVersion'] ?? '',
+					'Status'  => $status,
+				];
+			},
+			$projects
+		);
 
 		$format = $assoc_args['format'] ?? 'table';
 		\WP_CLI\Utils\format_items( $format, $rows, [ 'ID', 'Name', 'Type', 'Version', 'Status' ] );
@@ -87,6 +97,8 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * : Activate the plugin after install (blocks only).
 	 *
 	 * @subcommand install
+	 * @param array $args       Positional arguments: [0] project public ID.
+	 * @param array $assoc_args Associative arguments (activate flag).
 	 */
 	public function install( array $args, array $assoc_args ): void {
 		$public_id = $args[0] ?? '';
@@ -96,11 +108,13 @@ class Telex_CLI extends \WP_CLI_Command {
 
 		$activate = isset( $assoc_args['activate'] );
 
-		\WP_CLI::log( sprintf(
+		\WP_CLI::log(
+			sprintf(
 			/* translators: %s: project ID */
-			__( 'Installing project %s…', 'telex' ),
-			$public_id
-		) );
+				__( 'Installing project %s…', 'telex' ),
+				$public_id
+			)
+		);
 
 		$result = Telex_Installer::install( $public_id, $activate );
 
@@ -108,11 +122,13 @@ class Telex_CLI extends \WP_CLI_Command {
 			\WP_CLI::error( $result->get_error_message() );
 		}
 
-		\WP_CLI::success( sprintf(
+		\WP_CLI::success(
+			sprintf(
 			/* translators: %s: project ID */
-			__( 'Project %s installed successfully.', 'telex' ),
-			$public_id
-		) );
+				__( 'Project %s installed successfully.', 'telex' ),
+				$public_id
+			)
+		);
 	}
 
 	/**
@@ -127,6 +143,8 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * : Update all projects that have available updates.
 	 *
 	 * @subcommand update
+	 * @param array $args       Positional arguments: [0] optional project public ID.
+	 * @param array $assoc_args Associative arguments (all flag).
 	 */
 	public function update( array $args, array $assoc_args ): void {
 		$update_all = isset( $assoc_args['all'] );
@@ -152,7 +170,8 @@ class Telex_CLI extends \WP_CLI_Command {
 					if ( Telex_Tracker::needs_update( $id, $remote_version ) ) {
 						$to_update[] = $id;
 					}
-				} catch ( \Exception ) {
+				} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project fetch failures are skipped; remaining items continue.
+					// Skip projects that fail to fetch.
 				}
 			}
 
@@ -175,21 +194,25 @@ class Telex_CLI extends \WP_CLI_Command {
 			}
 
 			$progress->finish();
-			\WP_CLI::success( sprintf(
+			\WP_CLI::success(
+				sprintf(
 				/* translators: %d: count */
-				__( 'Updated %d project(s).', 'telex' ),
-				count( $to_update )
-			) );
+					__( 'Updated %d project(s).', 'telex' ),
+					count( $to_update )
+				)
+			);
 		} else {
 			$result = Telex_Installer::install( $public_id );
 			if ( is_wp_error( $result ) ) {
 				\WP_CLI::error( $result->get_error_message() );
 			}
-			\WP_CLI::success( sprintf(
+			\WP_CLI::success(
+				sprintf(
 				/* translators: %s: project ID */
-				__( 'Project %s updated.', 'telex' ),
-				$public_id
-			) );
+					__( 'Project %s updated.', 'telex' ),
+					$public_id
+				)
+			);
 		}
 	}
 
@@ -205,6 +228,8 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * : Skip confirmation prompt.
 	 *
 	 * @subcommand remove
+	 * @param array $args       Positional arguments: [0] project public ID.
+	 * @param array $assoc_args Associative arguments (yes flag for confirmation).
 	 */
 	public function remove( array $args, array $assoc_args ): void {
 		$public_id = $args[0] ?? '';
@@ -227,90 +252,66 @@ class Telex_CLI extends \WP_CLI_Command {
 			\WP_CLI::error( $result->get_error_message() );
 		}
 
-		\WP_CLI::success( sprintf(
+		\WP_CLI::success(
+			sprintf(
 			/* translators: %s: project ID */
-			__( 'Project %s removed.', 'telex' ),
-			$public_id
-		) );
+				__( 'Project %s removed.', 'telex' ),
+				$public_id
+			)
+		);
 	}
 
 	/**
 	 * Connect this site to Telex (starts the device flow).
 	 *
 	 * @subcommand connect
+	 * @param array $_args       Positional arguments (unused).
+	 * @param array $_assoc_args Associative arguments (unused).
 	 */
-	public function connect( array $args, array $assoc_args ): void {
+	public function connect( array $_args, array $_assoc_args ): void {
 		if ( Telex_Auth::is_connected() ) {
 			\WP_CLI::log( __( 'Already connected to Telex.', 'telex' ) );
 			return;
 		}
 
-		$response = wp_remote_post(
-			TELEX_DEVICE_AUTH_URL . '/code',
-			[
-				'headers' => [ 'Content-Type' => 'application/json' ],
-				'body'    => '{}',
-				'timeout' => 15,
-			]
+		$flow = Telex_Auth::start_device_flow();
+		if ( is_wp_error( $flow ) ) {
+			\WP_CLI::error( $flow->get_error_message() );
+		}
+
+		\WP_CLI::log(
+			sprintf(
+			/* translators: 1: verification URL, 2: user code */
+				__( "Visit %1\$s and enter code: %2\$s\n", 'telex' ),
+				$flow['verification_uri'],
+				$flow['user_code']
+			)
 		);
 
-		if ( is_wp_error( $response ) ) {
-			\WP_CLI::error( $response->get_error_message() );
-		}
-
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( empty( $body['device_code'] ) ) {
-			\WP_CLI::error( $body['message'] ?? __( 'Failed to start device flow.', 'telex' ) );
-		}
-
-		set_transient( Telex_Auth::TRANSIENT_DEVICE, $body['device_code'], (int) $body['expires_in'] );
-
-		\WP_CLI::log( sprintf(
-			/* translators: %s: user code */
-			__( "Visit %s and enter code: %s\n", 'telex' ),
-			$body['verification_uri'],
-			$body['user_code']
-		) );
-
-		$interval = (int) ( $body['interval'] ?? 5 );
-		$expires  = time() + (int) ( $body['expires_in'] ?? 300 );
+		$interval    = $flow['interval'];
+		$expires     = time() + $flow['expires_in'];
+		$device_code = (string) get_transient( Telex_Auth::TRANSIENT_DEVICE );
 
 		\WP_CLI::log( __( 'Polling for authorization…', 'telex' ) );
 
 		while ( time() < $expires ) {
 			sleep( $interval );
 
-			$poll = wp_remote_post(
-				TELEX_DEVICE_AUTH_URL . '/token',
-				[
-					'headers' => [ 'Content-Type' => 'application/json' ],
-					'body'    => wp_json_encode( [ 'device_code' => $body['device_code'] ] ),
-					'timeout' => 15,
-				]
-			);
+			$result = Telex_Auth::poll_device_flow( $device_code );
 
-			if ( is_wp_error( $poll ) ) {
-				continue;
+			if ( is_wp_error( $result ) ) {
+				\WP_CLI::error( $result->get_error_message() );
+				return;
 			}
 
-			$poll_code = (int) wp_remote_retrieve_response_code( $poll );
-			$poll_body = json_decode( wp_remote_retrieve_body( $poll ), true );
-
-			if ( 200 === $poll_code && ! empty( $poll_body['access_token'] ) ) {
-				Telex_Auth::store_token( $poll_body['access_token'] );
-				delete_transient( Telex_Auth::TRANSIENT_DEVICE );
+			if ( true === $result ) {
 				\WP_CLI::success( __( 'Connected to Telex!', 'telex' ) );
 				return;
 			}
 
-			$error = $poll_body['error'] ?? '';
-
-			if ( 'slow_down' === $error ) {
-				$interval += 5;
-			} elseif ( 'authorization_pending' !== $error ) {
-				\WP_CLI::error( $poll_body['error_description'] ?? $error );
-				return;
+			// Array with 'status' key; slow_down also carries a new 'interval' value.
+			if ( 'slow_down' === ( $result['status'] ?? '' ) ) {
+				$interval = $result['interval'] ?? ( $interval + 5 );
 			}
 		}
 
@@ -321,8 +322,10 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * Disconnect this site from Telex.
 	 *
 	 * @subcommand disconnect
+	 * @param array $_args       Positional arguments (unused).
+	 * @param array $_assoc_args Associative arguments (unused).
 	 */
-	public function disconnect( array $args, array $assoc_args ): void {
+	public function disconnect( array $_args, array $_assoc_args ): void {
 		Telex_Auth::disconnect();
 		\WP_CLI::success( __( 'Disconnected from Telex.', 'telex' ) );
 	}
@@ -336,8 +339,10 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * : Reset an open circuit breaker.
 	 *
 	 * @subcommand circuit
+	 * @param array $args        Positional arguments: [0] optional 'reset' subcommand.
+	 * @param array $_assoc_args Associative arguments (unused).
 	 */
-	public function circuit( array $args, array $assoc_args ): void {
+	public function circuit( array $args, array $_assoc_args ): void {
 		$sub = $args[0] ?? 'status';
 
 		if ( 'reset' === $sub ) {
@@ -351,6 +356,7 @@ class Telex_CLI extends \WP_CLI_Command {
 			'closed'    => '%G',
 			'half-open' => '%Y',
 			'open'      => '%R',
+			default     => '%n',
 		};
 		\WP_CLI::log( \WP_CLI::colorize( sprintf( '%s%s%%n', $color, strtoupper( $status ) ) ) );
 	}
@@ -363,19 +369,23 @@ class Telex_CLI extends \WP_CLI_Command {
 	 *     clear     Delete all Telex cached project data.
 	 *
 	 * @subcommand cache
+	 * @param array $args        Positional arguments: [0] subcommand (e.g. 'clear').
+	 * @param array $_assoc_args Associative arguments (unused).
 	 */
-	public function cache( array $args, array $assoc_args ): void {
+	public function cache( array $args, array $_assoc_args ): void {
 		$subcommand = $args[0] ?? '';
 
 		if ( 'clear' === $subcommand ) {
 			Telex_Cache::bust_all();
 			\WP_CLI::success( __( 'Telex cache cleared.', 'telex' ) );
 		} else {
-			\WP_CLI::error( sprintf(
+			\WP_CLI::error(
+				sprintf(
 				/* translators: %s: unknown subcommand */
-				__( 'Unknown cache subcommand: %s', 'telex' ),
-				$subcommand
-			) );
+					__( 'Unknown cache subcommand: %s', 'telex' ),
+					$subcommand
+				)
+			);
 		}
 	}
 }

@@ -1,4 +1,9 @@
 <?php
+/**
+ * InstallStatus enum — represents the lifecycle state of a project install.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

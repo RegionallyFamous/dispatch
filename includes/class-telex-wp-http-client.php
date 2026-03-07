@@ -1,4 +1,9 @@
 <?php
+/**
+ * PSR-18 HTTP client adapter over the WordPress HTTP API.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -31,20 +36,42 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 	/** Maximum response body size in bytes (10 MB). */
 	private const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 
+	/**
+	 * HTTP User-Agent header value sent with every request.
+	 *
+	 * @var string
+	 */
 	private readonly string $user_agent;
-	private readonly int    $timeout;
 
+	/**
+	 * Request timeout in seconds.
+	 *
+	 * @var int
+	 */
+	private readonly int $timeout;
+
+	/**
+	 * Creates a new HTTP client instance.
+	 *
+	 * @param string|null $user_agent Custom User-Agent string, or null to use the default.
+	 * @param int         $timeout    Request timeout in seconds.
+	 */
 	public function __construct( ?string $user_agent = null, int $timeout = self::TIMEOUT_METADATA ) {
+		$wp_version       = get_bloginfo( 'version' );
 		$this->user_agent = $user_agent ?? sprintf(
 			'Telex/%s; WordPress/%s; +https://telex.automattic.ai',
 			TELEX_PLUGIN_VERSION,
-			get_bloginfo( 'version' ) ?: 'unknown'
+			'' !== $wp_version ? $wp_version : 'unknown'
 		);
-		$this->timeout = $timeout;
+		$this->timeout    = $timeout;
 	}
 
 	/**
-	 * @throws \Psr\Http\Client\ClientExceptionInterface
+	 * Sends a PSR-7 request and returns a PSR-7 response.
+	 *
+	 * @param \Psr\Http\Message\RequestInterface $request The outgoing request.
+	 * @return \Psr\Http\Message\ResponseInterface
+	 * @throws Telex_Http_Exception On network error, SSRF attempt, or oversized response.
 	 */
 	public function sendRequest( \Psr\Http\Message\RequestInterface $request ): \Psr\Http\Message\ResponseInterface {
 		$uri    = (string) $request->getUri();
@@ -52,9 +79,9 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 
 		// SSRF guard: only allow https:// targets.
 		if ( ! str_starts_with( $uri, 'https://' ) ) {
-			throw new Telex_Http_Exception(
-				sprintf( 'Telex HTTP client only supports HTTPS. Rejected: %s', $uri )
-			);
+			// Exception messages are internal developer errors — never displayed to end users.
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new Telex_Http_Exception( sprintf( 'Telex HTTP client only supports HTTPS. Rejected: %s', $uri ) );
 		}
 
 		$headers = [];
@@ -65,17 +92,21 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 
 		$body = (string) $request->getBody();
 
-		$wp_response = wp_remote_request( $uri, [
-			'method'      => $method,
-			'headers'     => $headers,
-			'body'        => $body,
-			'timeout'     => $this->timeout,
-			'sslverify'   => true,           // Never allow SSL bypass.
-			'redirection' => 3,              // Limit redirect chains.
-			'limit_response_size' => self::MAX_RESPONSE_BYTES,
-		] );
+		$wp_response = wp_remote_request(
+			$uri,
+			[
+				'method'              => $method,
+				'headers'             => $headers,
+				'body'                => $body,
+				'timeout'             => $this->timeout,
+				'sslverify'           => true,           // Never allow SSL bypass.
+				'redirection'         => 3,              // Limit redirect chains.
+				'limit_response_size' => self::MAX_RESPONSE_BYTES,
+			]
+		);
 
 		if ( is_wp_error( $wp_response ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Telex_Http_Exception( $wp_response->get_error_message() );
 		}
 
@@ -83,6 +114,7 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 
 		// Guard against empty/missing status code (network layer error).
 		if ( $status_code < 100 || $status_code > 599 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Telex_Http_Exception( 'Invalid HTTP response status code: ' . $status_code );
 		}
 

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Transient-based caching layer for Telex API responses.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -12,27 +17,36 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Cache {
 
-	private const TRANSIENT_PROJECTS     = 'telex_projects_list';
-	private const TRANSIENT_PROJECT      = 'telex_project_'; // + md5(publicId)
+	private const TRANSIENT_PROJECTS = 'telex_projects_list';
+	private const TRANSIENT_PROJECT  = 'telex_project_'; // + md5(publicId)
 	/** Stale copy kept longer than the live TTL for serve-stale-on-error. */
-	private const TRANSIENT_STALE        = 'telex_projects_stale';
-	private const TTL_PROJECTS           = HOUR_IN_SECONDS;
-	private const TTL_PROJECT            = 5 * MINUTE_IN_SECONDS;
-	private const TTL_STALE              = 24 * HOUR_IN_SECONDS;
-	private const CRON_HOOK              = 'telex_cache_warm';
-	private const CRON_RECURRENCE        = 'hourly';
+	private const TRANSIENT_STALE = 'telex_projects_stale';
+	private const TTL_PROJECTS    = HOUR_IN_SECONDS;
+	private const TTL_PROJECT     = 5 * MINUTE_IN_SECONDS;
+	private const TTL_STALE       = 24 * HOUR_IN_SECONDS;
+	private const CRON_HOOK       = 'telex_cache_warm';
+	private const CRON_RECURRENCE = 'hourly';
 
 	// -------------------------------------------------------------------------
 	// Project list
 	// -------------------------------------------------------------------------
 
-	/** @return array<int, array<string, mixed>>|null */
+	/**
+	 * Returns the cached project list, or null if the cache has expired.
+	 *
+	 * @return array<int, array<string, mixed>>|null
+	 */
 	public static function get_projects(): ?array {
 		$cached = get_transient( self::TRANSIENT_PROJECTS );
 		return is_array( $cached ) ? $cached : null;
 	}
 
-	/** @param array<int, array<string, mixed>> $projects */
+	/**
+	 * Stores the project list in the cache with a 1-hour TTL.
+	 *
+	 * @param array<int, array<string, mixed>> $projects Indexed array of project data.
+	 * @return void
+	 */
 	public static function set_projects( array $projects ): void {
 		set_transient( self::TRANSIENT_PROJECTS, $projects, self::TTL_PROJECTS );
 		// Keep a longer-lived stale copy for serve-stale-on-error.
@@ -53,13 +67,24 @@ class Telex_Cache {
 	// Single project
 	// -------------------------------------------------------------------------
 
-	/** @return array<string, mixed>|null */
+	/**
+	 * Returns a single cached project, or null if not cached.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @return array<string, mixed>|null
+	 */
 	public static function get_project( string $public_id ): ?array {
 		$cached = get_transient( self::TRANSIENT_PROJECT . md5( $public_id ) );
 		return is_array( $cached ) ? $cached : null;
 	}
 
-	/** @param array<string, mixed> $project */
+	/**
+	 * Stores a single project in the cache with a 5-minute TTL.
+	 *
+	 * @param string               $public_id The Telex project public ID.
+	 * @param array<string, mixed> $project   Project data array.
+	 * @return void
+	 */
 	public static function set_project( string $public_id, array $project ): void {
 		set_transient( self::TRANSIENT_PROJECT . md5( $public_id ), $project, self::TTL_PROJECT );
 	}
@@ -68,10 +93,21 @@ class Telex_Cache {
 	// Cache busting
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Deletes the cached project list.
+	 *
+	 * @return void
+	 */
 	public static function bust_all(): void {
 		delete_transient( self::TRANSIENT_PROJECTS );
 	}
 
+	/**
+	 * Deletes the cached entry for a specific project.
+	 *
+	 * @param string $public_id The Telex project public ID.
+	 * @return void
+	 */
 	public static function bust_project( string $public_id ): void {
 		delete_transient( self::TRANSIENT_PROJECT . md5( $public_id ) );
 		self::bust_all();
@@ -87,13 +123,23 @@ class Telex_Cache {
 	 */
 	private const TRANSIENT_REFRESH_LOCK = 'telex_cache_refresh_lock';
 
+	/**
+	 * Registers the cron warmup event and hooks the warm callback.
+	 *
+	 * @return void
+	 */
 	public static function schedule_warmup(): void {
 		if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
 			wp_schedule_event( time(), self::CRON_RECURRENCE, self::CRON_HOOK );
 		}
-		add_action( self::CRON_HOOK, self::warm(...) );
+		add_action( self::CRON_HOOK, self::warm( ... ) );
 	}
 
+	/**
+	 * Removes the cron warmup event.
+	 *
+	 * @return void
+	 */
 	public static function unschedule_warmup(): void {
 		$timestamp = wp_next_scheduled( self::CRON_HOOK );
 		if ( $timestamp ) {

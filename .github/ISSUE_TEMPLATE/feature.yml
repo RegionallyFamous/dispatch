@@ -1,0 +1,56 @@
+name: Feature Request
+description: Suggest a new feature or improvement for Dispatch for Telex.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide as much context as possible
+        to help us understand the problem you're trying to solve.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem does this feature solve? Who is affected?
+      placeholder: "As a site administrator, I need to... because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to see happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any workarounds or alternative approaches?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Admin UI
+        - REST API
+        - WP-CLI
+        - Installer / Updater
+        - Authentication / OAuth
+        - Caching / Performance
+        - Security
+        - Documentation
+        - CI / Tooling
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links to related issues or PRs.

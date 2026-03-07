@@ -32,7 +32,7 @@
 
 .telex-project-grid {
 	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 280px, 1fr ) );
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 	gap: 16px;
 	margin-top: 16px;
 }
@@ -68,8 +68,10 @@
 	gap: 4px;
 	padding: 2px 8px;
 	border-radius: 3px;
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
 
 .telex-badge--idle {
@@ -103,7 +105,7 @@
 	background: #fff;
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
-	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 
 .telex-connect-card h2 {
@@ -118,7 +120,7 @@
 .telex-user-code {
 	font-size: 32px;
 	font-family: monospace;
-	font-weight: bold;
+	font-weight: 700;
 	letter-spacing: 4px;
 	padding: 16px 24px;
 	background: #f0f0f1;
@@ -164,12 +166,14 @@
  * ------------------------------------------------------------------------- */
 
 @media ( prefers-reduced-motion: reduce ) {
+
 	.components-spinner {
 		animation: none;
 	}
 }
 
 @media ( prefers-contrast: high ) {
+
 	.telex-badge--installed {
 		background: #000;
 		color: #fff;
@@ -178,10 +182,29 @@
 	.telex-badge--update {
 		background: #000;
 		color: #fff;
-		outline: 2px solid currentColor;
+		outline: 2px solid currentcolor;
 	}
 
 	.telex-connect-card {
 		border-width: 2px;
 	}
+}
+
+/* -----------------------------------------------------------------------
+   Audit Log badge variants
+   ----------------------------------------------------------------------- */
+
+.telex-badge--success {
+	background: #edfaef;
+	color: #1a7834;
+}
+
+.telex-badge--danger {
+	background: #fce8e8;
+	color: #b32d2e;
+}
+
+.telex-badge--info {
+	background: #e8f0fa;
+	color: #1d4289;
 }

@@ -1,4 +1,9 @@
 <?php
+/**
+ * WordPress Updates screen integration for Telex projects.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -14,10 +19,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Updater {
 
+	/**
+	 * Registers all update-related filters and row action hooks.
+	 *
+	 * @return void
+	 */
 	public static function init(): void {
-		add_filter( 'pre_set_site_transient_update_plugins', self::inject_plugin_updates(...) );
-		add_filter( 'pre_set_site_transient_update_themes', self::inject_theme_updates(...) );
-		add_filter( 'plugins_api', self::plugins_api_info(...), 10, 3 );
+		add_filter( 'pre_set_site_transient_update_plugins', self::inject_plugin_updates( ... ) );
+		add_filter( 'pre_set_site_transient_update_themes', self::inject_theme_updates( ... ) );
+		add_filter( 'plugins_api', self::plugins_api_info( ... ), 10, 3 );
 
 		// Register after_plugin_row_* notices for each tracked block.
 		foreach ( Telex_Tracker::get_all() as $public_id => $info ) {
@@ -28,7 +38,7 @@ class Telex_Updater {
 			if ( $plugin_file ) {
 				add_action(
 					'after_plugin_row_' . $plugin_file,
-					static fn( string $file, array $data ) => self::render_plugin_row_notice( $public_id, $info, $file ),
+					static fn( string $file, array $_data ) => self::render_plugin_row_notice( $public_id, $info, $file ), // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 					10,
 					2
 				);
@@ -40,6 +50,12 @@ class Telex_Updater {
 	// Update injection
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Injects Telex block updates into the WordPress plugin update transient.
+	 *
+	 * @param object $transient The site transient object for plugin updates.
+	 * @return object
+	 */
 	public static function inject_plugin_updates( object $transient ): object {
 		if ( ! Telex_Auth::is_connected() ) {
 			return $transient;
@@ -86,7 +102,7 @@ class Telex_Updater {
 					'url'         => TELEX_PUBLIC_URL,
 					'package'     => '', // Empty — Telex_Updater handles the actual install via WP_Upgrader.
 				];
-			} catch ( \Exception ) {
+			} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project failures are silenced so remaining update checks proceed normally.
 				// Don't disrupt the update check for one bad project.
 			}
 		}
@@ -94,6 +110,12 @@ class Telex_Updater {
 		return $transient;
 	}
 
+	/**
+	 * Injects Telex theme updates into the WordPress theme update transient.
+	 *
+	 * @param object $transient The site transient object for theme updates.
+	 * @return object
+	 */
 	public static function inject_theme_updates( object $transient ): object {
 		if ( ! Telex_Auth::is_connected() ) {
 			return $transient;
@@ -129,7 +151,8 @@ class Telex_Updater {
 					'url'         => TELEX_PUBLIC_URL,
 					'package'     => '',
 				];
-			} catch ( \Exception ) {
+			} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project failures are silenced so remaining update checks proceed normally.
+				// Don't disrupt the update check for one bad project.
 			}
 		}
 
@@ -140,6 +163,14 @@ class Telex_Updater {
 	// plugins_api filter — "View version details" modal
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Provides plugin info for the "View version details" modal in the Updates screen.
+	 *
+	 * @param false|object $result The current result (false to indicate no data yet).
+	 * @param string       $action The plugins_api action being performed.
+	 * @param object       $args   Arguments including the plugin slug.
+	 * @return false|object
+	 */
 	public static function plugins_api_info( false|object $result, string $action, object $args ): false|object {
 		if ( 'plugin_information' !== $action ) {
 			return $result;
@@ -198,9 +229,14 @@ class Telex_Updater {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * @param array<string, mixed> $info
+	 * Renders an update-available notice below a plugin row in the Plugins list table.
+	 *
+	 * @param string               $public_id   The Telex project public ID.
+	 * @param array<string, mixed> $info        The tracker entry for this project.
+	 * @param string               $plugin_file The plugin file path relative to wp-content/plugins/.
+	 * @return void
 	 */
-	public static function render_plugin_row_notice( string $public_id, array $info, string $plugin_file ): void {
+	public static function render_plugin_row_notice( string $public_id, array $info, string $plugin_file ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$client = Telex_Auth::get_client();
 		if ( ! $client ) {
 			return;
@@ -236,6 +272,12 @@ class Telex_Updater {
 	// Helper
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Finds the plugin file path (relative to plugins dir) for a given slug.
+	 *
+	 * @param string $slug The WordPress plugin directory slug.
+	 * @return string Plugin file path, or empty string if not found.
+	 */
 	private static function find_plugin_file( string $slug ): string {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';

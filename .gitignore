@@ -2,8 +2,9 @@
 node_modules/
 vendor/
 
-# Build output
+# Build output (committed stubs kept for static analysis)
 build/
+!build/*.asset.php
 
 # Release artifacts
 *.zip

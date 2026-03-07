@@ -1,4 +1,9 @@
 <?php
+/**
+ * PHP fatal error handler for the Dispatch plugin.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -9,10 +14,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Fatal_Handler {
 
+	/**
+	 * Register the shutdown handler.
+	 *
+	 * @return void
+	 */
 	public static function register(): void {
-		register_shutdown_function( self::handle(...) );
+		register_shutdown_function( self::handle( ... ) );
 	}
 
+	/**
+	 * Shutdown handler — logs fatal errors originating from this plugin.
+	 *
+	 * @return void
+	 */
 	public static function handle(): void {
 		$error = error_get_last();
 

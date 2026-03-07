@@ -9,7 +9,7 @@
     },
     "scripts": {
         "build": "wp-scripts build",
-        "build:production": "NODE_ENV=production wp-scripts build",
+        "build:production": "NODE_ENV=production wp-scripts build && wp i18n make-json languages/ build/ --no-purge",
         "start": "wp-scripts start",
         "clean": "rm -rf build *.zip",
         "lint:js": "wp-scripts lint-js",
@@ -19,6 +19,13 @@
         "test:php": "composer test",
         "zip": "bash bin/build-zip.sh",
         "packages-update": "wp-scripts packages-update"
+    },
+    "peerDependencies": {
+        "@wordpress/api-fetch": "*",
+        "@wordpress/components": "*",
+        "@wordpress/data": "*",
+        "@wordpress/element": "*",
+        "@wordpress/i18n": "*"
     },
     "devDependencies": {
         "@wordpress/scripts": "^31.0"

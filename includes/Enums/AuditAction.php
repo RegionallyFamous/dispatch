@@ -1,4 +1,9 @@
 <?php
+/**
+ * AuditAction enum — represents recordable security events.
+ *
+ * @package Dispatch_For_Telex
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

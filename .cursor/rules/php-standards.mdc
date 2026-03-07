@@ -1,0 +1,54 @@
+---
+description: PHP and WordPress coding standards, security requirements, and testing rules for Dispatch for Telex
+globs: **/*.php
+alwaysApply: false
+---
+
+# PHP & WordPress Standards
+
+## PHP Version
+
+PHP 8.2+ features are required — use them:
+
+- `readonly` classes for all DTOs (immutable value objects)
+- Backed enums (`string` or `int`) for typed constants
+- `match` expressions instead of `switch` where applicable
+- Named arguments for clarity on multi-parameter calls
+- First-class callable syntax: `foo(...)` instead of `fn($x) => foo($x)`
+
+## WordPress Coding Standards
+
+Run `make lint` after every PHP change. Config lives in `phpcs.xml.dist` (`WordPress-Extra` + `WordPress-Docs`).
+
+- Short array syntax `[]` always — never `array()`
+- Service classes are static-only, named `Telex_*`, one per file at `includes/class-telex-*.php`
+- New enums → `includes/Enums/` with PascalCase filenames
+- New readonly DTOs → `includes/class-telex-dtos.php`
+- New exceptions → `lib/telex-sdk/src/` alongside existing SDK exceptions
+
+## Security — Non-Negotiable
+
+Every single one of these applies every time:
+
+- **Input:** `sanitize_text_field()`, `absint()`, `wp_unslash()` before any use of user-supplied data
+- **Output:** `esc_html()`, `esc_attr()`, `esc_url()`, `wp_kses_post()` on every echo
+- **Nonces:** verify with `check_ajax_referer()` or `wp_verify_nonce()` on all form/AJAX handlers
+- **Capabilities:** `current_user_can()` check before every privileged operation — even if the REST permission callback already checked
+- **SQL:** `$wpdb->prepare()` on every query — no exceptions
+- **File paths:** validate against ZipSlip and path traversal on any externally-sourced filename; check extension against the blocklist
+- **HTTP:** all outbound requests go through `Telex_WP_Http_Client` — never `wp_remote_*` directly; HTTPS only, SSL always verified
+
+## Caching
+
+Use `Telex_Cache::get_or_revalidate()` for all Telex API responses. Never call `set_transient()` / `get_transient()` directly for API data — it bypasses stampede protection and stale-while-revalidate.
+
+## Circuit Breaker
+
+Wrap all Telex API calls with `Telex_Circuit_Breaker::is_available()` before calling and `Telex_Circuit_Breaker::record_failure()` / `record_success()` after.
+
+## Testing
+
+Every new feature or bug fix requires a PHPUnit test:
+
+- Test files: `tests/test-*.php` extending `WP_UnitTestCase`
+- Run: `make test` — must pass clean with no skipped assertions
