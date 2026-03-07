@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the WordPress test suite.
+# Installs the WordPress test suite using only curl/tar — no svn required.
 # Usage: bash bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version] [skip-db-create]
 
 DB_NAME=${1:-wordpress_test}
@@ -14,18 +14,18 @@ WP_CORE_DIR=${WP_CORE_DIR:-/tmp/wordpress}
 
 download() {
     if [ "$(which curl)" ]; then
-        curl -s "$1" > "$2"
+        curl -sSL "$1" > "$2"
     elif [ "$(which wget)" ]; then
         wget -nv -O "$2" "$1"
     fi
 }
 
+# Resolve the SVN tag (used to build raw GitHub URLs — no svn binary needed).
 if [[ $WP_VERSION =~ ^[0-9]+\.[0-9]+$ ]]; then
     WP_TESTS_TAG="branches/$WP_VERSION"
 elif [[ $WP_VERSION == 'nightly' || $WP_VERSION == 'trunk' ]]; then
     WP_TESTS_TAG="trunk"
 else
-    # Pull the latest version from the API.
     if [[ $WP_VERSION == 'latest' ]]; then
         local_version="$(download https://api.wordpress.org/core/version-check/1.7/ - 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | grep -o '[0-9.]*')"
         if [[ -z "$local_version" ]]; then
@@ -50,10 +50,10 @@ install_wp() {
         unzip -q /tmp/wordpress-nightly/wordpress-nightly.zip -d /tmp/wordpress-nightly/
         mv /tmp/wordpress-nightly/wordpress/* "$WP_CORE_DIR"
     else
-        if [ $WP_VERSION == 'latest' ]; then
+        if [ "$WP_VERSION" == 'latest' ]; then
             local_version=''
         fi
-        download "https://wordpress.org/wordpress-$WP_VERSION.tar.gz" /tmp/wordpress.tar.gz
+        download "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" /tmp/wordpress.tar.gz
         tar --strip-components=1 -zxmf /tmp/wordpress.tar.gz -C "$WP_CORE_DIR"
     fi
 }
@@ -65,18 +65,50 @@ install_test_suite() {
 
     mkdir -p "$WP_TESTS_DIR"
 
-    local download_url="https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/includes/"
-    svn co --trust-server-cert "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/includes/" "$WP_TESTS_DIR/includes"
-    svn co --trust-server-cert "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/data/" "$WP_TESTS_DIR/data"
+    # Download the test suite as a zip archive from the WordPress develop GitHub
+    # mirror — no svn binary required.
+    local zip_url
+    if [[ "$WP_TESTS_TAG" == "trunk" ]]; then
+        zip_url="https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip"
+    elif [[ "$WP_TESTS_TAG" == branches/* ]]; then
+        local branch="${WP_TESTS_TAG#branches/}"
+        zip_url="https://github.com/WordPress/wordpress-develop/archive/refs/heads/${branch}.zip"
+    else
+        local tag="${WP_TESTS_TAG#tags/}"
+        zip_url="https://github.com/WordPress/wordpress-develop/archive/refs/tags/${tag}.zip"
+    fi
 
-    download "https://develop.svn.wordpress.org/${WP_TESTS_TAG}/wp-tests-config-sample.php" "$WP_TESTS_DIR/wp-tests-config.php"
-    # Remove trailing slash.
-    WP_CORE_DIR=$(echo $WP_CORE_DIR | sed "s:/\+$::")
-    sed -i "s:dirname( __FILE__ ) . '/src/':'$WP_CORE_DIR/':" "$WP_TESTS_DIR/wp-tests-config.php"
-    sed -i "s/youremptytestdbnamehere/$DB_NAME/" "$WP_TESTS_DIR/wp-tests-config.php"
-    sed -i "s/yourusernamehere/$DB_USER/" "$WP_TESTS_DIR/wp-tests-config.php"
-    sed -i "s/yourpasswordhere/$DB_PASS/" "$WP_TESTS_DIR/wp-tests-config.php"
-    sed -i "s|localhost|$DB_HOST|" "$WP_TESTS_DIR/wp-tests-config.php"
+    download "$zip_url" /tmp/wp-develop.zip
+    unzip -q /tmp/wp-develop.zip -d /tmp/wp-develop-extracted/
+
+    # The zip extracts to wordpress-develop-<ref>/ — find the actual dir name.
+    local extracted_dir
+    extracted_dir="$(find /tmp/wp-develop-extracted -maxdepth 1 -mindepth 1 -type d | head -1)"
+
+    mkdir -p "$WP_TESTS_DIR/includes" "$WP_TESTS_DIR/data"
+    cp -r "${extracted_dir}/tests/phpunit/includes/." "$WP_TESTS_DIR/includes/"
+    cp -r "${extracted_dir}/tests/phpunit/data/."     "$WP_TESTS_DIR/data/"
+    cp    "${extracted_dir}/wp-tests-config-sample.php" "$WP_TESTS_DIR/wp-tests-config.php"
+
+    rm -rf /tmp/wp-develop.zip /tmp/wp-develop-extracted
+
+    # Patch wp-tests-config.php with local paths and credentials.
+    WP_CORE_DIR="${WP_CORE_DIR%%/}"   # strip trailing slash
+
+    # macOS sed requires an explicit (possibly empty) backup extension with -i.
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "s:dirname( __FILE__ ) . '/src/':'${WP_CORE_DIR}/':" "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/youremptytestdbnamehere/$DB_NAME/"  "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/yourusernamehere/$DB_USER/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/yourpasswordhere/$DB_PASS/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s|localhost|$DB_HOST|"                "$WP_TESTS_DIR/wp-tests-config.php"
+    else
+        sed -i "s:dirname( __FILE__ ) . '/src/':'${WP_CORE_DIR}/':" "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/youremptytestdbnamehere/$DB_NAME/"  "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/yourusernamehere/$DB_USER/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/yourpasswordhere/$DB_PASS/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s|localhost|$DB_HOST|"                "$WP_TESTS_DIR/wp-tests-config.php"
+    fi
 }
 
 create_db() {
