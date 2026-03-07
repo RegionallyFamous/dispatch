@@ -12,7 +12,7 @@ parameters:
 
     excludePaths:
         - vendor/
-        - node_modules/
+        - node_modules/ (?)
         # WP-CLI has no published PHPStan stubs; the CLI class is analysed
         # separately when WP-CLI stubs become available.
         - includes/class-telex-cli.php
