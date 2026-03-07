@@ -61,14 +61,25 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	}
 
 	/**
-	 * Prepares the items array for display, applying pagination.
+	 * Prepares the items array for display, applying pagination and sorting.
 	 *
 	 * @return void
 	 */
 	public function prepare_items(): void {
 		$per_page     = 50;
 		$current_page = $this->get_pagenum();
-		$all_items    = Telex_Audit_Log::get_recent( 500 );
+
+		// Read and sanitise the sortable column parameters from the request.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- list table sort parameters are read-only UI state, not mutations.
+		$orderby_raw = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : 'id';
+		$order_raw   = isset( $_GET['order'] ) ? strtoupper( sanitize_key( wp_unslash( $_GET['order'] ) ) ) : 'DESC';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		// Allowlist checked inside Telex_Audit_Log::get_recent() as well; defence-in-depth.
+		$orderby = in_array( $orderby_raw, [ 'id', 'action', 'created_at' ], true ) ? $orderby_raw : 'id';
+		$order   = 'ASC' === $order_raw ? 'ASC' : 'DESC';
+
+		$all_items = Telex_Audit_Log::get_recent( 500, $orderby, $order );
 
 		$this->set_pagination_args(
 			[

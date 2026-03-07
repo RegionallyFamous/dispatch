@@ -60,12 +60,40 @@ class Telex_Auth {
 	 * @return int Seconds remaining in the current window, or 0 if under the limit.
 	 */
 	public static function check_rate_limit( string $action ): int {
-		$user_id    = get_current_user_id();
-		$window_key = 'telex_rl_w_' . md5( (string) $user_id . '_' . $action );
-		$count_key  = 'telex_rl_c_' . md5( (string) $user_id . '_' . $action );
+		$user_id = get_current_user_id();
+		$now     = time();
+		$key     = md5( (string) $user_id . '_' . $action );
+
+		// When a persistent object cache (Redis/Memcached) is active, use its
+		// atomic increment operation so concurrent requests cannot race past the
+		// limit. On sites with only in-memory (per-request) caching we fall back
+		// to the transient approach which is non-atomic but still correct for
+		// single-server, single-process deployments.
+		if ( wp_using_ext_object_cache() ) {
+			$cache_key = 'telex_rl_' . $key;
+			$group     = 'telex_rate_limit';
+
+			// wp_cache_add is atomic (set-if-not-exists) on Redis/Memcached.
+			$added = wp_cache_add( $cache_key, 1, $group, self::RATE_LIMIT_WINDOW );
+			if ( $added ) {
+				return 0; // First request in this window — guaranteed allowed.
+			}
+
+			// wp_cache_incr is atomic on Redis/Memcached.
+			$count = wp_cache_incr( $cache_key, 1, $group );
+			if ( false === $count || $count <= self::RATE_LIMIT_MAX ) {
+				return 0;
+			}
+
+			// Over limit. Return a conservative retry window.
+			return self::RATE_LIMIT_WINDOW;
+		}
+
+		// Transient-based fallback — non-atomic but suitable for single-server sites.
+		$window_key = 'telex_rl_w_' . $key;
+		$count_key  = 'telex_rl_c_' . $key;
 
 		$window_start = (int) get_transient( $window_key );
-		$now          = time();
 
 		if ( ! $window_start || ( $now - $window_start ) >= self::RATE_LIMIT_WINDOW ) {
 			// Start a new window.
@@ -76,7 +104,6 @@ class Telex_Auth {
 
 		$count = (int) get_transient( $count_key );
 		if ( $count >= self::RATE_LIMIT_MAX ) {
-			// Return seconds remaining in this window.
 			return self::RATE_LIMIT_WINDOW - ( $now - $window_start );
 		}
 

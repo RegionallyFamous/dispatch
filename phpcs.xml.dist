@@ -2,20 +2,30 @@
 <ruleset name="Telex">
     <description>PHP_CodeSniffer ruleset for the Telex plugin.</description>
 
-    <!-- Scan all PHP files in the plugin root and includes/ -->
+    <!-- Scan all PHP files in the plugin root, includes/, and lib/ -->
     <file>telex.php</file>
     <file>uninstall.php</file>
     <file>includes/</file>
     <file>tests/</file>
+    <file>lib/</file>
 
     <!-- Exclude vendor and build output -->
     <exclude-pattern>vendor/*</exclude-pattern>
     <exclude-pattern>build/*</exclude-pattern>
     <exclude-pattern>node_modules/*</exclude-pattern>
 
-    <!-- WordPress coding standards -->
-    <rule ref="WordPress-Extra" />
-    <rule ref="WordPress-Docs" />
+    <!-- WordPress coding standards (full enforcement on plugin code) -->
+    <rule ref="WordPress-Extra">
+        <!-- lib/ uses PSR-12 conventions; WordPress style rules don't apply there. -->
+        <exclude-pattern>lib/*</exclude-pattern>
+    </rule>
+    <rule ref="WordPress-Docs">
+        <exclude-pattern>lib/*</exclude-pattern>
+    </rule>
+    <!-- PHPCompatibility for lib/ (security-relevant, compatible with PSR-12) -->
+    <rule ref="PHPCompatibilityWP">
+        <include-pattern>lib/*</include-pattern>
+    </rule>
 
     <!-- PHP version baseline — PHP 8.2+ features are allowed -->
     <config name="testVersion" value="8.2-" />

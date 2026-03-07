@@ -2,6 +2,13 @@
 # Installs the WordPress test suite using only curl/tar — no svn required.
 # Usage: bash bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version] [skip-db-create]
 
+set -euo pipefail
+
+# Helper: escape a string for safe use as a sed replacement value.
+sed_escape() {
+  printf '%s' "$1" | sed 's/[\/&]/\\&/g'
+}
+
 DB_NAME=${1:-wordpress_test}
 DB_USER=${2:-root}
 DB_PASS=${3:-}
@@ -36,7 +43,7 @@ else
     fi
 fi
 
-set -ex
+set -x
 
 install_wp() {
     if [ -d "$WP_CORE_DIR" ]; then
@@ -95,19 +102,28 @@ install_test_suite() {
     # Patch wp-tests-config.php with local paths and credentials.
     WP_CORE_DIR="${WP_CORE_DIR%%/}"   # strip trailing slash
 
+    # Escape all substitution values so special characters in paths/passwords
+    # cannot break the sed expression or inject additional commands.
+    local esc_core_dir esc_db_name esc_db_user esc_db_pass esc_db_host
+    esc_core_dir=$(sed_escape "${WP_CORE_DIR}/")
+    esc_db_name=$(sed_escape "${DB_NAME}")
+    esc_db_user=$(sed_escape "${DB_USER}")
+    esc_db_pass=$(sed_escape "${DB_PASS}")
+    esc_db_host=$(sed_escape "${DB_HOST}")
+
     # macOS sed requires an explicit (possibly empty) backup extension with -i.
     if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' "s:dirname( __FILE__ ) . '/src/':'${WP_CORE_DIR}/':" "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i '' "s/youremptytestdbnamehere/$DB_NAME/"  "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i '' "s/yourusernamehere/$DB_USER/"         "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i '' "s/yourpasswordhere/$DB_PASS/"         "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i '' "s|localhost|$DB_HOST|"                "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s:dirname( __FILE__ ) . '/src/':'${esc_core_dir}':" "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/youremptytestdbnamehere/${esc_db_name}/"  "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/yourusernamehere/${esc_db_user}/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s/yourpasswordhere/${esc_db_pass}/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i '' "s|localhost|${esc_db_host}|"                "$WP_TESTS_DIR/wp-tests-config.php"
     else
-        sed -i "s:dirname( __FILE__ ) . '/src/':'${WP_CORE_DIR}/':" "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i "s/youremptytestdbnamehere/$DB_NAME/"  "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i "s/yourusernamehere/$DB_USER/"         "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i "s/yourpasswordhere/$DB_PASS/"         "$WP_TESTS_DIR/wp-tests-config.php"
-        sed -i "s|localhost|$DB_HOST|"                "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s:dirname( __FILE__ ) . '/src/':'${esc_core_dir}':" "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/youremptytestdbnamehere/${esc_db_name}/"  "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/yourusernamehere/${esc_db_user}/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s/yourpasswordhere/${esc_db_pass}/"         "$WP_TESTS_DIR/wp-tests-config.php"
+        sed -i "s|localhost|${esc_db_host}|"                "$WP_TESTS_DIR/wp-tests-config.php"
     fi
 }
 

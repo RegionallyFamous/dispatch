@@ -14,6 +14,7 @@
     <coverage>
         <include>
             <directory suffix=".php">includes/</directory>
+            <directory suffix=".php">lib/telex-sdk/src/</directory>
         </include>
     </coverage>
 </phpunit>

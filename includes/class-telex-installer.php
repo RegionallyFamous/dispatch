@@ -258,10 +258,17 @@ class Telex_Installer {
 			WP_Filesystem();
 		}
 
-		$tmp_dir = wp_tempnam( 'telex_' ) . '_dir';
-		// wp_tempnam creates a file; remove it and use as directory name.
+		// Use tempnam() to atomically create a unique placeholder file, then
+		// immediately replace it with a directory. This avoids the TOCTOU race
+		// in the wp_tempnam() + unlink() + mkdir() sequence.
+		$tmp_placeholder = tempnam( sys_get_temp_dir(), 'telex_' );
+		if ( false === $tmp_placeholder ) {
+			return new \WP_Error( 'telex_mkdir', __( 'Could not create temporary directory.', 'dispatch' ) );
+		}
+
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		@unlink( $tmp_dir );
+		@unlink( $tmp_placeholder );
+		$tmp_dir = $tmp_placeholder . '_dir';
 
 		$project_dir = $tmp_dir . '/' . $slug;
 
@@ -332,7 +339,6 @@ class Telex_Installer {
 
 			try {
 				$content = $client->projects->getBuildFile( $public_id, $file->path );
-				$wp_filesystem->put_contents( $file_path, $content, FS_CHMOD_FILE );
 			} catch ( \Exception $e ) {
 				self::cleanup( $tmp_dir );
 				return new \WP_Error(
@@ -344,6 +350,21 @@ class Telex_Installer {
 					)
 				);
 			}
+
+			// Verify SHA-256 checksum against the build manifest.
+			if ( '' !== $file->sha256 && hash( 'sha256', $content ) !== $file->sha256 ) {
+				self::cleanup( $tmp_dir );
+				return new \WP_Error(
+					'telex_checksum',
+					sprintf(
+					/* translators: %s: file path */
+						__( 'Checksum mismatch for file: %s — the download may be corrupted.', 'dispatch' ),
+						$file->path
+					)
+				);
+			}
+
+			$wp_filesystem->put_contents( $file_path, $content, FS_CHMOD_FILE );
 		}
 
 		return $tmp_dir;

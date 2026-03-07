@@ -234,11 +234,16 @@ class Telex_REST {
 			]
 		);
 
-		// Regenerate deploy secret.
+		// Deploy secret — read (GET) and regenerate (POST).
 		register_rest_route(
 			self::NAMESPACE,
 			'/settings/deploy-secret',
 			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_deploy_secret_endpoint' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
 				[
 					'methods'             => \WP_REST_Server::CREATABLE,
 					'callback'            => [ self::class, 'regenerate_deploy_secret' ],
@@ -306,30 +311,48 @@ class Telex_REST {
 				return new \WP_Error( 'telex_token_expired', __( 'Your session expired — head to Dispatch to reconnect.', 'dispatch' ), [ 'status' => 401 ] );
 			} catch ( \Exception $e ) {
 				Telex_Circuit_Breaker::record_failure();
-				return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 500 ] );
+				error_log( 'Dispatch: projects list failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return new \WP_Error( 'telex_api', __( 'Could not fetch projects. Please try again.', 'dispatch' ), [ 'status' => 500 ] );
 			}
 		}
 
 		// The bulk list() API does not include currentVersion. For installed projects we
-		// need the accurate version to detect updates. Use per-project cache when warm
-		// (seeded by Telex_Updater on every WP update-check); fall back to individual
-		// get() calls only for the installed subset — typically 1–5 projects.
+		// need the accurate version to detect updates. Resolution order:
+		// 1. Per-project cache (seeded by Telex_Updater on every WP update-check).
+		// 2. The bulk $projects array — handles future API versions that do expose it.
+		// 3. Live per-project get() — only for installed items missing from both above.
 		$remote_versions = [];
 		if ( ! empty( $installed ) ) {
+			// Build a fast lookup from the bulk list in case currentVersion is present.
+			$bulk_versions = [];
+			foreach ( $projects as $p ) {
+				$pid = $p['publicId'] ?? '';
+				if ( '' !== $pid && isset( $p['currentVersion'] ) ) {
+					$bulk_versions[ $pid ] = (int) $p['currentVersion'];
+				}
+			}
+
 			$vc = Telex_Auth::get_client();
 			if ( $vc ) {
 				foreach ( array_keys( $installed ) as $installed_id ) {
+					// 1. Per-project cache.
 					$cp = Telex_Cache::get_project( $installed_id );
 					if ( is_array( $cp ) && isset( $cp['currentVersion'] ) ) {
 						$remote_versions[ $installed_id ] = (int) $cp['currentVersion'];
-					} else {
-						try {
-							$rp                               = $vc->projects->get( $installed_id );
-							$remote_versions[ $installed_id ] = (int) ( $rp['currentVersion'] ?? 0 );
-							Telex_Cache::set_project( $installed_id, $rp );
-						} catch ( \Exception ) {
-							$remote_versions[ $installed_id ] = 0;
-						}
+						continue;
+					}
+					// 2. Bulk list.
+					if ( isset( $bulk_versions[ $installed_id ] ) ) {
+						$remote_versions[ $installed_id ] = $bulk_versions[ $installed_id ];
+						continue;
+					}
+					// 3. Live API call.
+					try {
+						$rp                               = $vc->projects->get( $installed_id );
+						$remote_versions[ $installed_id ] = (int) ( $rp['currentVersion'] ?? 0 );
+						Telex_Cache::set_project( $installed_id, $rp );
+					} catch ( \Exception ) {
+						$remote_versions[ $installed_id ] = 0;
 					}
 				}
 			}
@@ -428,7 +451,8 @@ class Telex_REST {
 		try {
 			$build = $client->projects->getBuild( $public_id );
 		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
-			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+			error_log( 'Dispatch: getBuild failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return new \WP_Error( 'telex_api', __( 'Could not retrieve build information. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
 		if ( isset( $build['status'] ) && 'not_ready' === $build['status'] ) {
@@ -488,7 +512,8 @@ class Telex_REST {
 		try {
 			$build = $client->projects->getBuild( $public_id );
 		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
-			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+			error_log( 'Dispatch: getBuild status failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return new \WP_Error( 'telex_api', __( 'Could not retrieve build status. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
 		$ready = ! ( isset( $build['status'] ) && 'not_ready' === $build['status'] )
@@ -690,7 +715,8 @@ class Telex_REST {
 		try {
 			$project = $client->projects->get( $public_id );
 		} catch ( \Exception $e ) {
-			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+			error_log( 'Dispatch: project get failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return new \WP_Error( 'telex_api', __( 'Could not retrieve project details. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
 		$installed = Telex_Tracker::get( $public_id );
@@ -722,39 +748,68 @@ class Telex_REST {
 
 		$public_id = sanitize_text_field( $request->get_param( 'id' ) );
 
-		$sites = get_sites(
-			[
-				'number'   => 200,
-				'public'   => 1,
-				'deleted'  => 0,
-				'spam'     => 0,
-				'archived' => 0,
-			]
-		);
+		// Fetch the build once before the site loop so every subsite gets the
+		// same already-validated build data without N extra getBuild() API calls.
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Head to Dispatch to link your account.", 'dispatch' ), [ 'status' => 401 ] );
+		}
 
+		try {
+			$pre_fetched_build = $client->projects->getBuild( $public_id );
+		} catch ( \Exception $e ) {
+			error_log( 'Dispatch: network deploy getBuild failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return new \WP_Error( 'telex_api', __( 'Could not retrieve build information. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
+		}
+
+		// Paginate through all sites — the hard cap of 200 silently skips sites
+		// on large networks, so we loop until get_sites() returns fewer than $batch.
 		$succeeded = [];
 		$failed    = [];
+		$offset    = 0;
+		$batch     = 100;
+		$base_args = [
+			'public'   => 1,
+			'deleted'  => 0,
+			'spam'     => 0,
+			'archived' => 0,
+		];
 
-		foreach ( $sites as $site ) {
-			switch_to_blog( (int) $site->blog_id );
+		do {
+			$sites = get_sites(
+				array_merge(
+					$base_args,
+					[
+						'number' => $batch,
+						'offset' => $offset,
+					]
+				)
+			);
 
-			$result = Telex_Installer::install( $public_id );
+			foreach ( $sites as $site ) {
+				switch_to_blog( (int) $site->blog_id );
 
-			if ( is_wp_error( $result ) ) {
-				$failed[] = [
-					'id'     => (int) $site->blog_id,
-					'domain' => $site->domain . $site->path,
-					'error'  => $result->get_error_message(),
-				];
-			} else {
-				$succeeded[] = [
-					'id'     => (int) $site->blog_id,
-					'domain' => $site->domain . $site->path,
-				];
+				$result = Telex_Installer::install( $public_id, false, $pre_fetched_build );
+
+				if ( is_wp_error( $result ) ) {
+					$failed[] = [
+						'id'     => (int) $site->blog_id,
+						'domain' => $site->domain . $site->path,
+						'error'  => $result->get_error_message(),
+					];
+				} else {
+					$succeeded[] = [
+						'id'     => (int) $site->blog_id,
+						'domain' => $site->domain . $site->path,
+					];
+				}
+
+				restore_current_blog();
 			}
 
-			restore_current_blog();
-		}
+			$offset     += $batch;
+			$sites_count = count( $sites );
+		} while ( $sites_count === $batch );
 
 		return rest_ensure_response(
 			[
@@ -795,6 +850,19 @@ class Telex_REST {
 	}
 
 	/**
+	 * GET /telex/v1/settings/deploy-secret — returns the current deploy secret.
+	 *
+	 * The secret is never embedded in page HTML; it is only served over this
+	 * authenticated endpoint so it cannot be exfiltrated via XSS or devtools.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_deploy_secret_endpoint( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		return rest_ensure_response( [ 'secret' => self::get_deploy_secret() ] );
+	}
+
+	/**
 	 * POST /telex/v1/deploy — HMAC-signed webhook that triggers a project install/update.
 	 *
 	 * Expected payload:  { "project_id": "...", "build_version": 42, "timestamp": 1234567890 }
@@ -807,6 +875,21 @@ class Telex_REST {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function webhook_deploy( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		// --- Per-IP rate limiting ---------------------------------------------
+		// Authenticated endpoints use per-user limits; this public endpoint uses
+		// a per-IP counter so a single source cannot flood the install queue.
+		$_wh_retry = self::check_webhook_rate_limit();
+		if ( $_wh_retry > 0 ) {
+			return new \WP_Error(
+				'telex_rate_limit',
+				'Too many webhook requests from this address. Please wait.',
+				[
+					'status'  => 429,
+					'headers' => [ 'Retry-After' => (string) $_wh_retry ],
+				]
+			);
+		}
+
 		// --- Signature verification -------------------------------------------
 		$sig_header = $request->get_header( 'X-Telex-Signature' );
 		if ( ! $sig_header || ! str_starts_with( $sig_header, 'sha256=' ) ) {
@@ -823,8 +906,13 @@ class Telex_REST {
 		}
 
 		// --- Replay protection ------------------------------------------------
+		// timestamp is required — a missing field would otherwise allow
+		// indefinite replay of any HMAC-valid request without a timestamp.
 		$timestamp = (int) $request->get_param( 'timestamp' );
-		if ( $timestamp && abs( time() - $timestamp ) > self::DEPLOY_REPLAY_SECS ) {
+		if ( 0 === $timestamp ) {
+			return new \WP_Error( 'telex_replay', 'timestamp is required.', [ 'status' => 400 ] );
+		}
+		if ( abs( time() - $timestamp ) > self::DEPLOY_REPLAY_SECS ) {
 			return new \WP_Error( 'telex_replay', 'Request timestamp is too old.', [ 'status' => 400 ] );
 		}
 
@@ -850,6 +938,27 @@ class Telex_REST {
 				'project_id' => $public_id,
 			]
 		);
+	}
+
+	/**
+	 * Per-IP rate limiter for the public webhook endpoint.
+	 *
+	 * Uses a transient keyed on a hashed IP address. Allows up to 10 webhook
+	 * triggers per minute from any single address.
+	 *
+	 * @return int Seconds until the rate-limit window resets, or 0 if under the limit.
+	 */
+	private static function check_webhook_rate_limit(): int {
+		$window = 60;
+		$max    = 10;
+		// Hash the IP so the raw address is never stored in the database.
+		$ip_key = 'telex_wh_rl_' . substr( hash( 'sha256', (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ), 0, 32 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- hashed immediately; never stored raw.
+		$count  = (int) get_transient( $ip_key );
+		if ( $count >= $max ) {
+			return $window;
+		}
+		set_transient( $ip_key, $count + 1, $window );
+		return 0;
 	}
 
 	/**

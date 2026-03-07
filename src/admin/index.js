@@ -8,6 +8,7 @@ import {
 	render,
 	useEffect,
 	useCallback,
+	useMemo,
 	useState,
 	useRef,
 	Component,
@@ -989,25 +990,49 @@ function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
 // ---------------------------------------------------------------------------
 
 /**
- * @param {Object} root0
- * @param {string} root0.webhookUrl
- * @param {string} root0.webhookSecret
- * @param {string} root0.restUrl
+ * @param {Object}   root0
+ * @param {string}   root0.webhookUrl
+ * @param {string}   root0.restUrl
+ * @param {Function} root0.onToast    Toast callback from the parent.
  * @return {import('@wordpress/element').WPElement} Rendered element.
  */
-function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
+function WebhookPanel( { webhookUrl, restUrl, onToast } ) {
 	const [ visibleSecret, setVisibleSecret ] = useState( false );
 	const [ copiedUrl, setCopiedUrl ] = useState( false );
 	const [ copiedSecret, setCopiedSecret ] = useState( false );
 	const [ regenerating, setRegenerating ] = useState( false );
-	const [ currentSecret, setCurrentSecret ] = useState( webhookSecret );
+	const [ currentSecret, setCurrentSecret ] = useState( '' );
 
-	function copy( text, setCopied ) {
+	// Timer refs for copy feedback — cleared on unmount to avoid state updates
+	// after the component is gone.
+	const copyUrlTimerRef = useRef( null );
+	const copySecretTimerRef = useRef( null );
+
+	// Fetch the deploy secret via the authenticated REST endpoint on mount.
+	// The secret is intentionally not embedded in page HTML (see Pass 1).
+	useEffect( () => {
+		apiFetch( { url: `${ restUrl }/settings/deploy-secret` } )
+			.then( ( data ) => setCurrentSecret( data.secret || '' ) )
+			.catch( () => {} );
+
+		// Capture current refs at effect time for the cleanup closure.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		const urlTimer = copyUrlTimerRef;
+		const secretTimer = copySecretTimerRef;
+		return () => {
+			clearTimeout( urlTimer.current );
+			clearTimeout( secretTimer.current );
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
+
+	function copy( text, setCopied, timerRef ) {
+		clearTimeout( timerRef.current );
 		if ( window.navigator?.clipboard ) {
 			window.navigator.clipboard.writeText( text ).catch( () => {} );
 		}
 		setCopied( true );
-		setTimeout( () => setCopied( false ), 2000 );
+		timerRef.current = setTimeout( () => setCopied( false ), 2000 );
 	}
 
 	async function handleRegenerate() {
@@ -1018,8 +1043,16 @@ function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
 				method: 'POST',
 			} );
 			setCurrentSecret( data.secret );
-		} catch {
-			// Silently fail — user can reload.
+		} catch ( err ) {
+			onToast?.( {
+				type: 'error',
+				message:
+					err?.message ||
+					__(
+						'Could not regenerate secret. Please try again.',
+						'dispatch'
+					),
+			} );
 		}
 		setRegenerating( false );
 	}
@@ -1052,7 +1085,9 @@ function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
 				<Button
 					variant="secondary"
 					icon={ copyIcon }
-					onClick={ () => copy( webhookUrl, setCopiedUrl ) }
+					onClick={ () =>
+						copy( webhookUrl, setCopiedUrl, copyUrlTimerRef )
+					}
 					__next40pxDefaultSize
 				>
 					{ copiedUrl
@@ -1087,7 +1122,13 @@ function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
 					<Button
 						variant="secondary"
 						icon={ copyIcon }
-						onClick={ () => copy( currentSecret, setCopiedSecret ) }
+						onClick={ () =>
+							copy(
+								currentSecret,
+								setCopiedSecret,
+								copySecretTimerRef
+							)
+						}
 						__next40pxDefaultSize
 					>
 						{ copiedSecret
@@ -1259,11 +1300,12 @@ function NetworkDeployModal( { project, restUrl, onClose } ) {
  * POST /install, then poll /build if the server signals the build isn't ready yet.
  * Resolves when the install is confirmed, rejects with a user-facing error message.
  *
- * @param {Function} fetch      apiFetch bound with the correct middleware.
- * @param {string}   url        REST base URL.
- * @param {string}   publicId   Project public ID.
- * @param {Function} onBuilding Called with poll_interval when the build starts.
- * @param {boolean}  activate   Whether to activate the plugin/theme after install.
+ * @param {Function}             fetch        apiFetch bound with the correct middleware.
+ * @param {string}               url          REST base URL.
+ * @param {string}               publicId     Project public ID.
+ * @param {Function}             onBuilding   Called with poll_interval when the build starts.
+ * @param {boolean}              activate     Whether to activate the plugin/theme after install.
+ * @param {{ cancelled: false }} cancelSignal Pass { cancelled: false }; set .cancelled = true to abort.
  * @return {Promise<Object>} Final install response data.
  */
 async function installWithPolling(
@@ -1271,7 +1313,8 @@ async function installWithPolling(
 	url,
 	publicId,
 	onBuilding,
-	activate = false
+	activate = false,
+	cancelSignal = null
 ) {
 	const doInstall = () =>
 		fetch( {
@@ -1293,8 +1336,17 @@ async function installWithPolling(
 	let pollInterval = data.poll_interval || 5;
 
 	for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
+		// Bail out immediately if the component unmounted or the user navigated away.
+		if ( cancelSignal?.cancelled ) {
+			throw new Error( __( 'Installation was cancelled.', 'dispatch' ) );
+		}
+
 		// eslint-disable-next-line no-await-in-loop
 		await new Promise( ( r ) => setTimeout( r, pollInterval * 1000 ) );
+
+		if ( cancelSignal?.cancelled ) {
+			throw new Error( __( 'Installation was cancelled.', 'dispatch' ) );
+		}
 
 		// eslint-disable-next-line no-await-in-loop
 		const buildStatus = await fetch( {
@@ -1365,6 +1417,18 @@ function ProjectCard( {
 	const [ showChangelog, setShowChangelog ] = useState( false );
 	const [ showNetworkDeploy, setShowNetworkDeploy ] = useState( false );
 
+	// Refs for cleanup on unmount.
+	const cancelSignalRef = useRef( { cancelled: false } );
+	const step4TimerRef = useRef( null );
+
+	useEffect( () => {
+		return () => {
+			// Cancel any in-flight polling loop when this card unmounts.
+			cancelSignalRef.current.cancelled = true;
+			clearTimeout( step4TimerRef.current );
+		};
+	}, [] );
+
 	const installed = installedProjects[ project.publicId ];
 	const needsUpdate = installed && project.currentVersion > installed.version;
 	const isInstalled = !! installed;
@@ -1381,6 +1445,10 @@ function ProjectCard( {
 	 * @param {boolean} [activate]
 	 */
 	async function executeInstall( successMessage, activate = false ) {
+		// Create a fresh signal for this install attempt.
+		const cancelSignal = { cancelled: false };
+		cancelSignalRef.current = cancelSignal;
+
 		setInstallStatus( project.publicId, 'installing' );
 		setInstallStep( project.publicId, 1 );
 
@@ -1411,12 +1479,16 @@ function ProjectCard( {
 					clearStepTimers();
 					setInstallStatus( project.publicId, 'building' );
 				},
-				activate
+				activate,
+				cancelSignal
 			);
 
 			clearStepTimers();
 			setInstallStep( project.publicId, 4 );
-			setTimeout( () => clearInstallStep( project.publicId ), 600 );
+			step4TimerRef.current = setTimeout(
+				() => clearInstallStep( project.publicId ),
+				600
+			);
 			onToast( { type: 'success', message: successMessage } );
 			await onRefresh();
 			setInstallStatus( project.publicId, 'idle' );
@@ -1862,7 +1934,6 @@ function ProjectsApp() {
 	const nonce = container?.dataset?.nonce || '';
 	const disconnectUrl = container?.dataset?.disconnectUrl || '';
 	const webhookUrl = container?.dataset?.webhookUrl || '';
-	const webhookSecret = container?.dataset?.webhookSecret || '';
 	const isNetworkAdmin = container?.dataset?.isNetwork === '1';
 
 	// Toast state lives here (not Redux) so undoFn closures work cleanly.
@@ -2002,19 +2073,31 @@ function ProjectsApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ searchQuery ] );
 
-	// Derived counts for tab titles.
-	const updatesCount = projects.filter( ( p ) => {
-		const inst = installedProjects[ p.publicId ];
-		return inst && p.currentVersion > inst.version;
-	} ).length;
+	// Derived counts for tab titles — memoised so filter() only runs when the
+	// project list or installed map changes, not on every unrelated re-render.
+	const updatesCount = useMemo(
+		() =>
+			projects.filter( ( p ) => {
+				const inst = installedProjects[ p.publicId ];
+				return inst && p.currentVersion > inst.version;
+			} ).length,
+		[ projects, installedProjects ]
+	);
 
-	const blocksCount = projects.filter(
-		( p ) => ( p.projectType?.toLowerCase() || 'block' ) !== 'theme'
-	).length;
+	const blocksCount = useMemo(
+		() =>
+			projects.filter(
+				( p ) => ( p.projectType?.toLowerCase() || 'block' ) !== 'theme'
+			).length,
+		[ projects ]
+	);
 
-	const themesCount = projects.filter(
-		( p ) => p.projectType?.toLowerCase() === 'theme'
-	).length;
+	const themesCount = useMemo(
+		() =>
+			projects.filter( ( p ) => p.projectType?.toLowerCase() === 'theme' )
+				.length,
+		[ projects ]
+	);
 
 	// Piggyback on the WordPress Heartbeat to detect new builds while the user
 	// stays on the page. When the server reports more updates we force-refresh.
@@ -2051,57 +2134,64 @@ function ProjectsApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ updatesCount ] );
 
-	// Filter projects for a given tab + search.
-	function getTabProjects( tabName ) {
-		return projects
-			.filter( ( p ) => {
-				const t = p.projectType?.toLowerCase() || 'block';
-				const inst = installedProjects[ p.publicId ];
-				if ( tabName === 'updates' ) {
-					return inst && p.currentVersion > inst.version;
-				}
-				if ( tabName === 'blocks' ) {
-					return t !== 'theme';
-				}
-				if ( tabName === 'themes' ) {
-					return t === 'theme';
-				}
-				return true;
-			} )
-			.filter(
-				( p ) =>
-					! searchQuery ||
-					p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
-			);
-	}
+	// Filter projects for a given tab + search — memoised on the deps that matter.
+	const getTabProjects = useCallback(
+		( tabName ) =>
+			projects
+				.filter( ( p ) => {
+					const t = p.projectType?.toLowerCase() || 'block';
+					const inst = installedProjects[ p.publicId ];
+					if ( tabName === 'updates' ) {
+						return inst && p.currentVersion > inst.version;
+					}
+					if ( tabName === 'blocks' ) {
+						return t !== 'theme';
+					}
+					if ( tabName === 'themes' ) {
+						return t === 'theme';
+					}
+					return true;
+				} )
+				.filter(
+					( p ) =>
+						! searchQuery ||
+						p.name
+							?.toLowerCase()
+							.includes( searchQuery.toLowerCase() )
+				),
+		[ projects, installedProjects, searchQuery ]
+	);
 
-	const tabs = [
-		{
-			name: 'all',
-			title: projects.length
-				? `${ __( 'All', 'dispatch' ) } (${ projects.length })`
-				: __( 'All', 'dispatch' ),
-		},
-		{
-			name: 'updates',
-			title: updatesCount
-				? `${ __( 'Updates', 'dispatch' ) } (${ updatesCount })`
-				: __( 'Updates', 'dispatch' ),
-			className: updatesCount > 0 ? 'telex-tab--has-updates' : '',
-		},
-		{
-			name: 'blocks',
-			title: blocksCount
-				? `${ __( 'Blocks', 'dispatch' ) } (${ blocksCount })`
-				: __( 'Blocks', 'dispatch' ),
-		},
-		{
-			name: 'themes',
-			title: themesCount
-				? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
-				: __( 'Themes', 'dispatch' ),
-		},
-	];
+	const tabs = useMemo(
+		() => [
+			{
+				name: 'all',
+				title: projects.length
+					? `${ __( 'All', 'dispatch' ) } (${ projects.length })`
+					: __( 'All', 'dispatch' ),
+			},
+			{
+				name: 'updates',
+				title: updatesCount
+					? `${ __( 'Updates', 'dispatch' ) } (${ updatesCount })`
+					: __( 'Updates', 'dispatch' ),
+				className: updatesCount > 0 ? 'telex-tab--has-updates' : '',
+			},
+			{
+				name: 'blocks',
+				title: blocksCount
+					? `${ __( 'Blocks', 'dispatch' ) } (${ blocksCount })`
+					: __( 'Blocks', 'dispatch' ),
+			},
+			{
+				name: 'themes',
+				title: themesCount
+					? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
+					: __( 'Themes', 'dispatch' ),
+			},
+		],
+		[ projects.length, updatesCount, blocksCount, themesCount ]
+	);
 
 	return (
 		<div className="telex-app">
@@ -2273,8 +2363,8 @@ function ProjectsApp() {
 			{ webhookUrl && (
 				<WebhookPanel
 					webhookUrl={ webhookUrl }
-					webhookSecret={ webhookSecret }
 					restUrl={ restUrl }
+					onToast={ addToast }
 				/>
 			) }
 

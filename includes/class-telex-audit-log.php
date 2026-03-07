@@ -51,18 +51,27 @@ class Telex_Audit_Log {
 		);
 	}
 
+	/** Columns that may be used as ORDER BY targets. */
+	private const SORTABLE_COLUMNS = [ 'id', 'action', 'created_at' ];
+
 	/**
 	 * Returns the most recent audit log entries.
 	 *
-	 * @param int $limit Maximum number of rows to return.
+	 * @param int    $limit   Maximum number of rows to return.
+	 * @param string $orderby Column to sort by ('id', 'action', or 'created_at').
+	 * @param string $order   Sort direction ('ASC' or 'DESC').
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function get_recent( int $limit = 50 ): array {
+	public static function get_recent( int $limit = 50, string $orderby = 'id', string $order = 'DESC' ): array {
 		global $wpdb;
 
+		// Allowlist both parameters so they can be safely interpolated.
+		$orderby = in_array( $orderby, self::SORTABLE_COLUMNS, true ) ? $orderby : 'id';
+		$order   = 'ASC' === strtoupper( $order ) ? 'ASC' : 'DESC';
+
 		$table = self::table_name();
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table comes from $wpdb->prefix, never user-supplied.
-		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY id DESC LIMIT %d", $limit );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$orderby/$order are all allowlisted above.
+		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d", $limit );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
 

@@ -194,38 +194,45 @@ class Telex_Updater {
 				continue;
 			}
 
-			$client = Telex_Auth::get_client();
-			if ( ! $client ) {
-				return $result;
+			// Use the per-project cache when warm — avoids a live API round-trip
+			// every time the "View version details" modal is opened.
+			$remote = Telex_Cache::get_project( $public_id );
+			if ( null === $remote ) {
+				$client = Telex_Auth::get_client();
+				if ( ! $client ) {
+					return $result;
+				}
+
+				try {
+					$remote = $client->projects->get( $public_id );
+					Telex_Cache::set_project( $public_id, $remote );
+				} catch ( \Exception ) {
+					return $result;
+				}
 			}
 
-			try {
-				$remote  = $client->projects->get( $public_id );
-				$version = (int) ( $remote['currentVersion'] ?? 0 );
+			$version = (int) ( $remote['currentVersion'] ?? 0 );
 
-				return (object) [
-					'name'              => $remote['name'] ?? $slug,
-					'slug'              => $slug,
-					'version'           => 'v' . $version,
-					'author'            => 'Telex',
-					'homepage'          => TELEX_PUBLIC_URL,
-					'short_description' => sprintf(
-						/* translators: %s: project name */
-						__( '%s — managed by Dispatch for Telex', 'dispatch' ),
-						$remote['name'] ?? $slug
+			return (object) [
+				'name'              => $remote['name'] ?? $slug,
+				'slug'              => $slug,
+				'version'           => 'v' . $version,
+				'author'            => 'Telex',
+				'homepage'          => TELEX_PUBLIC_URL,
+				'short_description' => sprintf(
+					/* translators: %s: project name */
+					__( '%s — managed by Dispatch for Telex', 'dispatch' ),
+					$remote['name'] ?? $slug
+				),
+				'sections'          => [
+					'description' => sprintf(
+						/* translators: %s: public ID */
+						__( 'Managed by Dispatch. Telex project ID: %s', 'dispatch' ),
+						esc_html( $public_id )
 					),
-					'sections'          => [
-						'description' => sprintf(
-							/* translators: %s: public ID */
-							__( 'Managed by Dispatch. Telex project ID: %s', 'dispatch' ),
-							esc_html( $public_id )
-						),
-					],
-					'download_link'     => '',
-				];
-			} catch ( \Exception ) {
-				return $result;
-			}
+				],
+				'download_link'     => '',
+			];
 		}
 
 		return $result;
@@ -338,7 +345,7 @@ class Telex_Updater {
 	 * @param array<string, mixed> $installed Tracked projects keyed by public ID.
 	 * @return void
 	 */
-	private static function prime_project_caches( array $installed ): void {
+	public static function prime_project_caches( array $installed ): void {
 		$bulk = Telex_Cache::get_projects();
 		if ( ! is_array( $bulk ) ) {
 			return;

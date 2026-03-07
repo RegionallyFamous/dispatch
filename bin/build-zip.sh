@@ -7,7 +7,14 @@ set -euo pipefail
 
 PLUGIN_SLUG="dispatch-for-telex"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="$(grep -m1 'Version:' "${REPO_ROOT}/telex.php" | sed "s/.*Version:[[:space:]]*//")"
+VERSION="$(grep -m1 'Version:' "${REPO_ROOT}/telex.php" | sed 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')"
+
+# Guard against malformed version strings that could corrupt the zip filename
+# or the rsync/zip commands (e.g. path injection via a crafted telex.php).
+if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[a-zA-Z0-9._-]+)?$ ]]; then
+  echo "ERROR: VERSION '${VERSION}' does not look like a valid semver tag." >&2
+  exit 1
+fi
 TMP_DIR="${REPO_ROOT}/.tmp-zip"
 ZIP_FILE="${REPO_ROOT}/${PLUGIN_SLUG}-${VERSION}.zip"
 

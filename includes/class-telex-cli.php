@@ -162,16 +162,25 @@ class Telex_CLI extends \WP_CLI_Command {
 				\WP_CLI::error( __( 'Could not initialise Telex client.', 'dispatch' ) );
 			}
 
+			// Warm the per-project caches from the bulk list before the update loop
+			// to avoid N serial projects->get() calls — one bulk call instead of N.
+			Telex_Updater::prime_project_caches( $installed );
+
 			$to_update = [];
 			foreach ( $installed as $id => $info ) {
-				try {
-					$remote         = $client->projects->get( $id );
-					$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
-					if ( Telex_Tracker::needs_update( $id, $remote_version ) ) {
-						$to_update[] = $id;
+				// Use the cache seeded above; only fall back to a live call on miss.
+				$remote = Telex_Cache::get_project( $id );
+				if ( null === $remote ) {
+					try {
+						$remote = $client->projects->get( $id );
+						Telex_Cache::set_project( $id, $remote );
+					} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement
+						continue;
 					}
-				} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project fetch failures are skipped; remaining items continue.
-					// Skip projects that fail to fetch.
+				}
+				$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
+				if ( Telex_Tracker::needs_update( $id, $remote_version ) ) {
+					$to_update[] = $id;
 				}
 			}
 

@@ -203,18 +203,20 @@ class Telex_Admin {
 			);
 
 			// Webhook / auto-deploy data.
-			$webhook_url    = rest_url( 'telex/v1/deploy' );
-			$webhook_secret = Telex_REST::get_deploy_secret();
-			$is_network     = is_multisite() ? '1' : '0';
+			$webhook_url = rest_url( 'telex/v1/deploy' );
+			$is_network  = is_multisite() ? '1' : '0';
 
+			// The deploy secret is intentionally NOT embedded here — it must only
+			// travel over authenticated REST calls to prevent exfiltration via XSS
+			// or devtools inspection. The React app fetches it on demand from
+			// GET /telex/v1/settings/deploy-secret (requires manage_options).
 			printf(
-				'<div id="telex-projects-app" data-rest-url="%s" data-nonce="%s" data-per-page="%d" data-disconnect-url="%s" data-webhook-url="%s" data-webhook-secret="%s" data-is-network="%s"></div>',
+				'<div id="telex-projects-app" data-rest-url="%s" data-nonce="%s" data-per-page="%d" data-disconnect-url="%s" data-webhook-url="%s" data-is-network="%s"></div>',
 				esc_attr( rest_url( 'telex/v1' ) ),
 				esc_attr( wp_create_nonce( 'wp_rest' ) ),
 				absint( $per_page ),
 				esc_attr( $disconnect_url ),
 				esc_attr( $webhook_url ),
-				esc_attr( $webhook_secret ),
 				esc_attr( $is_network )
 			);
 		}
@@ -406,7 +408,26 @@ class Telex_Admin {
 			wp_die( esc_html__( 'Security check failed.', 'dispatch' ) );
 		}
 
-		$events   = Telex_Audit_Log::get_recent( 10000 );
+		$events = Telex_Audit_Log::get_recent( 10000 );
+
+		// Batch-fetch all user records in one query to avoid N+1 get_userdata() calls.
+		$user_ids  = array_filter(
+			array_unique( array_column( $events, 'user_id' ) ),
+			static fn( $id ) => (int) $id > 0
+		);
+		$users_map = [];
+		if ( ! empty( $user_ids ) ) {
+			$user_objects = get_users(
+				[
+					'include' => array_map( 'intval', $user_ids ),
+					'fields'  => [ 'ID', 'user_login' ],
+				]
+			);
+			foreach ( $user_objects as $u ) {
+				$users_map[ (int) $u->ID ] = $u->user_login;
+			}
+		}
+
 		$filename = 'dispatch-audit-' . gmdate( 'Y-m-d' ) . '.csv';
 
 		header( 'Content-Type: text/csv; charset=utf-8' );
@@ -424,8 +445,9 @@ class Telex_Admin {
 		fputcsv( $out, [ 'Date (UTC)', 'Action', 'Project ID', 'User' ] );
 
 		foreach ( $events as $event ) {
-			$user = $event['user_id']
-				? ( get_userdata( (int) $event['user_id'] )->user_login ?? '' )
+			$uid  = (int) ( $event['user_id'] ?? 0 );
+			$user = $uid > 0
+				? ( $users_map[ $uid ] ?? sprintf( '#%d', $uid ) )
 				: '(system)';
 
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv

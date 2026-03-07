@@ -29,11 +29,18 @@ class HttpClient
      * @param array<string, string> $params
      * @return array<string, mixed>
      */
+    /** Maximum acceptable response body size (10 MB). */
+    private const MAX_BODY_BYTES = 10_000_000;
+
     public function get(string $path, array $params = []): array
     {
         $response = $this->sendRequest($path, $params);
         $status   = (int) $response->getStatusCode();
         $body     = (string) $response->getBody();
+
+        if (strlen($body) > self::MAX_BODY_BYTES) {
+            throw new TelexException('Response body exceeds maximum allowed size.', $status); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+        }
 
         $this->throwOnError($status, $body);
 
@@ -54,6 +61,10 @@ class HttpClient
         $status   = (int) $response->getStatusCode();
         $body     = (string) $response->getBody();
 
+        if (strlen($body) > self::MAX_BODY_BYTES) {
+            throw new TelexException('Response body exceeds maximum allowed size.', $status); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+        }
+
         $this->throwOnError($status, $body);
 
         return $body;
@@ -71,7 +82,13 @@ class HttpClient
             'Authorization' => 'Bearer ' . $this->token,
             'Accept'        => 'application/json',
             'Content-Type'  => 'application/json',
-        ], (string) (json_encode($body) ?: '{}'));
+        ], (function () use ($body): string {
+            $encoded = json_encode($body);
+            if ($encoded === false) {
+                throw new TelexException('Failed to encode request body as JSON: ' . json_last_error_msg()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+            }
+            return $encoded;
+        })());
 
         $response = $this->client->sendRequest($request);
         $status   = (int) $response->getStatusCode();

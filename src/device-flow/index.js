@@ -217,16 +217,30 @@ function DeviceFlowApp() {
 				stopPolling();
 				startPolling( data.interval );
 			}
+			// authorization_pending and any other non-terminal state: keep polling.
 		} catch ( err ) {
-			stopPolling();
-			setErrorMsg(
-				err.message ||
-					__(
-						'Something went wrong — the code may have expired.',
-						'dispatch'
-					)
-			);
-			setStatus( STATUS.EXPIRED );
+			// Only stop polling on RFC 8628 terminal error codes. Transient
+			// network errors (e.g. connection reset, 5xx) should not abort the
+			// flow — the user may still approve in the browser tab.
+			const errorCode = err?.code || err?.data?.code || '';
+			const isTerminal = [
+				'telex_device_expired_token',
+				'telex_device_access_denied',
+				'telex_no_device_flow',
+			].includes( errorCode );
+
+			if ( isTerminal ) {
+				stopPolling();
+				setErrorMsg(
+					err.message ||
+						__(
+							'Something went wrong — the code may have expired.',
+							'dispatch'
+						)
+				);
+				setStatus( STATUS.EXPIRED );
+			}
+			// Otherwise: transient error — keep polling silently.
 		} finally {
 			pollInFlightRef.current = false;
 		}
@@ -239,8 +253,11 @@ function DeviceFlowApp() {
 				url: `${ restUrl }/auth/device`,
 				method: 'DELETE',
 			} );
-		} catch {
-			// Ignore cancel errors.
+		} catch ( err ) {
+			// Log but don't surface — the user explicitly cancelled, so resetting
+			// the UI is always the right outcome even if the server call fails.
+			// eslint-disable-next-line no-console
+			console.warn( 'Dispatch: cancel device flow failed', err );
 		}
 		setStatus( STATUS.IDLE );
 		setDeviceData( null );
@@ -435,18 +452,29 @@ function DeviceFlowApp() {
 						</Button>
 					</div>
 
-					<Button
-						variant="primary"
-						href={ deviceData.verification_uri_complete }
-						target="_blank"
-						rel="noopener noreferrer"
-						__next40pxDefaultSize
-					>
-						{ __( 'Open Telex and approve →', 'dispatch' ) }
-						<span className="screen-reader-text">
-							{ __( '(opens in a new tab)', 'dispatch' ) }
-						</span>
-					</Button>
+					{ /^https:\/\//i.test(
+						deviceData.verification_uri_complete
+					) ? (
+						<Button
+							variant="primary"
+							href={ deviceData.verification_uri_complete }
+							target="_blank"
+							rel="noopener noreferrer"
+							__next40pxDefaultSize
+						>
+							{ __( 'Open Telex and approve →', 'dispatch' ) }
+							<span className="screen-reader-text">
+								{ __( '(opens in a new tab)', 'dispatch' ) }
+							</span>
+						</Button>
+					) : (
+						<Notice status="error" isDismissible={ false }>
+							{ __(
+								'The verification link received from the server is invalid. Please try again.',
+								'dispatch'
+							) }
+						</Notice>
+					) }
 
 					<div className="telex-polling-status">
 						<Spinner aria-hidden={ true } />

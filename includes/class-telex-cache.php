@@ -172,13 +172,19 @@ class Telex_Cache {
 	/**
 	 * Schedule an immediate one-off cron event for a background cache refresh,
 	 * protected by a short lock transient to prevent stampedes.
+	 *
+	 * Uses add_transient() instead of get_transient() + set_transient() so that
+	 * the lock acquisition is atomic on object-cache backends (Redis/Memcached).
+	 * add_transient returns false if the key already exists, ensuring only one
+	 * background refresh is queued at a time.
 	 */
 	public static function schedule_background_refresh(): void {
-		if ( get_transient( self::TRANSIENT_REFRESH_LOCK ) ) {
+		// add_transient() is atomic: it only sets if the key does not exist.
+		// On a database transient backend it is still a single INSERT … IGNORE.
+		if ( ! add_transient( self::TRANSIENT_REFRESH_LOCK, 1, 30 ) ) {
 			return; // A refresh is already scheduled/in-progress.
 		}
 
-		set_transient( self::TRANSIENT_REFRESH_LOCK, 1, 30 );
 		wp_schedule_single_event( time(), self::CRON_HOOK );
 	}
 
@@ -204,9 +210,11 @@ class Telex_Cache {
 		try {
 			$response = $client->projects->list( [ 'perPage' => 100 ] );
 			$projects = $response['projects'] ?? [];
-			if ( ! empty( $projects ) ) {
-				self::set_projects( $projects );
-			}
+			// Cache even empty arrays (with a shorter TTL) so the stale-while-
+			// revalidate loop terminates instead of scheduling refresh endlessly.
+			$ttl = empty( $projects ) ? 5 * MINUTE_IN_SECONDS : self::TTL_PROJECTS;
+			set_transient( self::TRANSIENT_PROJECTS, $projects, $ttl );
+			set_transient( self::TRANSIENT_STALE, $projects, self::TTL_STALE );
 			Telex_Circuit_Breaker::record_success();
 		} catch ( \Exception ) {
 			Telex_Circuit_Breaker::record_failure();
