@@ -235,10 +235,25 @@ class Telex_Admin {
 	private static function enqueue_assets(): void {
 		$is_connected = Telex_Auth::is_connected();
 		$handle       = $is_connected ? 'telex-admin' : 'telex-device-flow';
-		$asset_file   = TELEX_PLUGIN_DIR . 'build/' . ( $is_connected ? 'admin' : 'device-flow' ) . '.asset.php';
+		$bundle       = $is_connected ? 'admin' : 'device-flow';
+		$asset_file   = TELEX_PLUGIN_DIR . 'build/' . $bundle . '.asset.php';
+		$script_file  = TELEX_PLUGIN_DIR . 'build/' . $bundle . '.js';
 
-		if ( ! file_exists( $asset_file ) ) {
-			// Build not run yet — skip (dev environment).
+		if ( ! file_exists( $asset_file ) || ! file_exists( $script_file ) ) {
+			// JS bundle has not been compiled yet. Surface an actionable notice
+			// instead of silently rendering a blank page.
+			add_action(
+				'admin_notices',
+				static function (): void {
+					printf(
+						'<div class="notice notice-error"><p>%s</p></div>',
+						wp_kses_post(
+							'<strong>Dispatch for Telex</strong>: The plugin\'s JavaScript bundle is missing. ' .
+							'Run <code>npm install &amp;&amp; npm run build</code> in the plugin directory, then reload this page.'
+						)
+					);
+				}
+			);
 			return;
 		}
 
@@ -246,7 +261,7 @@ class Telex_Admin {
 
 		wp_enqueue_script(
 			$handle,
-			plugins_url( 'build/' . ( $is_connected ? 'admin' : 'device-flow' ) . '.js', TELEX_PLUGIN_FILE ),
+			plugins_url( 'build/' . $bundle . '.js', TELEX_PLUGIN_FILE ),
 			$asset['dependencies'],
 			$asset['version'],
 			[

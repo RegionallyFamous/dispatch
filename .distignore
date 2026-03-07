@@ -33,6 +33,7 @@ phpstan-bootstrap.php
 
 # Build tooling
 Makefile
+webpack.config.js
 /bin/
 /src/
 
@@ -43,7 +44,8 @@ tests/
 docs/
 
 # Generated / local
-build/
+# build/ is intentionally NOT excluded — npm run build:production compiles
+# the JS bundles into build/ and they must be present in the release ZIP.
 *.zip
 .tmp-zip/
 .phpunit.result.cache
