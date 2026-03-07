@@ -89,6 +89,10 @@ Yes. Click **Remove** on any installed project in the Dispatch screen, or run `w
 
 Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regionallyfamous/dispatch/issues).
 
+== Screenshots ==
+
+1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
+
 == Changelog ==
 
 = 1.0.1 =

@@ -11,7 +11,7 @@
 .vscode/
 .idea/
 
-# GitHub-specific
+# GitHub-specific (includes screenshots, CI workflows, etc.)
 .github/
 
 # Node / npm

@@ -12,6 +12,8 @@ Dispatch collapses that entire process into a button press.
 
 Connect your WordPress site to your Telex account once. After that, every block and theme you've built shows up in a clean admin screen — available to install, update, or remove without ever leaving WordPress. No terminal access required. No deployment scripts. No developer bottleneck for work that should never have needed one.
 
+![Dispatch admin screen showing the projects grid with install, update, and remove actions](.github/assets/screenshot-1.png)
+
 ---
 
 ## Install. Update. Done.
