@@ -26,8 +26,8 @@
 	--telex-surface-alt: #f6f7f7;
 
 	/* Radii, shadow, motion */
-	--telex-radius: 4px;
-	--telex-radius-lg: 8px;
+	--telex-radius: 0;
+	--telex-radius-lg: 0;
 	--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
 	--telex-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
 	--telex-transition: 0.15s ease;
@@ -104,48 +104,118 @@
  * Toolbar
  * ------------------------------------------------------------------------- */
 
-.telex-toolbar {
+/* ---------------------------------------------------------------------------
+ * Unified toolbar — tabs + search + actions on one bar
+ * ------------------------------------------------------------------------- */
+
+.telex-unified-bar {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	margin: 0 0 16px;
-	flex-wrap: wrap;
+	gap: 0;
+	margin: 0 0 20px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+	overflow: visible;
+	min-height: 48px;
 }
 
-.telex-toolbar .components-search-control {
+/* Tabs — flush left, borderless buttons that sit inside the bar */
+.telex-unified-bar__tabs {
+	display: flex;
+	align-items: stretch;
+	flex-shrink: 0;
+	border-right: 1px solid var(--telex-border);
+}
+
+.telex-tab-button {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 16px;
+	height: 48px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--telex-muted);
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: color var(--telex-transition), border-color var(--telex-transition), background var(--telex-transition);
+	line-height: 1;
+	outline: none;
+}
+
+.telex-tab-button:hover {
+	color: #1d2327;
+	background: var(--telex-surface-alt);
+}
+
+.telex-tab-button:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--telex-brand);
+}
+
+.telex-tab-button.is-active {
+	color: var(--telex-brand);
+	border-bottom-color: var(--telex-brand);
+	font-weight: 600;
+}
+
+/* "Updates" tab accent when there are pending updates */
+.telex-tab--has-updates .telex-tab-button,
+.telex-tab-button.telex-tab--has-updates {
+	color: var(--telex-update);
+	font-weight: 600;
+}
+
+.telex-tab-button.telex-tab--has-updates.is-active {
+	border-bottom-color: var(--telex-update);
+}
+
+/* First and last tabs get rounded corners matching the bar */
+.telex-unified-bar__tabs .telex-tab-button:first-child {
+	border-radius: var(--telex-radius-lg) 0 0 var(--telex-radius-lg);
+}
+
+/* Search — flexible, centred */
+.telex-unified-bar__search {
 	flex: 1;
-	min-width: 200px;
-	max-width: 400px;
+	min-width: 160px;
+	padding: 0 12px;
+	border-right: 1px solid var(--telex-border);
+}
+
+.telex-unified-bar__search .components-search-control {
 	margin-bottom: 0;
 }
 
-.telex-toolbar-right {
+.telex-unified-bar__search .components-search-control__input-wrapper {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+}
+
+.telex-unified-bar__search .components-search-control__input {
+	background: transparent;
+}
+
+/* Actions — flush right */
+.telex-unified-bar__actions {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	margin-left: auto;
+	gap: 4px;
+	padding: 0 8px;
+	flex-shrink: 0;
 }
 
-.telex-disconnect {
-	text-decoration: none;
-}
 
 /* ---------------------------------------------------------------------------
- * Tab panel
+ * Tab panel content
  * ------------------------------------------------------------------------- */
 
-.telex-tab-panel .components-tab-panel__tabs {
-	border-bottom: 1px solid var(--telex-border);
-	margin-bottom: 20px;
-}
-
-.telex-tab-panel .components-tab-panel__tabs-item {
-	font-weight: 500;
-}
-
-.telex-tab--has-updates > button {
-	color: var(--telex-update) !important;
-	font-weight: 600;
+.telex-tab-panel {
+	margin-top: 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -215,7 +285,6 @@
 	justify-content: center;
 	width: 40px;
 	height: 40px;
-	border-radius: 10px;
 	font-size: 17px;
 	font-weight: 700;
 	color: #fff;
@@ -278,26 +347,6 @@
 	box-shadow: none !important;
 }
 
-/* Edit in Telex link — inline in card header, top-right */
-.telex-card-edit-link {
-	flex-shrink: 0;
-	font-size: 11px;
-	font-weight: 500;
-	color: var(--telex-muted) !important;
-	text-decoration: none;
-	opacity: 0;
-	transition: opacity 0.15s ease, color 0.12s ease;
-	white-space: nowrap;
-}
-
-.telex-card-edit-link:hover {
-	color: var(--telex-brand) !important;
-	text-decoration: underline;
-}
-
-.telex-project-card:hover .telex-card-edit-link {
-	opacity: 1;
-}
 
 .telex-project-card .components-card__body {
 	padding: 14px 16px 16px;
@@ -313,7 +362,7 @@
 	align-self: flex-start;
 	gap: 3px;
 	padding: 2px 7px;
-	border-radius: 100px;
+	border-radius: 0;
 	font-size: 10px;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -345,7 +394,7 @@
 	align-items: center;
 	gap: 4px;
 	padding: 3px 8px;
-	border-radius: 100px;
+	border-radius: 0;
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.03em;
@@ -420,27 +469,60 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Card actions
+ * Card actions — two-zone footer
  * ------------------------------------------------------------------------- */
 
 .telex-card-actions {
 	display: flex;
-	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
 	gap: 8px;
 	margin-top: 12px;
+	min-height: 40px;
 }
 
-/* Primary install/update button — full width for impact */
-.telex-card-actions > .components-button.is-primary:only-child,
-.telex-card-actions > .components-tooltip:only-child .components-button.is-primary {
-	width: 100%;
+/* Primary zone — main action on the left */
+.telex-card-actions__primary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+}
+
+/* Secondary zone — icon-only actions on the right */
+.telex-card-actions__secondary {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+/* Icon-only buttons in secondary zone — subtle until hovered */
+.telex-card-actions__secondary .components-button:not(:hover) {
+	color: var(--telex-muted);
+	opacity: 0.6;
+}
+
+.telex-card-actions__secondary .components-button {
+	transition: opacity var(--telex-transition), color var(--telex-transition);
+	min-width: 36px;
+	padding: 0;
 	justify-content: center;
 }
 
-/* Mute the "Installed" disabled button so it doesn't steal visual weight */
-.telex-card-actions .components-button[disabled]:not(.is-primary):not(.is-destructive) {
-	opacity: 0.55;
+.telex-card-actions__secondary .components-button.is-destructive:hover {
+	color: var(--telex-error);
+}
+
+/* "Up to date" text label — replaces the disabled Installed button */
+.telex-card-installed-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 	font-size: 12px;
+	font-weight: 500;
+	color: var(--telex-success);
+	padding: 0 4px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -472,20 +554,140 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Loading state
+ * Skeleton loading cards
  * ------------------------------------------------------------------------- */
 
-.telex-loading {
+@keyframes telex-shimmer {
+	0% {
+		background-position: -600px 0;
+	}
+
+	100% {
+		background-position: 600px 0;
+	}
+}
+
+.telex-skeleton {
+	background: linear-gradient(
+		90deg,
+		var(--telex-border) 25%,
+		color-mix(in srgb, var(--telex-border) 40%, var(--telex-surface)) 50%,
+		var(--telex-border) 75%
+	);
+	background-size: 1200px 100%;
+	animation: telex-shimmer 1.6s ease-in-out infinite;
+	border-radius: 4px;
+}
+
+.telex-skeleton-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 16px;
+	margin-top: 0;
+}
+
+.telex-skeleton-card {
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-top: 3px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	overflow: hidden;
+	box-shadow: var(--telex-shadow);
+}
+
+.telex-skeleton-card__header {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 40px 0;
-	color: var(--telex-muted);
-	font-size: 14px;
+	padding: 14px 16px 12px;
+	background: var(--telex-surface-alt);
+	border-bottom: 1px solid var(--telex-border);
 }
 
-.telex-loading:empty {
-	display: none;
+.telex-skeleton--avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 6px;
+	flex-shrink: 0;
+}
+
+.telex-skeleton-card__title-block {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.telex-skeleton--title {
+	height: 14px;
+	width: 55%;
+}
+
+.telex-skeleton--badge {
+	height: 10px;
+	width: 32%;
+	border-radius: 20px;
+}
+
+.telex-skeleton--status {
+	height: 22px;
+	width: 72px;
+	border-radius: 20px;
+	flex-shrink: 0;
+}
+
+.telex-skeleton-card__body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 16px;
+}
+
+.telex-skeleton--line {
+	height: 11px;
+	width: 80%;
+}
+
+.telex-skeleton--line-short {
+	width: 50%;
+}
+
+.telex-skeleton-card__footer {
+	padding: 10px 16px 14px;
+}
+
+.telex-skeleton--button {
+	height: 36px;
+	width: 100%;
+	border-radius: 4px;
+}
+
+/* Stagger the animation so cards don't all pulse in sync */
+.telex-skeleton-card:nth-child(2) .telex-skeleton {
+	animation-delay: 0.1s;
+}
+
+.telex-skeleton-card:nth-child(3) .telex-skeleton {
+	animation-delay: 0.2s;
+}
+
+.telex-skeleton-card:nth-child(4) .telex-skeleton {
+	animation-delay: 0.3s;
+}
+
+.telex-skeleton-card:nth-child(5) .telex-skeleton {
+	animation-delay: 0.4s;
+}
+
+.telex-skeleton-card:nth-child(6) .telex-skeleton {
+	animation-delay: 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.telex-skeleton {
+		animation: none;
+		background: var(--telex-border);
+	}
 }
 
 /* ---------------------------------------------------------------------------
@@ -512,7 +714,11 @@
 	border-radius: 50%;
 	background: #f0f0f1;
 	margin-bottom: 16px;
-	color: #a0a0a0;
+}
+
+.telex-empty-state__icon--success {
+	background: #edfaef;
+	color: #1e8b3a;
 }
 
 .telex-empty-state h3 {
@@ -555,7 +761,7 @@
 	align-items: center;
 	gap: 6px;
 	padding: 4px 10px;
-	border-radius: 100px;
+	border-radius: 0;
 	font-size: 12px;
 	font-weight: 600;
 	letter-spacing: 0.03em;
@@ -1014,28 +1220,38 @@
 
 @media (max-width: 782px) {
 
-	.telex-stats-bar {
-		flex-direction: column;
+	.telex-stat {
+		padding: 12px 16px;
 	}
 
-	.telex-stat + .telex-stat::before {
-		top: 0;
-		left: 20%;
-		width: 60%;
-		height: 1px;
+	.telex-stat__value {
+		font-size: 22px;
 	}
 
-	.telex-toolbar {
-		flex-direction: column;
-		align-items: stretch;
+	.telex-unified-bar {
+		flex-wrap: wrap;
+		border-radius: var(--telex-radius);
 	}
 
-	.telex-toolbar .components-search-control {
-		max-width: 100%;
+	.telex-unified-bar__tabs {
+		width: 100%;
+		border-right: none;
+		border-bottom: 1px solid var(--telex-border);
+		overflow-x: auto;
 	}
 
-	.telex-toolbar-right {
-		margin-left: 0;
+	.telex-tab-button:first-child {
+		border-radius: 0;
+	}
+
+	.telex-unified-bar__search {
+		flex: 1;
+		border-right: none;
+		border-bottom: 1px solid var(--telex-border);
+	}
+
+	.telex-unified-bar__actions {
+		padding: 6px 8px;
 	}
 
 	.telex-project-grid {
@@ -1230,7 +1446,7 @@
 	background: #f6f7f7;
 	border: 1px solid #c3c4c7;
 	border-bottom-width: 2px;
-	border-radius: 4px;
+	border-radius: 0;
 	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 	font-size: 11px;
 	font-weight: 600;

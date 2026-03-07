@@ -29,7 +29,6 @@ import {
 	Notice,
 	SearchControl,
 	Spinner,
-	TabPanel,
 	Tooltip,
 	Icon,
 } from '@wordpress/components';
@@ -361,6 +360,28 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 // Empty state
 // ---------------------------------------------------------------------------
 
+function SkeletonCard() {
+	return (
+		<div className="telex-skeleton-card" aria-hidden="true">
+			<div className="telex-skeleton-card__header">
+				<div className="telex-skeleton telex-skeleton--avatar" />
+				<div className="telex-skeleton-card__title-block">
+					<div className="telex-skeleton telex-skeleton--title" />
+					<div className="telex-skeleton telex-skeleton--badge" />
+				</div>
+				<div className="telex-skeleton telex-skeleton--status" />
+			</div>
+			<div className="telex-skeleton-card__body">
+				<div className="telex-skeleton telex-skeleton--line" />
+				<div className="telex-skeleton telex-skeleton--line telex-skeleton--line-short" />
+			</div>
+			<div className="telex-skeleton-card__footer">
+				<div className="telex-skeleton telex-skeleton--button" />
+			</div>
+		</div>
+	);
+}
+
 function EmptyState( { tab, searchQuery } ) {
 	if ( searchQuery ) {
 		return (
@@ -399,11 +420,12 @@ function EmptyState( { tab, searchQuery } ) {
 		},
 		updates: {
 			icon: check,
-			heading: __( "You're all caught up!", 'dispatch' ),
+			heading: __( 'Everything is up to date', 'dispatch' ),
 			body: __(
-				'Every installed project is on the latest version. Nice work.',
+				'All your installed projects are running the latest build.',
 				'dispatch'
 			),
+			accent: true,
 		},
 		blocks: {
 			icon: pluginsIcon,
@@ -427,7 +449,12 @@ function EmptyState( { tab, searchQuery } ) {
 
 	return (
 		<div className="telex-empty-state">
-			<div className="telex-empty-state__icon">
+			<div
+				className={
+					'telex-empty-state__icon' +
+					( state.accent ? ' telex-empty-state__icon--success' : '' )
+				}
+			>
 				<Icon
 					icon={ state.icon }
 					size={ 32 }
@@ -1447,17 +1474,6 @@ function ProjectCard( {
 						remoteVersion={ project.currentVersion }
 						installed={ installed }
 					/>
-					<ExternalLink
-						href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
-						className="telex-card-edit-link"
-						aria-label={ sprintf(
-							/* translators: %s: project name */
-							__( 'Edit %s in Telex', 'dispatch' ),
-							project.name
-						) }
-					>
-						{ __( 'Edit ↗', 'dispatch' ) }
-					</ExternalLink>
 				</div>
 			</CardHeader>
 
@@ -1548,32 +1564,30 @@ function ProjectCard( {
 						project.name
 					) }
 				>
-					{ isNetworkAdmin ? (
-						<Tooltip
-							text={ __(
-								'Push to all network sites',
-								'dispatch'
-							) }
-						>
-							<Button
-								variant="primary"
-								onClick={ () => setShowNetworkDeploy( true ) }
-								disabled={ isBusy }
-								icon={ isBusy ? null : globe }
-								__next40pxDefaultSize
+					{ /* Primary action — left zone */ }
+					<div className="telex-card-actions__primary">
+						{ isNetworkAdmin ? (
+							<Tooltip
+								text={ __(
+									'Push to all network sites',
+									'dispatch'
+								) }
 							>
-								{ __( 'Deploy', 'dispatch' ) }
-							</Button>
-						</Tooltip>
-					) : (
-						<>
-							{ ! isInstalled && (
-								<Tooltip
-									text={ __(
-										'Add to your site',
-										'dispatch'
-									) }
+								<Button
+									variant="primary"
+									onClick={ () =>
+										setShowNetworkDeploy( true )
+									}
+									disabled={ isBusy }
+									icon={ isBusy ? null : globe }
+									__next40pxDefaultSize
 								>
+									{ __( 'Deploy', 'dispatch' ) }
+								</Button>
+							</Tooltip>
+						) : (
+							<>
+								{ ! isInstalled && (
 									<Button
 										variant="primary"
 										onClick={ handleInstall }
@@ -1587,73 +1601,95 @@ function ProjectCard( {
 									>
 										{ __( 'Install', 'dispatch' ) }
 									</Button>
-								</Tooltip>
-							) }
+								) }
 
-							{ isInstalled && needsUpdate && (
-								<Tooltip
-									text={ sprintf(
-										/* translators: %s: version number */
-										__( 'Get v%s', 'dispatch' ),
-										project.currentVersion
-									) }
-								>
-									<Button
-										variant="primary"
-										onClick={ () =>
-											setShowChangelog( true )
-										}
-										disabled={ isBusy }
-										icon={ isBusy ? null : updateIcon }
-										isBusy={
-											isBusy &&
-											installStatus === 'installing'
-										}
-										__next40pxDefaultSize
+								{ isInstalled && needsUpdate && (
+									<Tooltip
+										text={ sprintf(
+											/* translators: %s: version number */
+											__( 'Get v%s', 'dispatch' ),
+											project.currentVersion
+										) }
 									>
-										{ __( 'Update', 'dispatch' ) }
-									</Button>
-								</Tooltip>
-							) }
+										<Button
+											variant="primary"
+											onClick={ () =>
+												setShowChangelog( true )
+											}
+											disabled={ isBusy }
+											icon={ isBusy ? null : updateIcon }
+											isBusy={
+												isBusy &&
+												installStatus === 'installing'
+											}
+											__next40pxDefaultSize
+										>
+											{ __( 'Update', 'dispatch' ) }
+										</Button>
+									</Tooltip>
+								) }
 
-							{ isInstalled && ! needsUpdate && (
+								{ isInstalled && ! needsUpdate && (
+									<span className="telex-card-installed-label">
+										<Icon icon={ check } size={ 16 } />
+										{ __( 'Up to date', 'dispatch' ) }
+									</span>
+								) }
+							</>
+						) }
+					</div>
+
+					{ /* Secondary actions — right zone */ }
+					<div className="telex-card-actions__secondary">
+						<Tooltip
+							text={ sprintf(
+								/* translators: %s: project name */
+								__( 'Edit %s in Telex', 'dispatch' ),
+								project.name
+							) }
+						>
+							<Button
+								variant="tertiary"
+								href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+								target="_blank"
+								rel="noreferrer"
+								aria-label={ sprintf(
+									/* translators: %s: project name */
+									__( 'Edit %s in Telex', 'dispatch' ),
+									project.name
+								) }
+								icon={ globe }
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+
+						{ isInstalled && (
+							<Tooltip
+								text={ __(
+									'Remove from your site',
+									'dispatch'
+								) }
+							>
 								<Button
-									variant="secondary"
-									disabled
-									icon={ check }
-									__next40pxDefaultSize
-								>
-									{ __( 'Installed', 'dispatch' ) }
-								</Button>
-							) }
-
-							{ isInstalled && (
-								<Tooltip
-									text={ __(
-										'Uninstall from your site',
+									variant="tertiary"
+									isDestructive
+									icon={ trash }
+									onClick={ () =>
+										setConfirmRemove( project.publicId )
+									}
+									disabled={ isBusy }
+									isBusy={
+										isBusy && installStatus === 'removing'
+									}
+									aria-label={ __(
+										'Remove from your site',
 										'dispatch'
 									) }
-								>
-									<Button
-										variant="tertiary"
-										isDestructive
-										icon={ trash }
-										onClick={ () =>
-											setConfirmRemove( project.publicId )
-										}
-										disabled={ isBusy }
-										isBusy={
-											isBusy &&
-											installStatus === 'removing'
-										}
-										__next40pxDefaultSize
-									>
-										{ __( 'Remove', 'dispatch' ) }
-									</Button>
-								</Tooltip>
-							) }
-						</>
-					) }
+									__next40pxDefaultSize
+								/>
+							</Tooltip>
+						) }
+					</div>
 				</div>
 
 				{ confirmRemove === project.publicId && (
@@ -1740,12 +1776,12 @@ function ProjectsApp() {
 	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
 	const nonce = container?.dataset?.nonce || '';
 	const disconnectUrl = container?.dataset?.disconnectUrl || '';
-	const webhookUrl = container?.dataset?.webhookUrl || '';
 	const isNetworkAdmin = container?.dataset?.isNetwork === '1';
 
 	// Toast state lives here (not Redux) so undoFn closures work cleanly.
 	const [ toasts, setToasts ] = useState( [] );
 	const [ showShortcuts, setShowShortcuts ] = useState( false );
+	const [ activeTab, setActiveTab ] = useState( 'all' );
 	const searchInputRef = useRef( null );
 
 	function addToast( toast ) {
@@ -1858,7 +1894,7 @@ function ProjectsApp() {
 					e.preventDefault();
 					// Focus the first input inside the SearchControl.
 					const searchEl = document.querySelector(
-						'.telex-toolbar .components-search-control__input'
+						'.telex-unified-bar .components-search-control__input'
 					);
 					searchEl?.focus();
 					break;
@@ -2025,8 +2061,62 @@ function ProjectsApp() {
 				/>
 			) }
 
-			<div className="telex-toolbar">
-				<div role="search">
+			<div className="telex-unified-bar">
+				<div
+					className="telex-unified-bar__tabs"
+					role="tablist"
+					aria-label={ __( 'Filter projects', 'dispatch' ) }
+				>
+					{ tabs.map( ( tab ) => (
+						<button
+							key={ tab.name }
+							role="tab"
+							id={ `telex-tab-${ tab.name }` }
+							aria-selected={ activeTab === tab.name }
+							aria-controls={ `telex-tabpanel-${ tab.name }` }
+							tabIndex={ activeTab === tab.name ? 0 : -1 }
+							className={ [
+								'telex-tab-button',
+								activeTab === tab.name ? 'is-active' : '',
+								tab.className || '',
+							]
+								.filter( Boolean )
+								.join( ' ' ) }
+							onClick={ () => {
+								setActiveTab( tab.name );
+								setCurrentPage( 1 );
+							} }
+							onKeyDown={ ( e ) => {
+								const names = tabs.map( ( t ) => t.name );
+								const idx = names.indexOf( activeTab );
+								if ( e.key === 'ArrowRight' ) {
+									const next =
+										names[ ( idx + 1 ) % names.length ];
+									setActiveTab( next );
+									setCurrentPage( 1 );
+									document
+										.getElementById( `telex-tab-${ next }` )
+										?.focus();
+								} else if ( e.key === 'ArrowLeft' ) {
+									const prev =
+										names[
+											( idx - 1 + names.length ) %
+												names.length
+										];
+									setActiveTab( prev );
+									setCurrentPage( 1 );
+									document
+										.getElementById( `telex-tab-${ prev }` )
+										?.focus();
+								}
+							} }
+						>
+							{ tab.title }
+						</button>
+					) ) }
+				</div>
+
+				<div className="telex-unified-bar__search" role="search">
 					<SearchControl
 						ref={ searchInputRef }
 						label={ __( 'Search projects', 'dispatch' ) }
@@ -2035,7 +2125,8 @@ function ProjectsApp() {
 						__nextHasNoMarginBottom
 					/>
 				</div>
-				<div className="telex-toolbar-right">
+
+				<div className="telex-unified-bar__actions">
 					<Tooltip
 						text={ __( 'Keyboard shortcuts (?)', 'dispatch' ) }
 					>
@@ -2068,30 +2159,28 @@ function ProjectsApp() {
 							__( 'Refresh', 'dispatch' )
 						) }
 					</Button>
-					<a
+					<Button
+						variant="secondary"
 						href={ disconnectUrl }
-						className="button button-secondary telex-disconnect"
+						__next40pxDefaultSize
 					>
 						{ __( 'Disconnect', 'dispatch' ) }
-					</a>
+					</Button>
 				</div>
 			</div>
 
-			<div
-				className="telex-loading"
-				role="status"
-				aria-live="polite"
-				aria-atomic="true"
-			>
-				{ loading && (
-					<>
-						<Spinner aria-hidden={ true } />
-						<span>
-							{ __( 'Loading your projects…', 'dispatch' ) }
-						</span>
-					</>
-				) }
-			</div>
+			{ loading && (
+				<div
+					className="telex-skeleton-grid"
+					role="status"
+					aria-live="polite"
+					aria-label={ __( 'Loading your projects…', 'dispatch' ) }
+				>
+					{ Array.from( { length: 6 } ).map( ( _, i ) => (
+						<SkeletonCard key={ i } />
+					) ) }
+				</div>
+			) }
 
 			{ error && (
 				<Notice status="error" isDismissible={ false }>
@@ -2099,81 +2188,69 @@ function ProjectsApp() {
 				</Notice>
 			) }
 
-			{ ! loading && ! error && ! authExpired && (
-				<TabPanel
-					tabs={ tabs }
-					className="telex-tab-panel"
-					initialTabName="all"
-					onSelect={ () => setCurrentPage( 1 ) }
-				>
-					{ ( tab ) => {
-						const allVisible = getTabProjects( tab.name );
-						const totalItems = allVisible.length;
-						const totalPages = Math.ceil( totalItems / perPage );
-						const safePage = Math.min(
-							currentPage,
-							totalPages || 1
-						);
-						const pageStart = ( safePage - 1 ) * perPage;
-						const paginated = allVisible.slice(
-							pageStart,
-							pageStart + perPage
-						);
+			{ ! loading &&
+				! error &&
+				! authExpired &&
+				( () => {
+					const allVisible = getTabProjects( activeTab );
+					const totalItems = allVisible.length;
+					const totalPages = Math.ceil( totalItems / perPage );
+					const safePage = Math.min( currentPage, totalPages || 1 );
+					const pageStart = ( safePage - 1 ) * perPage;
+					const paginated = allVisible.slice(
+						pageStart,
+						pageStart + perPage
+					);
 
-						return (
-							<>
-								<div
-									className="telex-project-grid"
-									role="list"
-									aria-label={ __(
-										'Dispatch projects',
-										'dispatch'
-									) }
-								>
-									{ paginated.length === 0 ? (
-										<EmptyState
-											tab={ tab.name }
-											searchQuery={ searchQuery }
-										/>
-									) : (
-										paginated.map( ( project ) => (
-											<div
-												key={ project.publicId }
-												role="listitem"
-											>
-												<ProjectCard
-													project={ project }
-													restUrl={ restUrl }
-													onRefresh={ fetchData }
-													onToast={ addToast }
-													isNetworkAdmin={
-														isNetworkAdmin
-													}
-												/>
-											</div>
-										) )
-									) }
-								</div>
-								<PaginationControls
-									currentPage={ safePage }
-									totalPages={ totalPages }
-									totalItems={ totalItems }
-									perPage={ perPage }
-									onPageChange={ setCurrentPage }
-								/>
-							</>
-						);
-					} }
-				</TabPanel>
-			) }
-
-			{ webhookUrl && (
-				<WebhookPanel
-					webhookUrl={ webhookUrl }
-					restUrl={ restUrl }
-					onToast={ addToast }
-				/>
-			) }
+					return (
+						<div
+							id={ `telex-tabpanel-${ activeTab }` }
+							role="tabpanel"
+							aria-labelledby={ `telex-tab-${ activeTab }` }
+							className="telex-tab-panel"
+						>
+							<div
+								className="telex-project-grid"
+								role="list"
+								aria-label={ __(
+									'Dispatch projects',
+									'dispatch'
+								) }
+							>
+								{ paginated.length === 0 ? (
+									<EmptyState
+										tab={ activeTab }
+										searchQuery={ searchQuery }
+									/>
+								) : (
+									paginated.map( ( project ) => (
+										<div
+											key={ project.publicId }
+											role="listitem"
+										>
+											<ProjectCard
+												project={ project }
+												restUrl={ restUrl }
+												onRefresh={ fetchData }
+												onToast={ addToast }
+												isNetworkAdmin={
+													isNetworkAdmin
+												}
+											/>
+										</div>
+									) )
+								) }
+							</div>
+							<PaginationControls
+								currentPage={ safePage }
+								totalPages={ totalPages }
+								totalItems={ totalItems }
+								perPage={ perPage }
+								onPageChange={ setCurrentPage }
+							/>
+						</div>
+					);
+				} )() }
 
 			<ToastList toasts={ toasts } onDismiss={ removeToast } />
 
@@ -2245,6 +2322,54 @@ class TelexErrorBoundary extends Component {
 }
 
 // ---------------------------------------------------------------------------
+// Settings page — webhook-only app
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal app for the Settings page: just the WebhookPanel + its own toasts.
+ *
+ * @return {import('@wordpress/element').WPElement} Settings app element.
+ */
+function WebhookApp() {
+	const container = document.getElementById( 'telex-webhook-app' );
+	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
+	const webhookUrl = container?.dataset?.webhookUrl || '';
+	const [ toasts, setToasts ] = useState( [] );
+
+	/**
+	 * Adds a toast notification.
+	 *
+	 * @param {Object} toast Toast data object.
+	 */
+	function addToast( toast ) {
+		setToasts( ( prev ) => [
+			...prev,
+			{ id: Date.now() + Math.random(), ...toast },
+		] );
+	}
+
+	/**
+	 * Removes a toast by id.
+	 *
+	 * @param {number} id Toast id to remove.
+	 */
+	function removeToast( id ) {
+		setToasts( ( prev ) => prev.filter( ( t ) => t.id !== id ) );
+	}
+
+	return (
+		<div className="telex-app">
+			<WebhookPanel
+				webhookUrl={ webhookUrl }
+				restUrl={ restUrl }
+				onToast={ addToast }
+			/>
+			<ToastList toasts={ toasts } onDismiss={ removeToast } />
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 
@@ -2255,5 +2380,15 @@ if ( appRoot ) {
 			<ProjectsApp />
 		</TelexErrorBoundary>,
 		appRoot
+	);
+}
+
+const webhookRoot = document.getElementById( 'telex-webhook-app' );
+if ( webhookRoot ) {
+	render(
+		<TelexErrorBoundary>
+			<WebhookApp />
+		</TelexErrorBoundary>,
+		webhookRoot
 	);
 }

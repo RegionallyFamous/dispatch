@@ -7,7 +7,21 @@
 >
     <testsuites>
         <testsuite name="unit">
-            <directory suffix=".php">tests/</directory>
+            <file>tests/test-activator.php</file>
+            <file>tests/test-admin.php</file>
+            <file>tests/test-audit-log.php</file>
+            <file>tests/test-auth.php</file>
+            <file>tests/test-cache.php</file>
+            <file>tests/test-circuit-breaker.php</file>
+            <file>tests/test-dtos.php</file>
+            <file>tests/test-enums.php</file>
+            <file>tests/test-installer.php</file>
+            <file>tests/test-rest-webhook.php</file>
+            <file>tests/test-rest.php</file>
+            <file>tests/test-sdk.php</file>
+            <file>tests/test-tracker.php</file>
+            <file>tests/test-updater.php</file>
+            <file>tests/test-wp-http-client.php</file>
         </testsuite>
     </testsuites>
 
