@@ -38,16 +38,13 @@ class Telex_Installer {
 	/**
 	 * Downloads, validates, and installs a Telex project via the WP Upgrader API.
 	 *
-	 * @param string $public_id The Telex project public ID.
-	 * @param bool   $activate  Whether to activate the plugin immediately after install.
-	 * @return true|\WP_Error
-	 */
-	/**
-	 * @param array<string, mixed>|null $pre_fetched_build Optional build data already fetched by the
-	 *                                                     REST controller. When provided, the installer
-	 *                                                     skips its own getBuild() call, avoiding a
-	 *                                                     duplicate round-trip that can race with the
+	 * @param string                    $public_id         The Telex project public ID.
+	 * @param bool                      $activate          Whether to activate the plugin immediately after install.
+	 * @param array<string, mixed>|null $pre_fetched_build Optional build data already fetched by the REST controller.
+	 *                                                     When provided, the installer skips its own getBuild() call,
+	 *                                                     avoiding a duplicate round-trip that can race with the
 	 *                                                     Telex API's build-readiness state.
+	 * @return true|\WP_Error
 	 */
 	public static function install( string $public_id, bool $activate = false, ?array $pre_fetched_build = null ): true|\WP_Error {
 		$client = Telex_Auth::get_client();
