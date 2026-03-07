@@ -60,8 +60,8 @@ class Telex_Admin {
 	 */
 	public static function register_menu(): void {
 		$hook = add_menu_page(
-			__( 'Telex', 'telex' ),
-			__( 'Telex', 'telex' ),
+			__( 'Telex', 'dispatch' ),
+			__( 'Telex', 'dispatch' ),
 			'manage_options',
 			'telex',
 			self::render_page( ... ),
@@ -73,8 +73,8 @@ class Telex_Admin {
 
 		add_submenu_page(
 			'telex',
-			__( 'Audit Log', 'telex' ),
-			__( 'Audit Log', 'telex' ),
+			__( 'Audit Log', 'dispatch' ),
+			__( 'Audit Log', 'dispatch' ),
 			'manage_options',
 			'telex-audit-log',
 			[ self::class, 'render_audit_log_page' ]
@@ -90,7 +90,7 @@ class Telex_Admin {
 		add_screen_option(
 			'per_page',
 			[
-				'label'   => __( 'Projects per page', 'telex' ),
+				'label'   => __( 'Projects per page', 'dispatch' ),
 				'default' => 24,
 				'option'  => self::SCREEN_OPTION_PER_PAGE,
 			]
@@ -135,7 +135,7 @@ class Telex_Admin {
 			}
 
 			Telex_Auth::disconnect();
-			self::set_notice( 'info', __( 'Disconnected from Telex.', 'telex' ) );
+			self::set_notice( 'info', __( 'Disconnected from Telex.', 'dispatch' ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=telex' ) );
 			exit;
 		}
@@ -161,7 +161,7 @@ class Telex_Admin {
 		$per_page     = (int) ( false !== $per_page_opt && '' !== $per_page_opt ? $per_page_opt : 24 );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Telex', 'telex' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Telex', 'dispatch' ) . '</h1>';
 
 		// Transient-based notices (post-redirect-get pattern).
 		self::render_notices();
@@ -205,7 +205,7 @@ class Telex_Admin {
 	 */
 	public static function render_audit_log_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'telex' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'dispatch' ) );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
@@ -214,8 +214,8 @@ class Telex_Admin {
 		$table->prepare_items();
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Telex Audit Log', 'telex' ) . '</h1>';
-		echo '<p class="description">' . esc_html__( 'A read-only record of security-relevant events: installs, updates, removals, and authentication changes.', 'telex' ) . '</p>';
+		echo '<h1>' . esc_html__( 'Telex Audit Log', 'dispatch' ) . '</h1>';
+		echo '<p class="description">' . esc_html__( 'A read-only record of security-relevant events: installs, updates, removals, and authentication changes.', 'dispatch' ) . '</p>';
 		echo '<form method="get">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
 		$table->display();
@@ -262,7 +262,7 @@ class Telex_Admin {
 			filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) !== false ? filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) : TELEX_PLUGIN_VERSION
 		);
 
-		wp_set_script_translations( $handle, 'telex', TELEX_PLUGIN_DIR . 'languages' );
+		wp_set_script_translations( $handle, 'dispatch', TELEX_PLUGIN_DIR . 'languages' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -372,24 +372,24 @@ class Telex_Admin {
 	 */
 	public static function site_health_info( array $info ): array {
 		$info['telex'] = [
-			'label'  => __( 'Telex', 'telex' ),
+			'label'  => __( 'Telex', 'dispatch' ),
 			'fields' => [
 				'version'         => [
-					'label' => __( 'Plugin version', 'telex' ),
+					'label' => __( 'Plugin version', 'dispatch' ),
 					'value' => TELEX_PLUGIN_VERSION,
 				],
 				'connected'       => [
-					'label' => __( 'Connection status', 'telex' ),
+					'label' => __( 'Connection status', 'dispatch' ),
 					'value' => Telex_Auth::is_connected()
-						? __( 'Connected', 'telex' )
-						: __( 'Not connected', 'telex' ),
+						? __( 'Connected', 'dispatch' )
+						: __( 'Not connected', 'dispatch' ),
 				],
 				'installed'       => [
-					'label' => __( 'Installed projects', 'telex' ),
+					'label' => __( 'Installed projects', 'dispatch' ),
 					'value' => count( Telex_Tracker::get_all() ),
 				],
 				'circuit_breaker' => [
-					'label' => __( 'API circuit breaker', 'telex' ),
+					'label' => __( 'API circuit breaker', 'dispatch' ),
 					'value' => Telex_Circuit_Breaker::status(),
 				],
 			],
@@ -405,7 +405,7 @@ class Telex_Admin {
 	 */
 	public static function site_health_tests( array $tests ): array {
 		$tests['async']['telex_api_reachable'] = [
-			'label'             => __( 'Telex API is reachable', 'telex' ),
+			'label'             => __( 'Telex API is reachable', 'dispatch' ),
 			'test'              => rest_url( 'telex/v1/site-health/api-reachable' ),
 			'has_rest'          => true,
 			'async_direct_test' => self::run_api_reachability_test( ... ),
@@ -433,10 +433,10 @@ class Telex_Admin {
 
 		if ( ! $reachable ) {
 			return [
-				'label'       => __( 'Telex API is unreachable', 'telex' ),
+				'label'       => __( 'Telex API is unreachable', 'dispatch' ),
 				'status'      => 'critical',
 				'badge'       => [
-					'label' => __( 'Telex', 'telex' ),
+					'label' => __( 'Telex', 'dispatch' ),
 					'color' => 'red',
 				],
 				'description' => '<p>' . esc_html( $error_detail ) . '</p>',
@@ -445,13 +445,13 @@ class Telex_Admin {
 		}
 
 		return [
-			'label'       => __( 'Telex API is reachable', 'telex' ),
+			'label'       => __( 'Telex API is reachable', 'dispatch' ),
 			'status'      => 'good',
 			'badge'       => [
-				'label' => __( 'Telex', 'telex' ),
+				'label' => __( 'Telex', 'dispatch' ),
 				'color' => 'blue',
 			],
-			'description' => '<p>' . esc_html__( 'Your site can reach the Telex API.', 'telex' ) . '</p>',
+			'description' => '<p>' . esc_html__( 'Your site can reach the Telex API.', 'dispatch' ) . '</p>',
 			'test'        => 'telex_api_reachable',
 		];
 	}

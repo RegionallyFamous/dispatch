@@ -103,8 +103,7 @@ class Telex_Audit_Log {
 	 */
 	public static function drop_table(): void {
 		global $wpdb;
-		$table = self::table_name();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+		// Table name is built entirely from $wpdb->prefix — never user input.
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( self::table_name() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 }

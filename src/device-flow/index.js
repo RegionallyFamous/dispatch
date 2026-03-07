@@ -96,7 +96,7 @@ function DeviceFlowApp() {
 			startPolling( data.interval || 5 );
 		} catch ( err ) {
 			setErrorMsg(
-				err.message || __( 'Failed to start device flow.', 'telex' )
+				err.message || __( 'Failed to start device flow.', 'dispatch' )
 			);
 			setStatus( STATUS.ERROR );
 		}
@@ -132,7 +132,7 @@ function DeviceFlowApp() {
 			stopPolling();
 			setErrorMsg(
 				err.message ||
-					__( 'Authorization failed or code expired.', 'telex' )
+					__( 'Authorization failed or code expired.', 'dispatch' )
 			);
 			setStatus( STATUS.EXPIRED );
 		}
@@ -160,7 +160,7 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-card" aria-live="polite">
 				<Notice status="success" isDismissible={ false }>
-					{ __( 'Connected to Telex! Redirecting…', 'telex' ) }
+					{ __( 'Connected to Telex! Redirecting…', 'dispatch' ) }
 				</Notice>
 			</div>
 		);
@@ -169,11 +169,11 @@ function DeviceFlowApp() {
 	if ( status === STATUS.IDLE ) {
 		return (
 			<div className="telex-connect-card">
-				<h2>{ __( 'Connect to Telex', 'telex' ) }</h2>
+				<h2>{ __( 'Connect to Telex', 'dispatch' ) }</h2>
 				<p>
 					{ __(
 						'Connect your account to browse and install your Telex projects.',
-						'telex'
+						'dispatch'
 					) }
 				</p>
 				<Button
@@ -181,7 +181,7 @@ function DeviceFlowApp() {
 					onClick={ startDeviceFlow }
 					__next40pxDefaultSize
 				>
-					{ __( 'Connect', 'telex' ) }
+					{ __( 'Connect', 'dispatch' ) }
 				</Button>
 			</div>
 		);
@@ -191,7 +191,7 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-card" aria-live="polite">
 				<Spinner />
-				<span>{ __( 'Starting…', 'telex' ) }</span>
+				<span>{ __( 'Starting…', 'dispatch' ) }</span>
 			</div>
 		);
 	}
@@ -201,14 +201,17 @@ function DeviceFlowApp() {
 			<div className="telex-connect-card">
 				<div className="telex-device-code-block" aria-live="polite">
 					<p>
-						{ __( 'Enter this code in the Telex app:', 'telex' ) }
+						{ __(
+							'Enter this code in the Telex app:',
+							'dispatch'
+						) }
 					</p>
 					<div
 						className="telex-user-code"
 						role="status"
 						aria-label={ sprintf(
 							/* translators: %s: user code */
-							__( 'Your device code is %s', 'telex' ),
+							__( 'Your device code is %s', 'dispatch' ),
 							deviceData.user_code
 						) }
 					>
@@ -221,14 +224,14 @@ function DeviceFlowApp() {
 						rel="noopener noreferrer"
 						__next40pxDefaultSize
 					>
-						{ __( 'Open Telex →', 'telex' ) }
+						{ __( 'Open Telex →', 'dispatch' ) }
 					</Button>
 				</div>
 
 				<div className="telex-polling-status" aria-live="polite">
 					<Spinner />
 					<span id="telex-device-status">
-						{ __( 'Waiting for authorization…', 'telex' ) }
+						{ __( 'Waiting for authorization…', 'dispatch' ) }
 					</span>
 				</div>
 
@@ -238,7 +241,7 @@ function DeviceFlowApp() {
 					onClick={ cancelDeviceFlow }
 					__next40pxDefaultSize
 				>
-					{ __( 'Cancel', 'telex' ) }
+					{ __( 'Cancel', 'dispatch' ) }
 				</Button>
 			</div>
 		);
@@ -251,7 +254,7 @@ function DeviceFlowApp() {
 					{ errorMsg ||
 						__(
 							'Device code expired. Please try again.',
-							'telex'
+							'dispatch'
 						) }
 				</Notice>
 				<Button
@@ -259,7 +262,7 @@ function DeviceFlowApp() {
 					onClick={ startDeviceFlow }
 					__next40pxDefaultSize
 				>
-					{ __( 'Try Again', 'telex' ) }
+					{ __( 'Try Again', 'dispatch' ) }
 				</Button>
 			</div>
 		);

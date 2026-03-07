@@ -40,8 +40,8 @@ class Telex_Fatal_Handler {
 			return;
 		}
 
-		$log_file = WP_CONTENT_DIR . '/telex-fatal.log';
-		$message  = sprintf(
+		$telex_log_file = WP_CONTENT_DIR . '/telex-fatal.log';
+		$message        = sprintf(
 			"[%s] %s in %s on line %d\n",
 			gmdate( 'Y-m-d H:i:s' ),
 			$error['message'],
@@ -50,6 +50,6 @@ class Telex_Fatal_Handler {
 		);
 
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		@file_put_contents( $log_file, $message, FILE_APPEND | LOCK_EX );
+		@file_put_contents( $telex_log_file, $message, FILE_APPEND | LOCK_EX );
 	}
 }

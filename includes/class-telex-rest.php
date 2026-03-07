@@ -164,7 +164,7 @@ class Telex_REST {
 		if ( $_rl_retry > 0 ) {
 			return new \WP_Error(
 				'telex_rate_limit',
-				__( 'Too many requests. Please wait a moment.', 'telex' ),
+				__( 'Too many requests. Please wait a moment.', 'dispatch' ),
 				[
 					'status'  => 429,
 					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
@@ -184,7 +184,7 @@ class Telex_REST {
 			// No cached data at all — must hit the API synchronously.
 			$client = Telex_Auth::get_client();
 			if ( ! $client ) {
-				return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'telex' ), [ 'status' => 401 ] );
+				return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'dispatch' ), [ 'status' => 401 ] );
 			}
 
 			try {
@@ -195,7 +195,7 @@ class Telex_REST {
 			} catch ( \Telex\Sdk\Exceptions\AuthenticationException ) {
 				Telex_Circuit_Breaker::record_failure();
 				Telex_Auth::disconnect();
-				return new \WP_Error( 'telex_token_expired', __( 'Your token has expired. Please reconnect.', 'telex' ), [ 'status' => 401 ] );
+				return new \WP_Error( 'telex_token_expired', __( 'Your token has expired. Please reconnect.', 'dispatch' ), [ 'status' => 401 ] );
 			} catch ( \Exception $e ) {
 				Telex_Circuit_Breaker::record_failure();
 				return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 500 ] );
@@ -268,7 +268,7 @@ class Telex_REST {
 		if ( $_rl_retry > 0 ) {
 			return new \WP_Error(
 				'telex_rate_limit',
-				__( 'Too many requests. Please wait a moment.', 'telex' ),
+				__( 'Too many requests. Please wait a moment.', 'dispatch' ),
 				[
 					'status'  => 429,
 					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
@@ -293,7 +293,7 @@ class Telex_REST {
 			[
 				'success' => true,
 				/* translators: %s: project public ID */
-				'message' => sprintf( __( 'Project %s installed successfully.', 'telex' ), $public_id ),
+				'message' => sprintf( __( 'Project %s installed successfully.', 'dispatch' ), $public_id ),
 			]
 		);
 	}
@@ -309,7 +309,7 @@ class Telex_REST {
 		if ( $_rl_retry > 0 ) {
 			return new \WP_Error(
 				'telex_rate_limit',
-				__( 'Too many requests. Please wait a moment.', 'telex' ),
+				__( 'Too many requests. Please wait a moment.', 'dispatch' ),
 				[
 					'status'  => 429,
 					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
@@ -346,7 +346,7 @@ class Telex_REST {
 		if ( $_rl_retry > 0 ) {
 			return new \WP_Error(
 				'telex_rate_limit',
-				__( 'Too many requests. Please wait a moment.', 'telex' ),
+				__( 'Too many requests. Please wait a moment.', 'dispatch' ),
 				[
 					'status'  => 429,
 					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
@@ -377,7 +377,7 @@ class Telex_REST {
 		if ( $_rl_retry > 0 ) {
 			return new \WP_Error(
 				'telex_rate_limit',
-				__( 'Too many requests. Please wait a moment.', 'telex' ),
+				__( 'Too many requests. Please wait a moment.', 'dispatch' ),
 				[
 					'status'  => 429,
 					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
@@ -387,7 +387,7 @@ class Telex_REST {
 
 		$device_code = get_transient( Telex_Auth::TRANSIENT_DEVICE );
 		if ( empty( $device_code ) ) {
-			return new \WP_Error( 'telex_no_device_flow', __( 'No active device flow.', 'telex' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'telex_no_device_flow', __( 'No active device flow.', 'dispatch' ), [ 'status' => 400 ] );
 		}
 
 		$result = Telex_Auth::poll_device_flow( (string) $device_code );
@@ -458,11 +458,11 @@ class Telex_REST {
 	 */
 	public static function require_manage_options(): bool|\WP_Error {
 		if ( ! is_user_logged_in() ) {
-			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'telex' ), [ 'status' => 401 ] );
+			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'dispatch' ), [ 'status' => 401 ] );
 		}
 		return current_user_can( 'manage_options' )
 			? true
-			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to do this.', 'telex' ), [ 'status' => 403 ] );
+			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to do this.', 'dispatch' ), [ 'status' => 403 ] );
 	}
 
 	/**
@@ -473,13 +473,13 @@ class Telex_REST {
 	 */
 	public static function require_install_cap( \WP_REST_Request $request ): bool|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 		if ( ! is_user_logged_in() ) {
-			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'telex' ), [ 'status' => 401 ] );
+			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'dispatch' ), [ 'status' => 401 ] );
 		}
 		// We don't know the type until we fetch the project; gate on generic install_plugins.
 		// The Installer itself re-checks with the correct cap per project type.
 		return current_user_can( 'install_plugins' ) || current_user_can( 'install_themes' )
 			? true
-			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to install projects.', 'telex' ), [ 'status' => 403 ] );
+			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to install projects.', 'dispatch' ), [ 'status' => 403 ] );
 	}
 
 	/**
@@ -490,10 +490,10 @@ class Telex_REST {
 	 */
 	public static function require_remove_cap( \WP_REST_Request $request ): bool|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 		if ( ! is_user_logged_in() ) {
-			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'telex' ), [ 'status' => 401 ] );
+			return new \WP_Error( 'telex_unauthorized', __( 'You must be logged in.', 'dispatch' ), [ 'status' => 401 ] );
 		}
 		return current_user_can( 'delete_plugins' ) || current_user_can( 'delete_themes' )
 			? true
-			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to remove projects.', 'telex' ), [ 'status' => 403 ] );
+			: new \WP_Error( 'telex_forbidden', __( 'You do not have permission to remove projects.', 'dispatch' ), [ 'status' => 403 ] );
 	}
 }

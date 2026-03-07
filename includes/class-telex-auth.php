@@ -224,7 +224,7 @@ class Telex_Auth {
 		if ( 200 !== $response->getStatusCode() || empty( $body['device_code'] ) ) {
 			return new \WP_Error(
 				'telex_device_start',
-				$body['message'] ?? __( 'Failed to start device flow.', 'telex' )
+				$body['message'] ?? __( 'Failed to start device flow.', 'dispatch' )
 			);
 		}
 

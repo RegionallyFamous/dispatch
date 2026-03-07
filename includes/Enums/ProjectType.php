@@ -60,8 +60,8 @@ enum ProjectType: string {
 	 */
 	public function label(): string {
 		return match ( $this ) {
-			self::Block => __( 'Block', 'telex' ),
-			self::Theme => __( 'Theme', 'telex' ),
+			self::Block => __( 'Block', 'dispatch' ),
+			self::Theme => __( 'Theme', 'dispatch' ),
 		};
 	}
 }

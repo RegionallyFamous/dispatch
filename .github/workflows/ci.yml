@@ -157,5 +157,9 @@ jobs:
         uses: wordpress/plugin-check-action@v1
         with:
           build-dir: '.'
-          # Exclude the readme check — readme.txt is for wordpress.org listing, not runtime.
-          exclude-checks: 'plugin_readme,plugin_review_phpcs'
+          # plugin_readme  — readme.txt is for wordpress.org listing, not runtime.
+          # plugin_review_phpcs — covered by the dedicated lint-php job.
+          # plugin_updater — false positive: the update hooks inject updates for
+          #   Telex-managed blocks/themes into WP's native update UI, not for
+          #   self-updating this plugin outside wordpress.org.
+          exclude-checks: 'plugin_readme,plugin_review_phpcs,plugin_updater'

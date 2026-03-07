@@ -204,13 +204,13 @@ class Telex_Updater {
 					'homepage'          => TELEX_PUBLIC_URL,
 					'short_description' => sprintf(
 						/* translators: %s: project name */
-						__( 'A Telex project: %s', 'telex' ),
+						__( 'A Telex project: %s', 'dispatch' ),
 						$remote['name'] ?? $slug
 					),
 					'sections'          => [
 						'description' => sprintf(
 							/* translators: %s: public ID */
-							__( 'Telex project ID: %s', 'telex' ),
+							__( 'Telex project ID: %s', 'dispatch' ),
 							esc_html( $public_id )
 						),
 					],
@@ -261,7 +261,7 @@ class Telex_Updater {
 		echo '<div class="update-message notice inline notice-warning notice-alt"><p>';
 		printf(
 			/* translators: 1: new version, 2: update URL */
-			wp_kses_post( __( 'Telex update available: version <strong>v%1$s</strong>. <a href="%2$s">Update via Telex</a>.', 'telex' ) ),
+			wp_kses_post( __( 'Telex update available: version <strong>v%1$s</strong>. <a href="%2$s">Update via Telex</a>.', 'dispatch' ) ),
 			esc_html( (string) $remote_version ),
 			esc_url( admin_url( 'admin.php?page=telex' ) )
 		);

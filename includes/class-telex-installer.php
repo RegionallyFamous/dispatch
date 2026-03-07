@@ -45,7 +45,7 @@ class Telex_Installer {
 	public static function install( string $public_id, bool $activate = false ): true|\WP_Error {
 		$client = Telex_Auth::get_client();
 		if ( ! $client ) {
-			return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'telex' ) );
+			return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'dispatch' ) );
 		}
 
 		try {
@@ -53,17 +53,17 @@ class Telex_Installer {
 			$type    = ProjectType::from_api( $project['projectType'] ?? null );
 
 			if ( ! current_user_can( $type->install_capability() ) ) {
-				return new \WP_Error( 'telex_caps', __( 'You do not have permission to install this type of project.', 'telex' ) );
+				return new \WP_Error( 'telex_caps', __( 'You do not have permission to install this type of project.', 'dispatch' ) );
 			}
 
 			$build = $client->projects->getBuild( $public_id );
 
 			if ( isset( $build['status'] ) && 'not_ready' === $build['status'] ) {
-				return new \WP_Error( 'telex_not_ready', __( 'Build is not ready yet. Please try again in a moment.', 'telex' ) );
+				return new \WP_Error( 'telex_not_ready', __( 'Build is not ready yet. Please try again in a moment.', 'dispatch' ) );
 			}
 
 			if ( empty( $build['files'] ) ) {
-				return new \WP_Error( 'telex_no_files', __( 'Build has no files.', 'telex' ) );
+				return new \WP_Error( 'telex_no_files', __( 'Build has no files.', 'dispatch' ) );
 			}
 
 			$build_files = array_map( Telex_Build_File::from_array( ... ), $build['files'] );
@@ -140,7 +140,7 @@ class Telex_Installer {
 				'telex_install',
 				sprintf(
 				/* translators: %s: error message */
-					__( 'Installation failed: %s', 'telex' ),
+					__( 'Installation failed: %s', 'dispatch' ),
 					$e->getMessage()
 				)
 			);
@@ -160,21 +160,21 @@ class Telex_Installer {
 	public static function remove( string $public_id ): true|\WP_Error {
 		$tracked = Telex_Tracker::get( $public_id );
 		if ( ! $tracked ) {
-			return new \WP_Error( 'telex_not_installed', __( 'Project is not installed.', 'telex' ) );
+			return new \WP_Error( 'telex_not_installed', __( 'Project is not installed.', 'dispatch' ) );
 		}
 
 		$type = ProjectType::from( $tracked['type'] );
 		$slug = $tracked['slug'];
 
 		if ( ! current_user_can( $type->remove_capability() ) ) {
-			return new \WP_Error( 'telex_caps', __( 'You do not have permission to remove this type of project.', 'telex' ) );
+			return new \WP_Error( 'telex_caps', __( 'You do not have permission to remove this type of project.', 'dispatch' ) );
 		}
 
 		if ( ProjectType::Theme === $type ) {
 			$theme = wp_get_theme( $slug );
 			if ( $theme->exists() ) {
 				if ( wp_get_theme()->get_stylesheet() === $slug ) {
-					return new \WP_Error( 'telex_active_theme', __( 'Cannot remove the active theme. Switch to a different theme first.', 'telex' ) );
+					return new \WP_Error( 'telex_active_theme', __( 'Cannot remove the active theme. Switch to a different theme first.', 'dispatch' ) );
 				}
 				$result = delete_theme( $slug );
 				if ( is_wp_error( $result ) ) {
@@ -246,7 +246,7 @@ class Telex_Installer {
 		$project_dir = $tmp_dir . '/' . $slug;
 
 		if ( ! wp_mkdir_p( $project_dir ) ) {
-			return new \WP_Error( 'telex_mkdir', __( 'Could not create temporary directory.', 'telex' ) );
+			return new \WP_Error( 'telex_mkdir', __( 'Could not create temporary directory.', 'dispatch' ) );
 		}
 
 		foreach ( $files as $file ) {
@@ -259,7 +259,7 @@ class Telex_Installer {
 					'telex_path',
 					sprintf(
 					/* translators: %s: file path */
-						__( 'Unsafe file path rejected: %s', 'telex' ),
+						__( 'Unsafe file path rejected: %s', 'dispatch' ),
 						$path
 					)
 				);
@@ -273,7 +273,7 @@ class Telex_Installer {
 					'telex_ext',
 					sprintf(
 					/* translators: %s: file path */
-						__( 'Blocked file extension in: %s', 'telex' ),
+						__( 'Blocked file extension in: %s', 'dispatch' ),
 						$path
 					)
 				);
@@ -288,7 +288,7 @@ class Telex_Installer {
 					'telex_mkdir',
 					sprintf(
 					/* translators: %s: directory path */
-						__( 'Could not create directory: %s', 'telex' ),
+						__( 'Could not create directory: %s', 'dispatch' ),
 						$dir
 					)
 				);
@@ -304,7 +304,7 @@ class Telex_Installer {
 					'telex_path',
 					sprintf(
 					/* translators: %s: file path */
-						__( 'File path escapes project directory: %s', 'telex' ),
+						__( 'File path escapes project directory: %s', 'dispatch' ),
 						$path
 					)
 				);
@@ -319,7 +319,7 @@ class Telex_Installer {
 					'telex_download',
 					sprintf(
 					/* translators: %s: file path */
-						__( 'Failed to download file: %s', 'telex' ),
+						__( 'Failed to download file: %s', 'dispatch' ),
 						$file->path
 					)
 				);
@@ -341,7 +341,7 @@ class Telex_Installer {
 
 		$zip = new \ZipArchive();
 		if ( true !== $zip->open( $zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
-			return new \WP_Error( 'telex_zip', __( 'Could not create zip archive.', 'telex' ) );
+			return new \WP_Error( 'telex_zip', __( 'Could not create zip archive.', 'dispatch' ) );
 		}
 
 		$iterator = new \RecursiveIteratorIterator(
@@ -390,7 +390,7 @@ class Telex_Installer {
 			if ( is_wp_error( $errors ) && $errors->has_errors() ) {
 				return $errors;
 			}
-			return new \WP_Error( 'telex_install', __( 'Installation failed.', 'telex' ) );
+			return new \WP_Error( 'telex_install', __( 'Installation failed.', 'dispatch' ) );
 		}
 
 		return true;
@@ -433,7 +433,7 @@ class Telex_Installer {
 					'telex_blocked_ext',
 					sprintf(
 						/* translators: %s: file path */
-						__( 'Blocked file extension found in package: %s', 'telex' ),
+						__( 'Blocked file extension found in package: %s', 'dispatch' ),
 						$file->getPathname()
 					)
 				);

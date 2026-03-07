@@ -117,8 +117,8 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 			>
 				<Spinner />
 				{ installStatus === 'installing'
-					? __( 'Installing…', 'telex' )
-					: __( 'Removing…', 'telex' ) }
+					? __( 'Installing…', 'dispatch' )
+					: __( 'Removing…', 'dispatch' ) }
 			</span>
 		);
 	}
@@ -126,7 +126,7 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 	if ( ! installed ) {
 		return (
 			<span className="telex-badge telex-badge--idle">
-				{ __( 'Not installed', 'telex' ) }
+				{ __( 'Not installed', 'dispatch' ) }
 			</span>
 		);
 	}
@@ -136,7 +136,7 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 			<span className="telex-badge telex-badge--update">
 				{ sprintf(
 					/* translators: 1: installed version, 2: available version */
-					__( 'v%1$d → v%2$d', 'telex' ),
+					__( 'v%1$d → v%2$d', 'dispatch' ),
 					installed.version,
 					remoteVersion
 				) }
@@ -147,9 +147,9 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 	return (
 		<span
 			className="telex-badge telex-badge--installed"
-			aria-label={ __( 'Up to date', 'telex' ) }
+			aria-label={ __( 'Up to date', 'dispatch' ) }
 		>
-			{ __( 'Up to date', 'telex' ) }
+			{ __( 'Up to date', 'dispatch' ) }
 		</span>
 	);
 }
@@ -182,7 +182,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 				type: 'success',
 				message: sprintf(
 					/* translators: %s: project name */
-					__( '%s installed successfully.', 'telex' ),
+					__( '%s installed successfully.', 'dispatch' ),
 					project.name
 				),
 			} );
@@ -192,7 +192,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 			setInstallStatus( project.publicId, 'failed' );
 			setNotice( {
 				type: 'error',
-				message: err.message || __( 'Install failed.', 'telex' ),
+				message: err.message || __( 'Install failed.', 'dispatch' ),
 			} );
 		}
 	}
@@ -209,7 +209,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 				type: 'success',
 				message: sprintf(
 					/* translators: %s: project name */
-					__( '%s removed.', 'telex' ),
+					__( '%s removed.', 'dispatch' ),
 					project.name
 				),
 			} );
@@ -218,7 +218,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 			setInstallStatus( project.publicId, 'idle' );
 			setNotice( {
 				type: 'error',
-				message: err.message || __( 'Remove failed.', 'telex' ),
+				message: err.message || __( 'Remove failed.', 'dispatch' ),
 			} );
 		}
 	}
@@ -228,7 +228,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 			<CardHeader>
 				<strong>{ project.name }</strong>
 				<span className="telex-project-type">
-					{ project.projectType || __( 'Block', 'telex' ) }
+					{ project.projectType || __( 'Block', 'dispatch' ) }
 				</span>
 			</CardHeader>
 			<CardBody>
@@ -243,7 +243,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 					role="group"
 					aria-label={ sprintf(
 						/* translators: %s: project name */
-						__( 'Actions for %s', 'telex' ),
+						__( 'Actions for %s', 'dispatch' ),
 						project.name
 					) }
 				>
@@ -255,7 +255,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 								disabled={ isBusy }
 								__next40pxDefaultSize
 							>
-								{ __( 'Install', 'telex' ) }
+								{ __( 'Install', 'dispatch' ) }
 							</Button>
 							<Button
 								variant="secondary"
@@ -263,7 +263,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 								disabled={ isBusy }
 								__next40pxDefaultSize
 							>
-								{ __( 'Install & Activate', 'telex' ) }
+								{ __( 'Install & Activate', 'dispatch' ) }
 							</Button>
 						</>
 					) }
@@ -275,7 +275,7 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 							disabled={ isBusy }
 							__next40pxDefaultSize
 						>
-							{ __( 'Update', 'telex' ) }
+							{ __( 'Update', 'dispatch' ) }
 						</Button>
 					) }
 
@@ -289,20 +289,20 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 							disabled={ isBusy }
 							__next40pxDefaultSize
 						>
-							{ __( 'Remove', 'telex' ) }
+							{ __( 'Remove', 'dispatch' ) }
 						</Button>
 					) }
 				</div>
 
 				{ confirmRemove === project.publicId && (
 					<Modal
-						title={ __( 'Confirm removal', 'telex' ) }
+						title={ __( 'Confirm removal', 'dispatch' ) }
 						onRequestClose={ () => setConfirmRemove( null ) }
 					>
 						<p>
 							{ sprintf(
 								/* translators: %s: project name */
-								__( 'Remove %s from this site?', 'telex' ),
+								__( 'Remove %s from this site?', 'dispatch' ),
 								project.name
 							) }
 						</p>
@@ -313,14 +313,14 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 								onClick={ handleRemove }
 								__next40pxDefaultSize
 							>
-								{ __( 'Remove', 'telex' ) }
+								{ __( 'Remove', 'dispatch' ) }
 							</Button>
 							<Button
 								variant="secondary"
 								onClick={ () => setConfirmRemove( null ) }
 								__next40pxDefaultSize
 							>
-								{ __( 'Cancel', 'telex' ) }
+								{ __( 'Cancel', 'dispatch' ) }
 							</Button>
 						</div>
 					</Modal>
@@ -372,7 +372,7 @@ function ProjectsApp() {
 			} )
 			.catch( ( err ) => {
 				setError(
-					err.message || __( 'Failed to load projects.', 'telex' )
+					err.message || __( 'Failed to load projects.', 'dispatch' )
 				);
 				setLoading( false );
 			} );
@@ -399,7 +399,7 @@ function ProjectsApp() {
 
 			<div className="telex-toolbar" role="search">
 				<SearchControl
-					label={ __( 'Search projects', 'telex' ) }
+					label={ __( 'Search projects', 'dispatch' ) }
 					value={ searchQuery }
 					onChange={ setSearchQuery }
 				/>
@@ -407,7 +407,7 @@ function ProjectsApp() {
 					href={ disconnectUrl }
 					className="button button-secondary telex-disconnect"
 				>
-					{ __( 'Disconnect', 'telex' ) }
+					{ __( 'Disconnect', 'dispatch' ) }
 				</a>
 			</div>
 
@@ -415,7 +415,7 @@ function ProjectsApp() {
 				<div
 					className="telex-loading"
 					aria-live="polite"
-					aria-label={ __( 'Loading projects', 'telex' ) }
+					aria-label={ __( 'Loading projects', 'dispatch' ) }
 				>
 					<Spinner />
 				</div>
@@ -431,11 +431,11 @@ function ProjectsApp() {
 				<div
 					className="telex-project-grid"
 					role="list"
-					aria-label={ __( 'Telex projects', 'telex' ) }
+					aria-label={ __( 'Telex projects', 'dispatch' ) }
 					aria-live="polite"
 				>
 					{ filteredProjects.length === 0 && (
-						<p>{ __( 'No projects found.', 'telex' ) }</p>
+						<p>{ __( 'No projects found.', 'dispatch' ) }</p>
 					) }
 					{ filteredProjects.map( ( project ) => (
 						<div key={ project.publicId } role="listitem">
@@ -482,18 +482,18 @@ class TelexErrorBoundary extends Component {
 						<strong>
 							{ __(
 								'Telex encountered an unexpected error.',
-								'telex'
+								'dispatch'
 							) }
 						</strong>{ ' ' }
 						{ __(
 							'Please reload the page. If the problem persists, check the browser console for details.',
-							'telex'
+							'dispatch'
 						) }
 					</p>
 					{ this.state.message && (
 						<details>
 							<summary>
-								{ __( 'Technical details', 'telex' ) }
+								{ __( 'Technical details', 'dispatch' ) }
 							</summary>
 							<pre
 								style={ {

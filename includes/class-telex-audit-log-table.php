@@ -27,8 +27,8 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	public function __construct() {
 		parent::__construct(
 			[
-				'singular' => __( 'Audit Event', 'telex' ),
-				'plural'   => __( 'Audit Events', 'telex' ),
+				'singular' => __( 'Audit Event', 'dispatch' ),
+				'plural'   => __( 'Audit Events', 'dispatch' ),
 				'ajax'     => false,
 			]
 		);
@@ -41,10 +41,10 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	 */
 	public function get_columns(): array {
 		return [
-			'created_at' => __( 'Date', 'telex' ),
-			'action'     => __( 'Action', 'telex' ),
-			'public_id'  => __( 'Project', 'telex' ),
-			'user_id'    => __( 'User', 'telex' ),
+			'created_at' => __( 'Date', 'dispatch' ),
+			'action'     => __( 'Action', 'dispatch' ),
+			'public_id'  => __( 'Project', 'dispatch' ),
+			'user_id'    => __( 'User', 'dispatch' ),
 		];
 	}
 
@@ -97,7 +97,7 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	public function column_created_at( array $item ): string {
 		$ts = strtotime( $item['created_at'] ?? '' );
 		if ( ! $ts ) {
-			return esc_html__( 'Unknown', 'telex' );
+			return esc_html__( 'Unknown', 'dispatch' );
 		}
 		return sprintf(
 			'<abbr title="%s">%s</abbr>',
@@ -139,7 +139,7 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 		$pid = $item['public_id'] ?? '';
 		return '' !== $pid
 			? '<code>' . esc_html( $pid ) . '</code>'
-			: '<span aria-label="' . esc_attr__( 'No project', 'telex' ) . '">—</span>';
+			: '<span aria-label="' . esc_attr__( 'No project', 'dispatch' ) . '">—</span>';
 	}
 
 	/**
@@ -151,7 +151,7 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	public function column_user_id( array $item ): string {
 		$uid = (int) ( $item['user_id'] ?? 0 );
 		if ( $uid <= 0 ) {
-			return esc_html__( '(system)', 'telex' );
+			return esc_html__( '(system)', 'dispatch' );
 		}
 		$user = get_userdata( $uid );
 		if ( ! $user ) {
@@ -181,6 +181,6 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 	 * @return void
 	 */
 	public function no_items(): void {
-		esc_html_e( 'No audit events recorded yet.', 'telex' );
+		esc_html_e( 'No audit events recorded yet.', 'dispatch' );
 	}
 }
