@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Routes:
  *   GET    /telex/v1/projects
+ *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/build   (build readiness)
  *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/install
  *   DELETE /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)
  *   POST   /telex/v1/auth/device    (start device flow)
@@ -76,6 +77,26 @@ class Telex_REST {
 					'methods'             => \WP_REST_Server::DELETABLE,
 					'callback'            => [ self::class, 'remove_project' ],
 					'permission_callback' => [ self::class, 'require_remove_cap' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Build-readiness polling endpoint — used by the frontend between "building" and "installing".
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/build',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_build_status' ],
+					'permission_callback' => [ self::class, 'require_install_cap' ],
 					'args'                => [
 						'id' => [
 							'type'              => 'string',
@@ -279,6 +300,34 @@ class Telex_REST {
 		$public_id = $request->get_param( 'id' );
 		$activate  = (bool) $request->get_param( 'activate' );
 
+		// Check whether the build is ready before handing off to the installer.
+		// If it isn't, ask Telex to queue one and tell the client to poll.
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'dispatch' ), [ 'status' => 401 ] );
+		}
+
+		try {
+			$build = $client->projects->getBuild( $public_id );
+		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
+			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+		}
+
+		if ( isset( $build['status'] ) && 'not_ready' === $build['status'] ) {
+			// Best-effort trigger — not all Telex plans expose this endpoint.
+			try {
+				$client->projects->triggerBuild( $public_id );
+			} catch ( \Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- intentionally silent; polling will still work.
+			}
+
+			return rest_ensure_response(
+				[
+					'status'        => 'building',
+					'poll_interval' => 5,
+				]
+			);
+		}
+
 		$result = Telex_Installer::install( $public_id, $activate );
 
 		if ( is_wp_error( $result ) ) {
@@ -291,9 +340,43 @@ class Telex_REST {
 
 		return rest_ensure_response(
 			[
-				'success' => true,
+				'status'  => 'installed',
 				/* translators: %s: project public ID */
 				'message' => sprintf( __( 'Project %s installed successfully.', 'dispatch' ), $public_id ),
+			]
+		);
+	}
+
+	/**
+	 * GET /telex/v1/projects/{id}/build — reports whether a project's build is ready to install.
+	 *
+	 * Called by the frontend while it is waiting for a build to finish.
+	 * Returns { ready: bool, poll_interval: int } so the client knows when to retry.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function get_build_status( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return new \WP_Error( 'telex_not_connected', __( 'Not connected to Telex.', 'dispatch' ), [ 'status' => 401 ] );
+		}
+
+		$public_id = $request->get_param( 'id' );
+
+		try {
+			$build = $client->projects->getBuild( $public_id );
+		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
+			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+		}
+
+		$ready = ! ( isset( $build['status'] ) && 'not_ready' === $build['status'] )
+			&& ! empty( $build['files'] );
+
+		return rest_ensure_response(
+			[
+				'ready'         => $ready,
+				'poll_interval' => 5,
 			]
 		);
 	}

@@ -309,16 +309,24 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 		select( 'telex/admin' ).getInstallStatus( publicId )
 	);
 
-	if ( installStatus === 'installing' || installStatus === 'removing' ) {
+	if (
+		installStatus === 'building' ||
+		installStatus === 'installing' ||
+		installStatus === 'removing'
+	) {
+		const busyLabel =
+			installStatus === 'building'
+				? __( 'Building…', 'dispatch' )
+				: installStatus === 'installing'
+				? __( 'Installing…', 'dispatch' )
+				: __( 'Removing…', 'dispatch' );
 		return (
 			<span
 				className="telex-badge telex-badge--loading"
 				aria-live="polite"
 			>
 				<Spinner />
-				{ installStatus === 'installing'
-					? __( 'Installing…', 'dispatch' )
-					: __( 'Removing…', 'dispatch' ) }
+				{ busyLabel }
 			</span>
 		);
 	}
@@ -448,61 +456,106 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	const needsUpdate = installed && project.currentVersion > installed.version;
 	const isInstalled = !! installed;
 	const isBusy =
-		installStatus === 'installing' || installStatus === 'removing';
+		installStatus === 'installing' ||
+		installStatus === 'removing' ||
+		installStatus === 'building';
 	const typeStr = project.projectType?.toLowerCase() || 'block';
 
-	async function handleInstall() {
+	/**
+	 * Shared install/update handler.
+	 *
+	 * Flow:
+	 *  1. POST /install — if the build is ready the server installs and we're done.
+	 *  2. If the server returns { status:'building' } it has queued the build.
+	 *     We poll GET /build every poll_interval seconds until ready (up to ~2 min).
+	 *  3. Once the build is ready we POST /install again and it completes normally.
+	 */
+	async function executeInstall( successMessage ) {
 		setInstallStatus( project.publicId, 'installing' );
-		try {
-			await apiFetch( {
+
+		const doInstallRequest = () =>
+			apiFetch( {
 				url: `${ restUrl }/projects/${ project.publicId }/install`,
 				method: 'POST',
 				data: { activate: false },
 			} );
-			setNotice( {
-				type: 'success',
-				message: sprintf(
-					/* translators: %s: project name */
-					__( '%s installed successfully.', 'dispatch' ),
-					project.name
-				),
-			} );
+
+		try {
+			let data = await doInstallRequest();
+
+			if ( data.status === 'building' ) {
+				setInstallStatus( project.publicId, 'building' );
+
+				const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
+				let pollInterval = data.poll_interval || 5;
+
+				for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
+					// eslint-disable-next-line no-await-in-loop
+					await new Promise( ( r ) => setTimeout( r, pollInterval * 1000 ) );
+
+					// eslint-disable-next-line no-await-in-loop
+					const buildStatus = await apiFetch( {
+						url: `${ restUrl }/projects/${ project.publicId }/build`,
+					} );
+
+					if ( buildStatus.poll_interval ) {
+						pollInterval = buildStatus.poll_interval;
+					}
+
+					if ( ! buildStatus.ready ) {
+						continue;
+					}
+
+					// Build is ready — run the install now.
+					setInstallStatus( project.publicId, 'installing' );
+					// eslint-disable-next-line no-await-in-loop
+					data = await doInstallRequest();
+					break;
+				}
+
+				if ( data.status === 'building' ) {
+					// Still not ready after MAX_POLLS — surface a friendly message.
+					throw new Error(
+						__(
+							'The build is taking longer than expected. Try again in a moment.',
+							'dispatch'
+						)
+					);
+				}
+			}
+
+			setNotice( { type: 'success', message: successMessage } );
 			await onRefresh();
 			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'failed' );
 			setNotice( {
 				type: 'error',
-				message: err.message || __( 'Install failed.', 'dispatch' ),
+				message:
+					err.message ||
+					__( 'Installation failed. Please try again.', 'dispatch' ),
 			} );
 		}
 	}
 
+	async function handleInstall() {
+		await executeInstall(
+			sprintf(
+				/* translators: %s: project name */
+				__( '%s installed successfully.', 'dispatch' ),
+				project.name
+			)
+		);
+	}
+
 	async function handleUpdate() {
-		setInstallStatus( project.publicId, 'installing' );
-		try {
-			await apiFetch( {
-				url: `${ restUrl }/projects/${ project.publicId }/install`,
-				method: 'POST',
-				data: { activate: false },
-			} );
-			setNotice( {
-				type: 'success',
-				message: sprintf(
-					/* translators: %s: project name */
-					__( '%s updated successfully.', 'dispatch' ),
-					project.name
-				),
-			} );
-			await onRefresh();
-			setInstallStatus( project.publicId, 'idle' );
-		} catch ( err ) {
-			setInstallStatus( project.publicId, 'failed' );
-			setNotice( {
-				type: 'error',
-				message: err.message || __( 'Update failed.', 'dispatch' ),
-			} );
-		}
+		await executeInstall(
+			sprintf(
+				/* translators: %s: project name */
+				__( '%s updated successfully.', 'dispatch' ),
+				project.name
+			)
+		);
 	}
 
 	async function handleRemove() {

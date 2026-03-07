@@ -57,4 +57,19 @@ class ProjectResource
         $id = rawurlencode($publicId);
         return $this->http->getRaw("/api/v1/projects/$id/build/file", ['path' => $path]);
     }
+
+    /**
+     * Asks Telex to queue a new build for a project.
+     *
+     * This is best-effort: not all plans or project states support on-demand
+     * build triggers. Callers should catch exceptions and proceed with polling
+     * regardless of whether this call succeeds.
+     *
+     * @return array<string, mixed>
+     */
+    public function triggerBuild(string $publicId): array
+    {
+        $id = rawurlencode($publicId);
+        return $this->http->post("/api/v1/projects/$id/build");
+    }
 }

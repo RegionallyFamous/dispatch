@@ -60,6 +60,31 @@ class HttpClient
     }
 
     /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function post(string $path, array $body = []): array
+    {
+        $url = $this->baseUrl . $path;
+
+        $request = new Request('POST', $url, [
+            'Authorization' => 'Bearer ' . $this->token,
+            'Accept'        => 'application/json',
+            'Content-Type'  => 'application/json',
+        ], (string) json_encode($body));
+
+        $response = $this->client->sendRequest($request);
+        $status   = (int) $response->getStatusCode();
+        $raw      = (string) $response->getBody();
+
+        $this->throwOnError($status, $raw);
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
      * @param array<string, string> $params
      */
     private function sendRequest(string $path, array $params): \Psr\Http\Message\ResponseInterface
