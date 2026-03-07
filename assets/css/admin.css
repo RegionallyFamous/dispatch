@@ -177,25 +177,49 @@
 	padding: 12px 16px;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 6px;
+	gap: 8px;
 }
 
 .telex-card-title-row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	width: 100%;
 }
 
+/* Avatar */
+.telex-project-avatar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	font-size: 16px;
+	font-weight: 700;
+	color: #fff;
+	flex-shrink: 0;
+	line-height: 1;
+	user-select: none;
+}
+
+/* Title + type badge stacked vertically */
+.telex-card-title-text {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+	flex: 1;
+}
+
 .telex-card-title {
-	font-size: 14px;
+	font-size: 13px;
 	font-weight: 600;
 	color: #1d2327;
-	flex: 1;
-	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	line-height: 1.2;
 }
 
 .telex-project-card .components-card__body {
@@ -299,6 +323,30 @@
 .telex-meta-item--new {
 	color: var(--telex-update);
 	font-weight: 600;
+}
+
+/* WP directory slug — code-style, easy to copy */
+.telex-slug {
+	font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 11px;
+	background: #f0f0f1;
+	color: #50575e;
+	border-radius: 3px;
+	padding: 1px 5px;
+	border: 1px solid #dcdcde;
+}
+
+/* Install / update timestamps */
+.telex-card-timestamps {
+	margin-top: 6px;
+}
+
+.telex-timestamp {
+	font-size: 11px;
+	color: #a0a0a0;
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 /* ---------------------------------------------------------------------------

@@ -24,7 +24,7 @@ import {
 	Tooltip,
 	Icon,
 } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, sprintf, _n } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import {
 	update as updateIcon,
@@ -35,6 +35,123 @@ import {
 	search as searchIcon,
 	download,
 } from '@wordpress/icons';
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Deterministic color from a seed string.
+ * Each project always gets the same color across page loads.
+ */
+const AVATAR_PALETTE = [
+	'#2271b1', // WP admin blue
+	'#1e8b3a', // green
+	'#d63638', // red
+	'#7e3bd0', // purple
+	'#c67c0d', // amber
+	'#007cba', // teal-blue
+	'#e65054', // coral
+	'#0ea5e9', // sky
+	'#8b5cf6', // violet
+	'#059669', // emerald
+];
+
+function getAvatarColor( seed ) {
+	let hash = 0;
+	for ( let i = 0; i < seed.length; i++ ) {
+		// djb2 hash — non-cryptographic, fast, well-distributed.
+		// eslint-disable-next-line no-bitwise
+		hash = ( ( hash << 5 ) - hash + seed.charCodeAt( i ) ) | 0;
+	}
+	return AVATAR_PALETTE[ Math.abs( hash ) % AVATAR_PALETTE.length ];
+}
+
+/**
+ * Human-readable relative timestamp from an ISO-8601 string.
+ * Returns null if the input is missing or unparseable.
+ *
+ * @param {string|null|undefined} isoString ISO-8601 date string.
+ * @return {string|null} Localised relative string, or null.
+ */
+function relativeDate( isoString ) {
+	if ( ! isoString ) {
+		return null;
+	}
+	const d = new Date( isoString );
+	if ( isNaN( d.getTime() ) ) {
+		return null;
+	}
+	const seconds = Math.floor( ( Date.now() - d.getTime() ) / 1000 );
+	if ( seconds < 60 ) {
+		return __( 'Just now', 'dispatch' );
+	}
+	const minutes = Math.floor( seconds / 60 );
+	if ( minutes < 60 ) {
+		return sprintf(
+			/* translators: %d: number of minutes */
+			_n( '%d minute ago', '%d minutes ago', minutes, 'dispatch' ),
+			minutes
+		);
+	}
+	const hours = Math.floor( minutes / 60 );
+	if ( hours < 24 ) {
+		return sprintf(
+			/* translators: %d: number of hours */
+			_n( '%d hour ago', '%d hours ago', hours, 'dispatch' ),
+			hours
+		);
+	}
+	const days = Math.floor( hours / 24 );
+	if ( days < 30 ) {
+		return sprintf(
+			/* translators: %d: number of days */
+			_n( '%d day ago', '%d days ago', days, 'dispatch' ),
+			days
+		);
+	}
+	const months = Math.floor( days / 30 );
+	if ( months < 12 ) {
+		return sprintf(
+			/* translators: %d: number of months */
+			_n( '%d month ago', '%d months ago', months, 'dispatch' ),
+			months
+		);
+	}
+	const years = Math.floor( months / 12 );
+	return sprintf(
+		/* translators: %d: number of years */
+		_n( '%d year ago', '%d years ago', years, 'dispatch' ),
+		years
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Project avatar
+// ---------------------------------------------------------------------------
+
+/**
+ * Coloured initial-letter circle, deterministic from the project's publicId.
+ * Gives each card a unique identity at a glance without any API changes.
+ *
+ * @param {Object} root0          Component props.
+ * @param {string} root0.name     Project display name.
+ * @param {string} root0.publicId Telex project public ID (used as colour seed).
+ * @return {import('@wordpress/element').WPElement} Avatar element.
+ */
+function ProjectAvatar( { name, publicId } ) {
+	const color = getAvatarColor( publicId || name );
+	const initial = ( name || '?' ).charAt( 0 ).toUpperCase();
+	return (
+		<span
+			className="telex-project-avatar"
+			style={ { background: color } }
+			aria-hidden="true"
+		>
+			{ initial }
+		</span>
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Store
@@ -415,6 +532,18 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 		}
 	}
 
+	// Relative timestamps from the tracker — already in the REST response.
+	const installedAgo = relativeDate( installed?.installed_at );
+	const updatedAgo = relativeDate( installed?.updated_at );
+
+	// Show "Updated X ago" only when different from install time (i.e. it was
+	// actually updated at least once after the initial install).
+	const showUpdatedAgo =
+		updatedAgo &&
+		installed?.updated_at &&
+		installed?.installed_at &&
+		installed.updated_at !== installed.installed_at;
+
 	return (
 		<Card
 			className={ [
@@ -427,10 +556,16 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 		>
 			<CardHeader>
 				<div className="telex-card-title-row">
-					<strong className="telex-card-title">
-						{ project.name }
-					</strong>
-					<TypeBadge type={ typeStr } />
+					<ProjectAvatar
+						name={ project.name }
+						publicId={ project.publicId }
+					/>
+					<div className="telex-card-title-text">
+						<strong className="telex-card-title">
+							{ project.name }
+						</strong>
+						<TypeBadge type={ typeStr } />
+					</div>
 				</div>
 				<StatusBadge
 					publicId={ project.publicId }
@@ -445,7 +580,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<span className="telex-meta-item">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'Installed: v%s', 'dispatch' ),
+								__( 'v%s installed', 'dispatch' ),
 								installed.version
 							) }
 						</span>
@@ -454,7 +589,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<span className="telex-meta-item telex-meta-item--new">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'Available: v%s', 'dispatch' ),
+								__( 'v%s available', 'dispatch' ),
 								project.currentVersion
 							) }
 						</span>
@@ -468,7 +603,34 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 							) }
 						</span>
 					) }
+					{ project.slug && (
+						<code className="telex-slug">{ project.slug }</code>
+					) }
 				</div>
+
+				{ ( installedAgo || showUpdatedAgo ) && (
+					<div className="telex-card-timestamps">
+						{ showUpdatedAgo ? (
+							<span className="telex-timestamp">
+								{ sprintf(
+									/* translators: %s: relative time */
+									__( 'Updated %s', 'dispatch' ),
+									updatedAgo
+								) }
+							</span>
+						) : (
+							installedAgo && (
+								<span className="telex-timestamp">
+									{ sprintf(
+										/* translators: %s: relative time */
+										__( 'Installed %s', 'dispatch' ),
+										installedAgo
+									) }
+								</span>
+							)
+						) }
+					</div>
+				) }
 
 				<div
 					className="telex-card-actions"
