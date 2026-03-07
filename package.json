@@ -1,6 +1,6 @@
 {
     "name": "telex",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Install blocks and themes from your Telex projects.",
     "private": true,
     "license": "GPL-2.0-or-later",

@@ -8,34 +8,36 @@ Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Ship your Telex AI-generated blocks and themes to WordPress without FTP, terminals, or waiting on a developer.
+Telex builds the block. Dispatch ships it. One click to install, update, or remove any Telex-generated block or theme — no zip files, no upload forms.
 
 == Description ==
 
-[Telex](https://telex.automattic.ai) is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English, and Telex generates a fully functional block or theme you can download and install. **Dispatch for Telex** is the bridge that ships those creations to your live WordPress site — directly from the admin, in seconds.
+**Build a block in Telex. Click Install. It's on your site.**
 
-No FTP. No terminal. No deployment tickets.
+[Telex](https://telex.automattic.ai) is Automattic AI Labs' natural language block and theme builder — Matt Mullenweg's "V0 or Lovable, but specifically for WordPress." Describe what you want in plain English, click Build, and two minutes later you have a fully functional WordPress block. Thousands of creators have shipped Minesweeper games, pricing tables, EV charging calculators, personality quizzes, and complete Gutenberg themes with it. Without writing a line of code.
 
-=== Why Dispatch? ===
+Then they hit the zip file.
 
-Blocks and themes built with Telex deserve a first-class home in WordPress. Dispatch makes that happen with a native install experience that feels like it was always part of WordPress — because it was built to be.
+Every Telex-to-WordPress deploy without Dispatch follows the same script: click Download, find the file, switch to WordPress, navigate to Plugins → Add New → Upload Plugin, choose the file, wait for upload, click Install Now, click Activate. Seven steps. Per block. Per revision. The generation took two minutes. The deploy cycle takes five — and it repeats with every single iteration.
 
-=== What You Can Do ===
+Dispatch eliminates the entire loop. Connect your site to your Telex account once. Your entire project library appears in a clean admin screen. Click **Install** on anything you want on the site. Dispatch fetches the build, validates every file, runs the package through WordPress' native upgrader, and activates the block — in a few seconds, without you touching a zip file.
 
-* **Browse your Telex projects** — see every block and theme available to your account in a clean, searchable grid.
-* **Install with one click** — Dispatch downloads, validates, and installs the latest build. Blocks are activated automatically.
-* **Stay current effortlessly** — Dispatch surfaces available updates right inside the native WordPress Updates screen so nothing falls through the cracks.
-* **Remove cleanly** — uninstall any Telex-managed project and Dispatch handles the cleanup.
-* **Connect securely** — OAuth 2.0 Device Authorization Grant (RFC 8628) means no passwords are ever stored. Authorize once from any browser, even on a headless server.
+=== No Passwords. No Zip Files. No Waiting. ===
 
-=== Built for Teams ===
+* **Browse your Telex projects** — every block and theme in your Telex account, searchable, in a clean grid right inside WordPress admin.
+* **One-click install** — Dispatch downloads, validates, and activates the latest build. Blocks are live on your site in seconds.
+* **Native WordPress updates** — available updates appear inside the WordPress Updates screen alongside your other plugins and themes. Nothing to remember to check.
+* **Clean removals** — uninstall any Telex-managed project and Dispatch handles deactivation, file cleanup, and tracker sync. Nothing gets orphaned.
+* **Secure auth** — OAuth 2.0 Device Authorization Grant (RFC 8628). No password stored anywhere. Authorize once from any browser, even on a headless server.
+* **AES-256-GCM token encryption** — your OAuth credentials are encrypted at rest using a key derived from your site's secret salts.
 
-* **WP-CLI support** — automate installs, updates, and connection management in your deployment pipeline with `wp telex`.
-* **Multisite ready** — connect once at the network level; every site on the network gains access.
-* **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user.
-* **Site Health integration** — connection status, circuit breaker state, and cache health surface directly in WordPress Site Health.
+=== Built for Teams and CI/CD ===
+
+* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex list`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+* **Multisite** — connect once at the network level; every site on the network gains access to your Telex projects.
+* **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user ID.
+* **Site Health integration** — connection status, circuit breaker state, and API reachability surface directly in WordPress Site Health.
 * **Circuit breaker** — automatic protection against a degraded Telex API, with graceful fallback and self-healing.
-* **AES-256-GCM token encryption** — your OAuth credentials are encrypted at rest. Always.
 
 === Requirements ===
 
@@ -48,26 +50,32 @@ Blocks and themes built with Telex deserve a first-class home in WordPress. Disp
 1. Download and upload the `dispatch-for-telex` folder to `/wp-content/plugins/`, or install directly from the WordPress plugin directory.
 2. Activate **Dispatch for Telex** through the **Plugins** screen in WordPress.
 3. Navigate to **Dispatch** in the WordPress admin sidebar.
-4. Click **Connect to Telex** and follow the on-screen device authorization flow — open the provided URL on any device, enter the code, and you're connected.
-5. Your Telex projects will appear immediately. Click **Install** on any block or theme to deploy it.
+4. Click **Connect to Telex** and follow the on-screen device authorization flow — open the provided URL on any device, sign in with your Telex account, and enter the code shown on screen.
+5. Your entire Telex project library appears immediately. Click **Install** on any block or theme to deploy it.
+
+That's a one-time setup. Everything after that is one click per project.
 
 == Frequently Asked Questions ==
 
 = What is Telex? =
 
-[Telex](https://telex.automattic.ai) is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English and Telex generates a fully functional block or theme you can download and deploy. Dispatch is the plugin that installs and manages those projects on your WordPress site.
+[Telex](https://telex.automattic.ai) is Automattic AI Labs' natural language WordPress block and theme builder. Describe what you want in plain English, click Build, and Telex generates a fully functional block or theme ready to deploy. It's free — sign up at telex.automattic.ai to start building. Dispatch is the plugin that gets your creations onto your WordPress site without the zip file.
 
 = Do I need a Telex account? =
 
-Yes. Dispatch is the WordPress delivery layer for [Telex](https://telex.automattic.ai). Sign up at telex.automattic.ai to start building, then use Dispatch to deploy your projects to any WordPress site.
+Yes. Build something in Telex first, then install Dispatch and click Connect. That's the whole setup.
+
+= Why not just upload the zip manually? =
+
+You can. But you'll re-upload it by hand every iteration, manage version tracking yourself, and the WordPress Updates screen will have no idea your block exists. The more you build and iterate in Telex, the more the manual cycle compounds. Dispatch handles all of that automatically and integrates with the tools your team already uses.
 
 = Does this plugin work on WordPress Multisite? =
 
-Yes. Connect once at the network level and every site on the network has access to your Telex projects. Individual site admins can install and manage projects within their site without additional authentication.
+Yes. Connect once at the network level and every site on the network has access to your Telex projects. Individual site admins can install and manage projects within their own site without additional authentication.
 
 = Is my OAuth token stored securely? =
 
-Yes. Dispatch uses AES-256-GCM authenticated encryption to store your OAuth credentials in the WordPress database. The encryption key is derived from your site's secret keys. The plaintext token is never written to disk or logged.
+Yes. Dispatch uses AES-256-GCM authenticated encryption to store your OAuth credentials in the WordPress database. The encryption key is derived from your site's secret keys and never leaves your server. The plaintext token is never written to disk or logged.
 
 = Does installing a block modify my theme? =
 
@@ -75,15 +83,15 @@ No. Blocks installed by Dispatch are self-contained and live in `wp-content/plug
 
 = Can I use Dispatch in a CI/CD pipeline? =
 
-Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update`, etc.) is designed for automated workflows. See the [WP-CLI documentation](https://github.com/regionallyfamous/dispatch/blob/main/docs/wp-cli.md) for details.
+Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update --all`, etc.) is designed for automated workflows. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 
 = What happens if the Telex API is unavailable? =
 
-Dispatch includes a circuit breaker that detects API failures and stops hammering a degraded endpoint. Already-installed blocks and themes continue to work normally. The circuit resets automatically once the API recovers.
+Dispatch includes a circuit breaker that detects API failures and stops hammering a degraded endpoint. Already-installed blocks and themes continue to work normally — they're just files on disk. The circuit resets automatically once the API recovers.
 
 = Can I remove a project installed by Dispatch? =
 
-Yes. Click **Remove** on any installed project in the Dispatch screen, or run `wp telex remove <project-id>` from the command line.
+Yes. Click **Remove** on any installed project in the Dispatch screen, or run `wp telex remove <project-id>` from the command line. Dispatch deactivates the item, removes the files, and updates its tracker.
 
 = Where can I report bugs or request features? =
 
@@ -94,6 +102,11 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.0.3 =
+* Fixed a critical bug where the background cache refresh lock used `add_transient()` — a function that does not exist in WordPress — causing a PHP Fatal Error on every REST API call when the project cache was stale.
+* Updated readme and plugin description copy to be clearer and more direct.
+* Improved device-authorization screen copy to better explain the value of the plugin.
 
 = 1.0.2 =
 * Status badge (Not installed / Up to date / update indicator) now sits inline with the project title instead of on a separate line.

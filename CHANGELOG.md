@@ -8,6 +8,26 @@ All notable changes to Dispatch for Telex will be documented here.
 
 ---
 
+## [1.0.3] — 2026-03-07
+
+### Fixed
+
+- **Critical crash on stale cache revalidation** — `schedule_background_refresh()` called
+  `add_transient()`, a function that does not exist in WordPress. This caused a PHP Fatal
+  Error on every REST API request when the project list cache had expired, making the
+  admin screen render a raw WordPress error notice instead of projects. Replaced with
+  `wp_cache_add()` (atomic on Redis/Memcached, safe on the default runtime cache) plus a
+  belt-and-suspenders `set_transient()` for cross-process locking.
+
+### Changed
+
+- **readme.txt rewritten** — shorter, more direct, leads with what the plugin actually
+  does rather than category context.
+- **Device authorization screen copy** — updated to better explain the one-time setup
+  and value of connecting to Telex.
+
+---
+
 ## [1.0.2] — 2026-03-07
 
 Three bugs introduced by the install/update pipeline are now squashed,

@@ -41,12 +41,21 @@ function TelexAbout() {
 		<div className="telex-about">
 			<p>
 				{ __(
-					'Telex is a natural language WordPress block and theme builder by Automattic AI Labs. Describe what you want in plain English, and Telex generates a fully functional block or theme you can download and deploy.',
+					"Build a block in Telex. Click Install here. It's live on your site — no zip files, no upload forms, no round trips.",
+					'dispatch'
+				) }
+			</p>
+			<p>
+				{ __(
+					"Telex is Automattic AI Labs' natural language WordPress block and theme builder. Connect once and your entire project library is available to install with a single click.",
 					'dispatch'
 				) }
 			</p>
 			<ExternalLink href="https://telex.automattic.ai">
-				{ __( 'Learn more at telex.automattic.ai', 'dispatch' ) }
+				{ __(
+					'Create your first block at telex.automattic.ai',
+					'dispatch'
+				) }
 			</ExternalLink>
 		</div>
 	);

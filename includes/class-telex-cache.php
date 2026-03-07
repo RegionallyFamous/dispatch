@@ -171,19 +171,23 @@ class Telex_Cache {
 
 	/**
 	 * Schedule an immediate one-off cron event for a background cache refresh,
-	 * protected by a short lock transient to prevent stampedes.
+	 * protected by a short lock to prevent stampedes.
 	 *
-	 * Uses add_transient() instead of get_transient() + set_transient() so that
-	 * the lock acquisition is atomic on object-cache backends (Redis/Memcached).
-	 * add_transient returns false if the key already exists, ensuring only one
-	 * background refresh is queued at a time.
+	 * Uses wp_cache_add() for atomic "set only if absent" semantics.
+	 * On Redis/Memcached this is a single atomic ADD; on the default runtime
+	 * cache it is effectively atomic within the same PHP process. We also write
+	 * a transient as a cross-process fallback so that separate requests don't
+	 * both queue a refresh.
 	 */
 	public static function schedule_background_refresh(): void {
-		// add_transient() is atomic: it only sets if the key does not exist.
-		// On a database transient backend it is still a single INSERT … IGNORE.
-		if ( ! add_transient( self::TRANSIENT_REFRESH_LOCK, 1, 30 ) ) {
+		// wp_cache_add() is atomic on persistent object-cache backends.
+		if ( ! wp_cache_add( self::TRANSIENT_REFRESH_LOCK, 1, 'telex', 30 ) ) {
 			return; // A refresh is already scheduled/in-progress.
 		}
+
+		// Belt-and-suspenders: also set a transient so a second PHP process
+		// (where the in-memory cache is empty) won't queue a duplicate refresh.
+		set_transient( self::TRANSIENT_REFRESH_LOCK, 1, 30 );
 
 		wp_schedule_single_event( time(), self::CRON_HOOK );
 	}
@@ -192,6 +196,7 @@ class Telex_Cache {
 	 * Cron callback: refresh the project list in the background.
 	 */
 	public static function warm(): void {
+		wp_cache_delete( self::TRANSIENT_REFRESH_LOCK, 'telex' );
 		delete_transient( self::TRANSIENT_REFRESH_LOCK );
 
 		if ( ! Telex_Auth::is_connected() ) {
