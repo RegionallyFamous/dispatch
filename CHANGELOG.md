@@ -1,7 +1,5 @@
 # Changelog
 
-All notable changes to Dispatch for Telex will be documented here.
-
 ---
 
 ## [Unreleased]
@@ -10,57 +8,81 @@ All notable changes to Dispatch for Telex will be documented here.
 
 ## [1.0.3] — 2026-03-07
 
-### Fixed
+This release is all about reliability and trust. We did a full 20-pass security
+and hardening audit of every layer of the plugin — REST API, installer, cache,
+authentication, webhooks, multisite, and the JavaScript UI. Plus we fixed a
+nasty crash that was breaking the projects screen for some sites.
 
-- **Critical crash on stale cache revalidation** — `schedule_background_refresh()` called
-  `add_transient()`, a function that does not exist in WordPress. This caused a PHP Fatal
-  Error on every REST API request when the project list cache had expired, making the
-  admin screen render a raw WordPress error notice instead of projects. Replaced with
-  `wp_cache_add()` (atomic on Redis/Memcached, safe on the default runtime cache) plus a
-  belt-and-suspenders `set_transient()` for cross-process locking.
+### Your projects screen won't go blank anymore
 
-### Changed
+A bug introduced in the hardening pass used a WordPress function that doesn't
+actually exist. On sites where the project cache had expired, this crashed the
+REST API entirely — instead of your projects, you'd see a raw WordPress error
+notice. That's fixed. It now uses the correct atomic cache function and your
+projects load normally.
 
-- **readme.txt rewritten** — shorter, more direct, leads with what the plugin actually
-  does rather than category context.
-- **Device authorization screen copy** — updated to better explain the one-time setup
-  and value of connecting to Telex.
+### The auto-deploy webhook is a lot safer
+
+The webhook endpoint now validates request timestamps and rejects anything
+replayed more than 5 minutes later. It also rate-limits by IP so a flood of
+webhook calls won't take your site down. Your secret key is no longer embedded
+in the page HTML — it's fetched on demand so it never ends up in browser
+history or cached pages.
+
+### Downloads are verified before they touch your site
+
+Every file Dispatch downloads from Telex is now verified with a SHA-256
+checksum before it's unpacked. If a file has been tampered with in transit —
+even a single byte — the install is aborted and nothing is written to disk.
+
+### Faster, especially on large sites
+
+Project data is now cached more intelligently so Dispatch makes far fewer API
+calls. If you have a lot of projects, the screen loads noticeably quicker.
+The JavaScript UI also avoids redundant re-renders so interactions feel snappier.
+On multisite networks with hundreds of sites, the project cache now warms up
+in batches instead of stopping at 100.
+
+### The audit log is now sortable
+
+Click the Date column header in the Audit Log to flip the sort order. Useful
+when you're trying to track down what happened at a specific point in time.
+
+### Errors tell you something went wrong, not how it went wrong
+
+When an install fails due to an API error, the message you see is now a plain
+explanation of the problem — not a raw PHP exception with a stack trace and
+internal method names. Cleaner for users, and no accidental information leakage.
+
+### Multisite uninstall is now thorough
+
+Previously, uninstalling Dispatch on a large multisite network would only clean
+up the first 100 subsites. It now iterates through every site on the network
+and removes all Dispatch data before the plugin is deleted.
 
 ---
 
 ## [1.0.2] — 2026-03-07
 
-Three bugs introduced by the install/update pipeline are now squashed,
-plus a small UI polish.
-
-### Changed
-
-- **Status badge is now inline with the project title** — "Not installed",
-  "Up to date", and version update indicators sit in the same row as the
-  project name instead of on a separate line below it. Cleaner, less
-  vertical noise.
+Updates were broken. Three separate bugs were conspiring to make the install
+and update flow unreliable, and we found all of them.
 
 ### Fixed
 
-- **Update progress no longer restarts** — the step indicator was being
-  reset to step 1 by an `onBuilding` callback even after the fake-progress
-  timers had already advanced it to step 3. The reset is removed; the
-  indicator now stays wherever it is while waiting for the server-side
-  build to complete.
-- **Installed version is now tracked correctly** — after an update, the
-  tracker was recording the *currently-deployed* version returned by
-  `projects.get()` (e.g. v1) instead of the *latest-build* version (e.g.
-  v2) the user actually installed. The installer now takes
-  `max(api_version, cached_version)`, where the cache value was populated
-  when the "update available" badge was computed and correctly reflects
-  the build that was installed.
-- **Eliminated a duplicate `getBuild()` race condition** — the REST
-  controller and the installer each called `getBuild()` independently. The
-  second call could land between build states and return `not_ready`,
-  surfacing a spurious "This build isn't ready" error immediately after
-  polling had confirmed readiness. The controller now passes its
-  already-fetched build data to the installer, removing the redundant
-  round-trip entirely.
+- **The progress bar was lying to you** — it would advance to step 3, then
+  snap back to step 1 while waiting for the build. It now stays wherever it
+  is. No more whiplash.
+- **"Already up to date" when you just updated** — after installing an update,
+  Dispatch was recording the old version number instead of the new one. So the
+  next time you opened the screen, it would show an update badge for something
+  you already installed. That's fixed — it now tracks the version you actually
+  installed.
+- **"This build isn't ready" after it clearly was** — a race condition between
+  two separate API calls could make the installer think a build wasn't ready
+  immediately after confirming it was. The duplicate call is gone.
+- **Status badge is now inline with the project title** — the "Not installed" /
+  "Up to date" indicator was sitting on its own line below the project name.
+  It's been moved up next to the title where it makes more sense visually.
 
 ---
 
@@ -99,7 +121,7 @@ scheme you have set.
 
 ## [1.0.0] — 2026-03-06
 
-This is it — Dispatch is here, and we're genuinely excited about it. ✨
+This is it — Dispatch is here, and we're genuinely excited about it.
 
 The whole idea is simple: you built something great in Telex. Now get it onto
 your WordPress site without writing a deployment script, asking a developer,
@@ -151,7 +173,8 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/regionallyfamous/dispatch/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/regionallyfamous/dispatch/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/regionallyfamous/dispatch/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/regionallyfamous/dispatch/releases/tag/v1.0.0

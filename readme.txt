@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -104,24 +104,26 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 == Changelog ==
 
 = 1.0.3 =
-* Fixed a critical bug where the background cache refresh lock used `add_transient()` — a function that does not exist in WordPress — causing a PHP Fatal Error on every REST API call when the project cache was stale.
-* Updated readme and plugin description copy to be clearer and more direct.
-* Improved device-authorization screen copy to better explain the value of the plugin.
+* Fixed a crash that made the projects screen go blank on sites where the project cache had expired.
+* The auto-deploy webhook now validates request timestamps, rejects replayed requests, and rate-limits by IP.
+* Every downloaded file is now verified with a SHA-256 checksum before it touches your site.
+* Project data is cached more intelligently — fewer API calls, noticeably faster page loads on large accounts.
+* The audit log is now sortable by date.
+* Error messages no longer leak internal implementation details.
+* Multisite uninstall now cleans up all subsites, not just the first 100.
 
 = 1.0.2 =
-* Status badge (Not installed / Up to date / update indicator) now sits inline with the project title instead of on a separate line.
-* Fixed update progress steps restarting mid-animation.
-* Fixed installed version tracker recording the wrong (deployed) version number after an update — now always tracks the latest build version.
-* Eliminated a duplicate `getBuild()` API call that caused spurious "build isn't ready" errors during updates.
+* Fixed update progress bar snapping back to step 1 mid-animation.
+* Fixed version tracker recording the old version number after an update.
+* Fixed a race condition that showed "build isn't ready" immediately after confirming it was ready.
+* Status badge now sits inline with the project title instead of on a separate line.
 
 = 1.0.1 =
-* Removed OS dark-mode overrides — UI now matches WP admin's light-mode design consistently.
-* Brand accent color now inherits WP admin's active color scheme (`--wp-admin-theme-color`).
+* UI now matches WP admin's color scheme and design tokens throughout — no more separate dark mode.
+* Cards redesigned with accent stripe, larger avatars, and full-width action buttons.
 * Fixed "Connected" badge positioning — now sits inline with the page heading.
-* Improved badge contrast to meet WCAG AA on all states.
+* Fixed badge contrast to meet WCAG AA on all states.
 * Removed bulk-selection UI; projects activate automatically on install.
-* Fixed type badge stretching to full card width.
-* Card redesign: accent stripe, larger avatars, full-width action buttons.
 
 = 1.0.0 =
 * Initial public release.
