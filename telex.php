@@ -76,9 +76,9 @@ $telex_bail = static function ( string $message ): void {
 
 // -----------------------------------------------------------------------------
 // 1. PHP version
-//    Backed enums, readonly classes, named arguments, and first-class callables
-//    all require PHP 8.2+. WordPress checks Requires PHP before activation, but
-//    that can be bypassed via WP-CLI or direct DB manipulation.
+// Backed enums, readonly classes, named arguments, and first-class callables
+// all require PHP 8.2+. WordPress checks Requires PHP before activation, but
+// that can be bypassed via WP-CLI or direct DB manipulation.
 // -----------------------------------------------------------------------------
 if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
 	$telex_bail(
@@ -94,8 +94,8 @@ if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
 
 // -----------------------------------------------------------------------------
 // 2. WordPress version
-//    Checked here as defence-in-depth; WP normally enforces Requires At Least
-//    from the plugin header before activation.
+// Checked here as defence-in-depth; WP normally enforces Requires At Least
+// from the plugin header before activation.
 // -----------------------------------------------------------------------------
 global $wp_version;
 if ( isset( $wp_version ) && version_compare( $wp_version, '6.7', '<' ) ) {
@@ -112,8 +112,8 @@ if ( isset( $wp_version ) && version_compare( $wp_version, '6.7', '<' ) ) {
 
 // -----------------------------------------------------------------------------
 // 3. OpenSSL extension
-//    Required by Telex_Auth for AES-256-GCM token encryption/decryption and
-//    for generating random IVs via openssl_random_pseudo_bytes().
+// Required by Telex_Auth for AES-256-GCM token encryption/decryption and
+// for generating random IVs via openssl_random_pseudo_bytes().
 // -----------------------------------------------------------------------------
 if ( ! extension_loaded( 'openssl' ) ) {
 	$telex_bail(
@@ -125,8 +125,8 @@ if ( ! extension_loaded( 'openssl' ) ) {
 
 // -----------------------------------------------------------------------------
 // 4. ZipArchive class
-//    Required by Telex_Installer to package build files before handing them
-//    to the WordPress Upgrader API.
+// Required by Telex_Installer to package build files before handing them
+// to the WordPress Upgrader API.
 // -----------------------------------------------------------------------------
 if ( ! class_exists( 'ZipArchive' ) ) {
 	$telex_bail(
@@ -138,8 +138,8 @@ if ( ! class_exists( 'ZipArchive' ) ) {
 
 // -----------------------------------------------------------------------------
 // 5. Composer autoloader
-//    Not present when the plugin is installed by cloning the repository without
-//    running composer install.
+// Not present when the plugin is installed by cloning the repository without
+// running composer install.
 // -----------------------------------------------------------------------------
 if ( ! file_exists( TELEX_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	$telex_bail(
@@ -155,8 +155,8 @@ if ( ! file_exists( TELEX_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 
 // -----------------------------------------------------------------------------
 // 6. Required plugin files
-//    Guards against partial uploads via FTP, truncated ZIP extractions, or
-//    any other incomplete installation. Every file loaded below is listed here.
+// Guards against partial uploads via FTP, truncated ZIP extractions, or
+// any other incomplete installation. Every file loaded below is listed here.
 // -----------------------------------------------------------------------------
 $telex_required = [
 	'includes/Enums/AuditAction.php',

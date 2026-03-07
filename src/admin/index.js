@@ -4,12 +4,7 @@
  * Renders the project card grid with tab-based filtering, stats summary,
  * and live refetch (no full-page reload). State is managed via @wordpress/data.
  */
-import {
-	render,
-	useEffect,
-	useCallback,
-	Component,
-} from '@wordpress/element';
+import { render, useEffect, useCallback, Component } from '@wordpress/element';
 import {
 	createReduxStore,
 	register,
@@ -37,11 +32,8 @@ import {
 	check,
 	plugins as pluginsIcon,
 	layout as layoutIcon,
-	caution,
 	search as searchIcon,
-	copy,
 	download,
-	info,
 } from '@wordpress/icons';
 
 // ---------------------------------------------------------------------------
@@ -275,7 +267,7 @@ function EmptyState( { tab, searchQuery } ) {
 			icon: pluginsIcon,
 			heading: __( 'No projects yet', 'dispatch' ),
 			body: __(
-				'Your Telex projects will show up here once you\'ve created some.',
+				"Your Telex projects will show up here once you've created some.",
 				'dispatch'
 			),
 		},
@@ -579,7 +571,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 							{ sprintf(
 								/* translators: %s: project name */
 								__(
-									'This removes %s from your site and deletes all its files. There\'s no undo.',
+									"This removes %s from your site and deletes all its files. There's no undo.",
 									'dispatch'
 								),
 								project.name
@@ -872,10 +864,7 @@ class TelexErrorBoundary extends Component {
 				>
 					<p>
 						<strong>
-							{ __(
-								'Something went wrong.',
-								'dispatch'
-							) }
+							{ __( 'Something went wrong.', 'dispatch' ) }
 						</strong>{ ' ' }
 						{ __(
 							'Reload the page to try again. If it keeps happening, check the browser console.',

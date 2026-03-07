@@ -9,11 +9,10 @@
  * an independent polling loop.
  */
 import { render, useState, useEffect, useRef } from '@wordpress/element';
-import { Button, Notice, Spinner } from '@wordpress/components';
+import { Button, Icon, Notice, Spinner } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { copy, check, caution, plugins as pluginsIcon } from '@wordpress/icons';
-import { Icon } from '@wordpress/components';
 
 const STATUS = {
 	IDLE: 'idle',
@@ -80,17 +79,6 @@ function DeviceFlowApp() {
 	const pollRef = useRef( null );
 	const copyTimeoutRef = useRef( null );
 
-	// Derive the active step number for the StepIndicator.
-	function getActiveStep() {
-		if ( status === STATUS.SUCCESS ) {
-			return 3;
-		}
-		if ( status === STATUS.WAITING ) {
-			return 2;
-		}
-		return 1;
-	}
-
 	// Initialise nonce middleware and WP Heartbeat listener on mount only.
 	useEffect( () => {
 		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
@@ -150,7 +138,11 @@ function DeviceFlowApp() {
 			startPolling( data.interval || 5 );
 		} catch ( err ) {
 			setErrorMsg(
-				err.message || __( 'Couldn\'t start the connection. Please try again.', 'dispatch' )
+				err.message ||
+					__(
+						"Couldn't start the connection. Please try again.",
+						'dispatch'
+					)
 			);
 			setStatus( STATUS.ERROR );
 		}
@@ -205,25 +197,37 @@ function DeviceFlowApp() {
 		setDeviceData( null );
 	}
 
+	const userCodeRef = useRef( null );
+
 	function handleCopyCode() {
 		if ( ! deviceData?.user_code ) {
 			return;
 		}
-		try {
-			navigator.clipboard.writeText( deviceData.user_code );
-		} catch {
-			// Clipboard API unavailable — select the text for manual copy.
-			const el = document.querySelector( '.telex-user-code' );
-			if ( el ) {
-				const range = document.createRange();
-				range.selectNodeContents( el );
-				window.getSelection().removeAllRanges();
-				window.getSelection().addRange( range );
-			}
+		const text = deviceData.user_code;
+		if ( window.navigator?.clipboard ) {
+			window.navigator.clipboard
+				.writeText( text )
+				.catch( () => selectCodeText() );
+		} else {
+			selectCodeText();
 		}
 		setCopied( true );
 		clearTimeout( copyTimeoutRef.current );
 		copyTimeoutRef.current = setTimeout( () => setCopied( false ), 2500 );
+	}
+
+	function selectCodeText() {
+		const el = userCodeRef.current;
+		if ( ! el ) {
+			return;
+		}
+		const range = document.createRange();
+		range.selectNodeContents( el );
+		const sel = el.ownerDocument.defaultView?.getSelection();
+		if ( sel ) {
+			sel.removeAllRanges();
+			sel.addRange( range );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -320,6 +324,7 @@ function DeviceFlowApp() {
 
 					<div className="telex-device-code-block" aria-live="polite">
 						<div
+							ref={ userCodeRef }
 							className="telex-user-code"
 							role="status"
 							aria-label={ sprintf(

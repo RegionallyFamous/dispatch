@@ -28,6 +28,7 @@
         "@wordpress/i18n": "*"
     },
     "devDependencies": {
+        "@wordpress/icons": "^11.8.0",
         "@wordpress/scripts": "^31.0"
     },
     "wp-scripts": {

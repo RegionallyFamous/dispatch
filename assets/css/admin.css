@@ -1,18 +1,106 @@
-/* Telex Admin Styles */
+/* Telex Admin Styles — v1.0 */
 
 /* ---------------------------------------------------------------------------
- * Layout
+ * Design tokens
+ * ------------------------------------------------------------------------- */
+
+:root {
+	--telex-brand: #3858e9;
+	--telex-brand-hover: #2145e6;
+	--telex-success: #1a7828;
+	--telex-success-bg: #edfaef;
+	--telex-update: #856404;
+	--telex-update-bg: #fef9e7;
+	--telex-update-border: #f5c542;
+	--telex-error: #b32d2e;
+	--telex-error-bg: #fce8e8;
+	--telex-muted: #757575;
+	--telex-border: #dcdcde;
+	--telex-surface: #fff;
+	--telex-surface-alt: #f9f9f9;
+	--telex-radius: 4px;
+	--telex-radius-lg: 8px;
+	--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+	--telex-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+	--telex-transition: 0.15s ease;
+}
+
+/* ---------------------------------------------------------------------------
+ * Root app container
  * ------------------------------------------------------------------------- */
 
 .telex-app {
 	max-width: 1200px;
 }
 
+/* ---------------------------------------------------------------------------
+ * Stats bar
+ * ------------------------------------------------------------------------- */
+
+.telex-stats-bar {
+	display: flex;
+	gap: 0;
+	margin: 0 0 20px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	overflow: hidden;
+	box-shadow: var(--telex-shadow);
+}
+
+.telex-stat {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 16px 24px;
+	gap: 2px;
+	position: relative;
+}
+
+.telex-stat + .telex-stat::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 20%;
+	height: 60%;
+	width: 1px;
+	background: var(--telex-border);
+}
+
+.telex-stat__value {
+	font-size: 28px;
+	font-weight: 700;
+	color: #1d2327;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.telex-stat__label {
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--telex-muted);
+}
+
+.telex-stat--has-updates .telex-stat__value {
+	color: var(--telex-update);
+}
+
+.telex-stat--has-updates .telex-stat__label {
+	color: var(--telex-update);
+}
+
+/* ---------------------------------------------------------------------------
+ * Toolbar
+ * ------------------------------------------------------------------------- */
+
 .telex-toolbar {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	margin: 16px 0;
+	margin: 0 0 16px;
 	flex-wrap: wrap;
 }
 
@@ -20,10 +108,36 @@
 	flex: 1;
 	min-width: 200px;
 	max-width: 400px;
+	margin-bottom: 0;
+}
+
+.telex-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
 }
 
 .telex-disconnect {
-	margin-left: auto;
+	text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tab panel
+ * ------------------------------------------------------------------------- */
+
+.telex-tab-panel .components-tab-panel__tabs {
+	border-bottom: 1px solid var(--telex-border);
+	margin-bottom: 20px;
+}
+
+.telex-tab-panel .components-tab-panel__tabs-item {
+	font-weight: 500;
+}
+
+.telex-tab--has-updates > button {
+	color: var(--telex-update) !important;
+	font-weight: 600;
 }
 
 /* ---------------------------------------------------------------------------
@@ -32,30 +146,91 @@
 
 .telex-project-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 	gap: 16px;
-	margin-top: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Project cards
+ * ------------------------------------------------------------------------- */
+
+.telex-project-card {
+	box-shadow: var(--telex-shadow);
+	border-radius: var(--telex-radius-lg) !important;
+	border: 1px solid var(--telex-border) !important;
+	transition: box-shadow var(--telex-transition), transform var(--telex-transition);
+	overflow: hidden;
+}
+
+.telex-project-card:hover {
+	box-shadow: var(--telex-shadow-hover);
+	transform: translateY(-1px);
+}
+
+.telex-project-card--has-update {
+	border-top: 3px solid var(--telex-update-border) !important;
 }
 
 .telex-project-card .components-card__header {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 8px;
+	background: var(--telex-surface-alt);
+	border-bottom: 1px solid var(--telex-border);
+	padding: 12px 16px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
 }
 
-.telex-project-type {
-	font-size: 11px;
+.telex-card-title-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.telex-card-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.telex-project-card .components-card__body {
+	padding: 14px 16px 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Type badges
+ * ------------------------------------------------------------------------- */
+
+.telex-type-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 2px 7px;
+	border-radius: 100px;
+	font-size: 10px;
+	font-weight: 600;
 	text-transform: uppercase;
-	letter-spacing: 0.5px;
-	color: #757575;
+	letter-spacing: 0.06em;
+	flex-shrink: 0;
 }
 
-.telex-card-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 12px;
+.telex-type-badge .components-icon {
+	flex-shrink: 0;
+}
+
+.telex-type-badge--block {
+	background: #e8f0fe;
+	color: #1d4289;
+}
+
+.telex-type-badge--theme {
+	background: #f3e8fd;
+	color: #6b21a8;
 }
 
 /* ---------------------------------------------------------------------------
@@ -66,27 +241,31 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	padding: 2px 8px;
-	border-radius: 3px;
+	padding: 3px 8px;
+	border-radius: 100px;
 	font-size: 11px;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.03em;
+}
+
+.telex-badge .components-icon {
+	flex-shrink: 0;
 }
 
 .telex-badge--idle {
 	background: #f0f0f1;
-	color: #757575;
+	color: var(--telex-muted);
 }
 
 .telex-badge--installed {
-	background: #edfaef;
-	color: #1a7828;
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
 }
 
 .telex-badge--update {
-	background: #fcf9e8;
-	color: #856404;
+	background: var(--telex-update-bg);
+	color: var(--telex-update);
+	font-weight: 700;
 }
 
 .telex-badge--loading {
@@ -94,59 +273,60 @@
 	color: #1d2327;
 }
 
+.telex-badge--loading .components-spinner {
+	width: 12px;
+	height: 12px;
+	margin: 0;
+}
+
 /* ---------------------------------------------------------------------------
- * Connect (device flow) card
+ * Card meta (version info)
  * ------------------------------------------------------------------------- */
 
-.telex-connect-card {
-	max-width: 520px;
-	margin-top: 20px;
-	padding: 24px;
-	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
-.telex-connect-card h2 {
-	margin-top: 0;
-}
-
-.telex-device-code-block {
-	text-align: center;
-	padding: 20px 0;
-}
-
-.telex-user-code {
-	font-size: 32px;
-	font-family: monospace;
-	font-weight: 700;
-	letter-spacing: 4px;
-	padding: 16px 24px;
-	background: #f0f0f1;
-	border-radius: 4px;
-	display: inline-block;
-	margin: 12px 0 16px;
-	user-select: all;
-}
-
-.telex-polling-status {
+.telex-card-meta {
 	display: flex;
-	align-items: center;
-	gap: 8px;
-	justify-content: center;
-	margin: 16px 0 8px;
-	color: #757575;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin-bottom: 12px;
+	min-height: 18px;
+}
+
+.telex-meta-item {
+	font-size: 12px;
+	color: var(--telex-muted);
+}
+
+.telex-meta-item--new {
+	color: var(--telex-update);
+	font-weight: 600;
 }
 
 /* ---------------------------------------------------------------------------
- * Modal
+ * Card actions
+ * ------------------------------------------------------------------------- */
+
+.telex-card-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 4px;
+}
+
+/* Mute the "Installed" disabled button so it doesn't steal visual weight */
+.telex-card-actions .components-button[disabled]:not(.is-primary):not(.is-destructive) {
+	opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+ * Modal actions
  * ------------------------------------------------------------------------- */
 
 .telex-modal-actions {
 	display: flex;
 	gap: 8px;
-	margin-top: 16px;
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--telex-border);
 }
 
 /* ---------------------------------------------------------------------------
@@ -156,27 +336,337 @@
 .telex-loading {
 	display: flex;
 	align-items: center;
+	gap: 10px;
+	padding: 40px 0;
+	color: var(--telex-muted);
+	font-size: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Empty state
+ * ------------------------------------------------------------------------- */
+
+.telex-empty-state {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 24px;
+	text-align: center;
+	color: var(--telex-muted);
+}
+
+.telex-empty-state__icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: #f0f0f1;
+	margin-bottom: 16px;
+	color: #a0a0a0;
+}
+
+.telex-empty-state h3 {
+	font-size: 16px;
+	font-weight: 600;
+	color: #3c434a;
+	margin: 0 0 8px;
+}
+
+.telex-empty-state p {
+	font-size: 13px;
+	max-width: 340px;
+	margin: 0;
+	line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Connect (device flow) wrap + steps
+ * ------------------------------------------------------------------------- */
+
+.telex-connect-wrap {
+	max-width: 520px;
+	margin-top: 24px;
+}
+
+.telex-steps {
+	display: flex;
+	gap: 0;
+	list-style: none;
+	margin: 0 0 24px;
+	padding: 0;
+	counter-reset: step;
+}
+
+.telex-step {
+	flex: 1;
+	display: flex;
+	align-items: center;
 	gap: 8px;
-	padding: 24px 0;
-	color: #757575;
+	position: relative;
+	font-size: 12px;
+	font-weight: 500;
+	color: #a0a0a0;
+}
+
+.telex-step + .telex-step::before {
+	content: "";
+	position: absolute;
+	left: -50%;
+	top: 12px;
+	width: 100%;
+	height: 1px;
+	background: var(--telex-border);
+	z-index: 0;
+}
+
+.telex-step--done + .telex-step::before {
+	background: var(--telex-brand);
+}
+
+.telex-step__dot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	border: 2px solid var(--telex-border);
+	background: var(--telex-surface);
+	font-size: 11px;
+	font-weight: 700;
+	color: #a0a0a0;
+	flex-shrink: 0;
+	z-index: 1;
+	position: relative;
+	transition: all var(--telex-transition);
+}
+
+.telex-step__label {
+	white-space: nowrap;
+	font-size: 11px;
+}
+
+.telex-step--active .telex-step__dot {
+	border-color: var(--telex-brand);
+	background: var(--telex-brand);
+	color: #fff;
+}
+
+.telex-step--active .telex-step__label {
+	color: var(--telex-brand);
+	font-weight: 600;
+}
+
+.telex-step--done .telex-step__dot {
+	border-color: var(--telex-success);
+	background: var(--telex-success);
+	color: #fff;
+}
+
+.telex-step--done .telex-step__label {
+	color: var(--telex-success);
+}
+
+/* ---------------------------------------------------------------------------
+ * Connect card
+ * ------------------------------------------------------------------------- */
+
+.telex-connect-card {
+	padding: 28px 32px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+}
+
+.telex-connect-card h2 {
+	margin-top: 0;
+	margin-bottom: 8px;
+	font-size: 20px;
+	font-weight: 700;
+	color: #1d2327;
+}
+
+.telex-connect-card > p {
+	margin: 0 0 20px;
+	font-size: 14px;
+	color: #50575e;
+	line-height: 1.6;
+}
+
+.telex-connect-brand {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 52px;
+	height: 52px;
+	border-radius: var(--telex-radius-lg);
+	background: var(--telex-brand);
+	color: #fff;
+	margin-bottom: 16px;
+}
+
+.telex-connect-features {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 24px;
+}
+
+.telex-connect-feature {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.telex-connect-feature .components-icon {
+	color: var(--telex-success);
+	flex-shrink: 0;
+}
+
+/* Loading card state */
+.telex-connect-card--loading {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	color: var(--telex-muted);
+	font-size: 14px;
+}
+
+/* Success card state */
+.telex-connect-card--success {
+	text-align: center;
+}
+
+.telex-connect-success-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 72px;
+	height: 72px;
+	border-radius: 50%;
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
+	margin-bottom: 16px;
+}
+
+.telex-connect-card--success h2 {
+	font-size: 22px;
+	color: var(--telex-success);
+}
+
+/* Error icon */
+.telex-connect-error-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	background: var(--telex-error-bg);
+	color: var(--telex-error);
+	margin-bottom: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Device code block
+ * ------------------------------------------------------------------------- */
+
+.telex-device-code-block {
+	text-align: center;
+	padding: 20px 0 24px;
+}
+
+.telex-user-code {
+	display: inline-block;
+	font-size: 34px;
+	font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+	font-weight: 700;
+	letter-spacing: 6px;
+	padding: 16px 28px;
+	background: var(--telex-surface-alt);
+	border: 2px solid var(--telex-border);
+	border-radius: var(--telex-radius);
+	color: #1d2327;
+	user-select: all;
+	margin-bottom: 12px;
+	transition: border-color var(--telex-transition);
+}
+
+.telex-user-code:hover {
+	border-color: var(--telex-brand);
+}
+
+.telex-copy-btn--copied {
+	color: var(--telex-success) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * Polling status
+ * ------------------------------------------------------------------------- */
+
+.telex-polling-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	justify-content: center;
+	margin: 20px 0 12px;
+	color: var(--telex-muted);
+	font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Audit log badge variants (used by PHP-rendered list table)
+ * ------------------------------------------------------------------------- */
+
+.telex-badge--success {
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
+}
+
+.telex-badge--danger {
+	background: var(--telex-error-bg);
+	color: var(--telex-error);
+}
+
+.telex-badge--info {
+	background: #e8f0fe;
+	color: #1d4289;
 }
 
 /* ---------------------------------------------------------------------------
  * Accessibility
  * ------------------------------------------------------------------------- */
 
-@media ( prefers-reduced-motion: reduce ) {
+@media (prefers-reduced-motion: reduce) {
+
+	.telex-project-card,
+	.telex-user-code,
+	.telex-step__dot {
+		transition: none;
+	}
+
+	.telex-project-card:hover {
+		transform: none;
+	}
 
 	.components-spinner {
 		animation: none;
 	}
 }
 
-@media ( prefers-contrast: high ) {
+@media (prefers-contrast: high) {
 
 	.telex-badge--installed {
 		background: #000;
 		color: #fff;
+		outline: 2px solid currentcolor;
 	}
 
 	.telex-badge--update {
@@ -185,26 +675,60 @@
 		outline: 2px solid currentcolor;
 	}
 
-	.telex-connect-card {
-		border-width: 2px;
+	.telex-connect-card,
+	.telex-project-card {
+		border-width: 2px !important;
+	}
+
+	.telex-type-badge--block,
+	.telex-type-badge--theme {
+		outline: 1px solid currentcolor;
 	}
 }
 
-/* -----------------------------------------------------------------------
-   Audit Log badge variants
-   ----------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+ * Responsive
+ * ------------------------------------------------------------------------- */
 
-.telex-badge--success {
-	background: #edfaef;
-	color: #1a7834;
-}
+@media (max-width: 782px) {
 
-.telex-badge--danger {
-	background: #fce8e8;
-	color: #b32d2e;
-}
+	.telex-stats-bar {
+		flex-direction: column;
+	}
 
-.telex-badge--info {
-	background: #e8f0fa;
-	color: #1d4289;
+	.telex-stat + .telex-stat::before {
+		top: 0;
+		left: 20%;
+		width: 60%;
+		height: 1px;
+	}
+
+	.telex-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.telex-toolbar .components-search-control {
+		max-width: 100%;
+	}
+
+	.telex-toolbar-right {
+		margin-left: 0;
+	}
+
+	.telex-project-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.telex-connect-card {
+		padding: 20px;
+	}
+
+	.telex-steps {
+		gap: 4px;
+	}
+
+	.telex-step__label {
+		display: none;
+	}
 }

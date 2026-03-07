@@ -451,8 +451,8 @@ class Telex_Admin {
 				'label'       => __( 'Telex API is unreachable', 'dispatch' ),
 				'status'      => 'critical',
 				'badge'       => [
-				'label' => __( 'Dispatch', 'dispatch' ),
-				'color' => 'red',
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'red',
 				],
 				'description' => '<p>' . esc_html( $error_detail ) . '</p>',
 				'test'        => 'telex_api_reachable',
