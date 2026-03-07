@@ -31,6 +31,7 @@ cd "${TMP_DIR}"
 zip -r "${ZIP_FILE}" "${PLUGIN_SLUG}" --quiet
 
 echo "→ Cleaning up..."
+cd "${REPO_ROOT}"
 rm -rf "${TMP_DIR}"
 
 echo "→ Restoring Composer dev dependencies..."
