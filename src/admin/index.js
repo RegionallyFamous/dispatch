@@ -1563,6 +1563,11 @@ function ProjectCard( {
 						</button>
 						<TypeBadge type={ typeStr } />
 					</div>
+					<StatusBadge
+						publicId={ project.publicId }
+						remoteVersion={ project.currentVersion }
+						installed={ installed }
+					/>
 					<ExternalLink
 						href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
 						className="telex-card-edit-link"
@@ -1575,11 +1580,6 @@ function ProjectCard( {
 						{ __( 'Edit ↗', 'dispatch' ) }
 					</ExternalLink>
 				</div>
-				<StatusBadge
-					publicId={ project.publicId }
-					remoteVersion={ project.currentVersion }
-					installed={ installed }
-				/>
 			</CardHeader>
 
 			<CardBody>
