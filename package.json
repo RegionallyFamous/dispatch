@@ -1,0 +1,29 @@
+{
+    "name": "telex",
+    "version": "1.0.0",
+    "description": "Install blocks and themes from your Telex projects.",
+    "private": true,
+    "license": "GPL-2.0-or-later",
+    "engines": {
+        "node": ">=24.0.0"
+    },
+    "scripts": {
+        "build": "wp-scripts build",
+        "build:production": "NODE_ENV=production wp-scripts build",
+        "start": "wp-scripts start",
+        "clean": "rm -rf build *.zip",
+        "lint:js": "wp-scripts lint-js",
+        "lint:css": "wp-scripts lint-style",
+        "lint": "npm run lint:js && npm run lint:css",
+        "lint:php": "composer lint",
+        "test:php": "composer test",
+        "zip": "bash bin/build-zip.sh",
+        "packages-update": "wp-scripts packages-update"
+    },
+    "devDependencies": {
+        "@wordpress/scripts": "^31.0"
+    },
+    "wp-scripts": {
+        "webpack-config": "node_modules/@wordpress/scripts/config/webpack.config.js"
+    }
+}

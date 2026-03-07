@@ -1,0 +1,30 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "phpVersion": "8.2",
+    "wordPressVersion": "6.8",
+    "preferredVersionsList": {
+        "php": "8.2",
+        "wp": "6.8"
+    },
+    "steps": [
+        {
+            "step": "login",
+            "username": "admin",
+            "password": "password"
+        },
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "url",
+                "url": "https://github-proxy.com/proxy/?repo=automattic/telex&release=latest"
+            },
+            "options": {
+                "activate": true
+            }
+        },
+        {
+            "step": "goTo",
+            "url": "/wp-admin/admin.php?page=telex"
+        }
+    ]
+}

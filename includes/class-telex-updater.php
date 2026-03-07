@@ -1,0 +1,250 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Integrates Telex updates with the native WordPress Updates screen.
+ *
+ * Hooks:
+ *  - pre_set_site_transient_update_plugins / update_themes  — inject update entries
+ *  - plugins_api                                             — provide plugin info modal data
+ *  - after_plugin_row_{file}                                 — show "Update via Telex" row notice
+ */
+class Telex_Updater {
+
+	public static function init(): void {
+		add_filter( 'pre_set_site_transient_update_plugins', self::inject_plugin_updates(...) );
+		add_filter( 'pre_set_site_transient_update_themes', self::inject_theme_updates(...) );
+		add_filter( 'plugins_api', self::plugins_api_info(...), 10, 3 );
+
+		// Register after_plugin_row_* notices for each tracked block.
+		foreach ( Telex_Tracker::get_all() as $public_id => $info ) {
+			if ( ProjectType::from( $info['type'] ) !== ProjectType::Block ) {
+				continue;
+			}
+			$plugin_file = self::find_plugin_file( $info['slug'] );
+			if ( $plugin_file ) {
+				add_action(
+					'after_plugin_row_' . $plugin_file,
+					static fn( string $file, array $data ) => self::render_plugin_row_notice( $public_id, $info, $file ),
+					10,
+					2
+				);
+			}
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Update injection
+	// -------------------------------------------------------------------------
+
+	public static function inject_plugin_updates( object $transient ): object {
+		if ( ! Telex_Auth::is_connected() ) {
+			return $transient;
+		}
+
+		$installed = Telex_Tracker::get_all();
+		if ( empty( $installed ) ) {
+			return $transient;
+		}
+
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return $transient;
+		}
+
+		foreach ( $installed as $public_id => $info ) {
+			if ( ProjectType::from( $info['type'] ) !== ProjectType::Block ) {
+				continue;
+			}
+
+			try {
+				$remote = Telex_Cache::get_project( $public_id );
+				if ( null === $remote ) {
+					$remote = $client->projects->get( $public_id );
+					Telex_Cache::set_project( $public_id, $remote );
+				}
+
+				$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
+				if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
+					continue;
+				}
+
+				$plugin_file = self::find_plugin_file( $info['slug'] );
+				if ( ! $plugin_file ) {
+					continue;
+				}
+
+				// Inject a pseudo-update package pointing to our REST install endpoint.
+				$transient->response[ $plugin_file ] = (object) [
+					'id'          => 'telex/' . $public_id,
+					'slug'        => $info['slug'],
+					'plugin'      => $plugin_file,
+					'new_version' => 'v' . $remote_version,
+					'url'         => TELEX_PUBLIC_URL,
+					'package'     => '', // Empty — Telex_Updater handles the actual install via WP_Upgrader.
+				];
+			} catch ( \Exception ) {
+				// Don't disrupt the update check for one bad project.
+			}
+		}
+
+		return $transient;
+	}
+
+	public static function inject_theme_updates( object $transient ): object {
+		if ( ! Telex_Auth::is_connected() ) {
+			return $transient;
+		}
+
+		$installed = Telex_Tracker::get_all();
+		$client    = Telex_Auth::get_client();
+
+		if ( empty( $installed ) || ! $client ) {
+			return $transient;
+		}
+
+		foreach ( $installed as $public_id => $info ) {
+			if ( ProjectType::from( $info['type'] ) !== ProjectType::Theme ) {
+				continue;
+			}
+
+			try {
+				$remote = Telex_Cache::get_project( $public_id );
+				if ( null === $remote ) {
+					$remote = $client->projects->get( $public_id );
+					Telex_Cache::set_project( $public_id, $remote );
+				}
+
+				$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
+				if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
+					continue;
+				}
+
+				$transient->response[ $info['slug'] ] = [
+					'theme'       => $info['slug'],
+					'new_version' => 'v' . $remote_version,
+					'url'         => TELEX_PUBLIC_URL,
+					'package'     => '',
+				];
+			} catch ( \Exception ) {
+			}
+		}
+
+		return $transient;
+	}
+
+	// -------------------------------------------------------------------------
+	// plugins_api filter — "View version details" modal
+	// -------------------------------------------------------------------------
+
+	public static function plugins_api_info( false|object $result, string $action, object $args ): false|object {
+		if ( 'plugin_information' !== $action ) {
+			return $result;
+		}
+
+		$slug = $args->slug ?? '';
+		if ( empty( $slug ) ) {
+			return $result;
+		}
+
+		// Match tracked projects by slug.
+		foreach ( Telex_Tracker::get_all() as $public_id => $info ) {
+			if ( $info['slug'] !== $slug ) {
+				continue;
+			}
+
+			$client = Telex_Auth::get_client();
+			if ( ! $client ) {
+				return $result;
+			}
+
+			try {
+				$remote  = $client->projects->get( $public_id );
+				$version = (int) ( $remote['currentVersion'] ?? 0 );
+
+				return (object) [
+					'name'              => $remote['name'] ?? $slug,
+					'slug'              => $slug,
+					'version'           => 'v' . $version,
+					'author'            => 'Automattic (via Telex)',
+					'homepage'          => TELEX_PUBLIC_URL,
+					'short_description' => sprintf(
+						/* translators: %s: project name */
+						__( 'A Telex project: %s', 'telex' ),
+						$remote['name'] ?? $slug
+					),
+					'sections'          => [
+						'description' => sprintf(
+							/* translators: %s: public ID */
+							__( 'Telex project ID: %s', 'telex' ),
+							esc_html( $public_id )
+						),
+					],
+					'download_link'     => '',
+				];
+			} catch ( \Exception ) {
+				return $result;
+			}
+		}
+
+		return $result;
+	}
+
+	// -------------------------------------------------------------------------
+	// Per-plugin row notice
+	// -------------------------------------------------------------------------
+
+	/**
+	 * @param array<string, mixed> $info
+	 */
+	public static function render_plugin_row_notice( string $public_id, array $info, string $plugin_file ): void {
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return;
+		}
+
+		try {
+			$remote         = Telex_Cache::get_project( $public_id );
+			$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
+		} catch ( \Exception ) {
+			return;
+		}
+
+		if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
+			return;
+		}
+
+		// The plugins list table always has 3 visible columns (checkbox, name, description+actions).
+		$cols = 3;
+
+		echo '<tr class="plugin-update-tr active">';
+		printf( '<td colspan="%d" class="plugin-update colspanchange">', (int) $cols );
+		echo '<div class="update-message notice inline notice-warning notice-alt"><p>';
+		printf(
+			/* translators: 1: new version, 2: update URL */
+			wp_kses_post( __( 'Telex update available: version <strong>v%1$s</strong>. <a href="%2$s">Update via Telex</a>.', 'telex' ) ),
+			esc_html( (string) $remote_version ),
+			esc_url( admin_url( 'admin.php?page=telex' ) )
+		);
+		echo '</p></div></td></tr>';
+	}
+
+	// -------------------------------------------------------------------------
+	// Helper
+	// -------------------------------------------------------------------------
+
+	private static function find_plugin_file( string $slug ): string {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		foreach ( get_plugins() as $file => $data ) {
+			if ( str_starts_with( $file, $slug . '/' ) ) {
+				return $file;
+			}
+		}
+		return '';
+	}
+}

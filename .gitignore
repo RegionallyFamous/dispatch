@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+build/
+
+# Release artifacts
+*.zip
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+
+# PHPUnit
+.phpunit.cache/
+coverage/
+/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo

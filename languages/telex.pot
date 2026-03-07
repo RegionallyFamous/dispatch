@@ -1,0 +1,23 @@
+# Copyright (C) 2025 Automattic
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Telex 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/telex\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-01-01T00:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.x\n"
+"Domain: telex\n"
+
+#. Plugin Name of the plugin
+msgid "Telex"
+msgstr ""
+
+#. Description of the plugin
+msgid "Install blocks and themes from your Telex projects."
+msgstr ""

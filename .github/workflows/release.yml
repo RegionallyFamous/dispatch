@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: openssl
+          tools: composer
+          coverage: none
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Build release zip
+        run: make release
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Dispatch for Telex ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## Dispatch for Telex ${{ github.ref_name }}
+
+            See [readme.txt](https://github.com/${{ github.repository }}/blob/main/readme.txt) for the full changelog.
+
+            ### Install
+
+            Download `dispatch-for-telex.zip` below and upload it via **Plugins → Add New Plugin → Upload Plugin** in your WordPress admin.
+          files: dispatch-for-telex.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: false
