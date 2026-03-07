@@ -50,5 +50,5 @@ Wrap all Telex API calls with `Telex_Circuit_Breaker::is_available()` before cal
 
 Every new feature or bug fix requires a PHPUnit test:
 
-- Test files: `tests/test-*.php` extending `WP_UnitTestCase`
+- Test files: `tests/Test_Telex_*.php` — filename must match the class name exactly (PHPUnit 11 requirement)
 - Run: `make test` — must pass clean with no skipped assertions

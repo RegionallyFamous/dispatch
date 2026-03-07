@@ -6,6 +6,49 @@
 
 ---
 
+## [1.1.1] — 2026-03-07
+
+This release is a visual and housekeeping pass. Every project in your library
+now has a unique, eye-catching avatar — no two look the same. We also cleaned
+up some behind-the-scenes roughness in the test setup and menu labels.
+
+### Every project gets its own look
+
+Project avatars used to be a flat colored square with a letter. Now each one
+is a proper SVG with a gradient background (picked from a curated set of
+color pairs) and a subtle geometric shape — all generated from the project's
+ID, so the same project always shows the same avatar and no two projects ever
+look identical. It sounds like a small thing, but scanning through a big
+library of projects feels noticeably nicer.
+
+### Settings page is properly named
+
+The sub-menu item that was labeled "Audit Log" now says "Settings" — which is
+what it actually is. It houses both the webhook configuration panel and the
+audit log, so the old name was just confusing.
+
+### Webhook URL is no longer baked into the page HTML
+
+The auto-deploy webhook URL is now fetched on demand via an authenticated REST
+call instead of being embedded in the page source. It was harmless before, but
+fetching it only when needed is the cleaner approach.
+
+### Test suite renamed for PHPUnit 11
+
+PHP test files have been renamed to `Test_Telex_*.php` to follow PHPUnit 11's
+class-name-based discovery convention. If you run tests locally you should see
+proper class names in the output now.
+
+---
+
+## [1.1.0] — 2026-03-07
+
+This is the "actually ships things" release — a full skeleton loading screen,
+a comprehensive test suite, and a pile of CI hardening. More details in the
+[1.1.0 release notes](https://github.com/RegionallyFamous/dispatch/releases/tag/v1.1.0).
+
+---
+
 ## [1.0.3] — 2026-03-07
 
 This release is all about reliability and trust. We did a full 20-pass security

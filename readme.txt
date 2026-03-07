@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,12 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.1.1 =
+* Project avatars now show unique gradient backgrounds and geometric shapes — no two projects ever look the same.
+* Renamed "Audit Log" sub-menu to "Settings" to reflect that it contains both webhook configuration and the audit log.
+* Webhook URL is no longer embedded in the page HTML; it is now fetched on demand via an authenticated REST call.
+* PHP test files renamed to PascalCase (`Test_Telex_*.php`) to follow PHPUnit 11 naming conventions.
 
 = 1.1.0 =
 * Added a full JavaScript test suite (Jest) covering the admin store reducer, all action creators, every selector, `relativeDate()`, and `getAvatarColor()` — 60 tests.

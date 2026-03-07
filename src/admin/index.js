@@ -21,9 +21,6 @@ import {
 } from '@wordpress/data';
 import {
 	Button,
-	Card,
-	CardBody,
-	CardHeader,
 	ExternalLink,
 	Modal,
 	Notice,
@@ -47,7 +44,7 @@ import {
 	copy as copyIcon,
 	keyboardReturn,
 } from '@wordpress/icons';
-import { getAvatarColor, relativeDate } from './utils';
+import { getAvatarGradient, djb2, relativeDate } from './utils';
 import { reducer, actions, selectors, DEFAULT_STATE } from './store';
 
 // ---------------------------------------------------------------------------
@@ -55,25 +52,93 @@ import { reducer, actions, selectors, DEFAULT_STATE } from './store';
 // ---------------------------------------------------------------------------
 
 /**
- * Coloured initial-letter circle, deterministic from the project's publicId.
- * Gives each card a unique identity at a glance without any API changes.
+ * Five decorative SVG shapes used as subtle background accents on avatars.
+ * Picked deterministically from the project's hash so each avatar is unique.
+ * All shapes use semi-transparent white to layer over any gradient cleanly.
+ */
+const AVATAR_DECORATIONS = [
+	// Quarter-circle bleeding off the bottom-right corner.
+	<circle key="0" cx="38" cy="38" r="22" fill="rgba(255,255,255,0.15)" />,
+	// Large circle floating in the top-right.
+	<circle key="1" cx="33" cy="7" r="16" fill="rgba(255,255,255,0.13)" />,
+	// Two offset circles — top-right small, bottom-left large.
+	<>
+		<circle key="2a" cx="32" cy="8" r="9" fill="rgba(255,255,255,0.18)" />
+		<circle key="2b" cx="6" cy="34" r="14" fill="rgba(255,255,255,0.13)" />
+	</>,
+	// Rotated square (diamond) in the bottom-right quadrant.
+	<rect
+		key="3"
+		x="22"
+		y="22"
+		width="28"
+		height="28"
+		rx="4"
+		transform="rotate(45 36 36)"
+		fill="rgba(255,255,255,0.13)"
+	/>,
+	// Gentle arc sweeping across the lower half.
+	<path
+		key="4"
+		d="M -4 30 Q 20 16 44 30"
+		stroke="rgba(255,255,255,0.28)"
+		strokeWidth="3.5"
+		fill="none"
+		strokeLinecap="round"
+	/>,
+];
+
+/**
+ * SVG avatar with a unique gradient + geometric accent, seeded from publicId.
+ * Zero API calls — every project gets a distinct avatar from its ID alone.
  *
  * @param {Object} root0          Component props.
  * @param {string} root0.name     Project display name.
- * @param {string} root0.publicId Telex project public ID (used as colour seed).
- * @return {import('@wordpress/element').WPElement} Avatar element.
+ * @param {string} root0.publicId Telex project public ID (gradient + shape seed).
+ * @return {import('@wordpress/element').WPElement} Avatar SVG element.
  */
 function ProjectAvatar( { name, publicId } ) {
-	const color = getAvatarColor( publicId || name );
+	const seed = publicId || name || '?';
+	const [ c1, c2 ] = getAvatarGradient( seed );
+	const decoration =
+		AVATAR_DECORATIONS[
+			Math.abs( djb2( seed ) ) % AVATAR_DECORATIONS.length
+		];
 	const initial = ( name || '?' ).charAt( 0 ).toUpperCase();
+	// Gradient IDs must be unique in the SVG DOM. Prefix with 'ag' (always a
+	// letter) then take alphanumeric chars from the seed so it's a valid XML name.
+	const gid = 'ag' + seed.replace( /[^a-zA-Z0-9]/g, '' ).substring( 0, 16 );
+
 	return (
-		<span
+		<svg
 			className="telex-project-avatar"
-			style={ { background: color } }
+			viewBox="0 0 40 40"
 			aria-hidden="true"
 		>
-			{ initial }
-		</span>
+			<defs>
+				<linearGradient id={ gid } x1="0%" y1="0%" x2="100%" y2="100%">
+					<stop offset="0%" stopColor={ c1 } />
+					<stop offset="100%" stopColor={ c2 } />
+				</linearGradient>
+			</defs>
+			<rect width="40" height="40" rx="6" fill={ `url(#${ gid })` } />
+			{ decoration }
+			<text
+				x="20"
+				y="26"
+				textAnchor="middle"
+				fill="white"
+				fontSize="16"
+				fontWeight="bold"
+				style={ {
+					fontFamily:
+						'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+					userSelect: 'none',
+				} }
+			>
+				{ initial }
+			</text>
+		</svg>
 	);
 }
 
@@ -362,22 +427,17 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 
 function SkeletonCard() {
 	return (
-		<div className="telex-skeleton-card" aria-hidden="true">
-			<div className="telex-skeleton-card__header">
-				<div className="telex-skeleton telex-skeleton--avatar" />
-				<div className="telex-skeleton-card__title-block">
-					<div className="telex-skeleton telex-skeleton--title" />
-					<div className="telex-skeleton telex-skeleton--badge" />
-				</div>
-				<div className="telex-skeleton telex-skeleton--status" />
+		<div className="telex-skeleton-row" aria-hidden="true">
+			<div className="telex-skeleton telex-skeleton--avatar" />
+			<div className="telex-skeleton-row__name">
+				<div className="telex-skeleton telex-skeleton--title" />
+				<div className="telex-skeleton telex-skeleton--badge" />
 			</div>
-			<div className="telex-skeleton-card__body">
+			<div className="telex-skeleton-row__meta">
 				<div className="telex-skeleton telex-skeleton--line" />
 				<div className="telex-skeleton telex-skeleton--line telex-skeleton--line-short" />
 			</div>
-			<div className="telex-skeleton-card__footer">
-				<div className="telex-skeleton telex-skeleton--button" />
-			</div>
+			<div className="telex-skeleton telex-skeleton--button" />
 		</div>
 	);
 }
@@ -1437,333 +1497,293 @@ function ProjectCard( {
 		installed?.installed_at &&
 		installed.updated_at !== installed.installed_at;
 
+	// Pick the most useful single timestamp to show in the row meta.
+	const timestamp = ( () => {
+		if ( isInstalled && showUpdatedAgo ) {
+			return sprintf(
+				/* translators: %s: relative time */
+				__( 'Updated %s', 'dispatch' ),
+				updatedAgo
+			);
+		}
+		if ( isInstalled && installedAgo ) {
+			return sprintf(
+				/* translators: %s: relative time */
+				__( 'Installed %s', 'dispatch' ),
+				installedAgo
+			);
+		}
+		if ( project.updatedAt && relativeDate( project.updatedAt ) ) {
+			return sprintf(
+				/* translators: %s: relative time */
+				__( 'Built %s', 'dispatch' ),
+				relativeDate( project.updatedAt )
+			);
+		}
+		return null;
+	} )();
+
 	return (
-		<Card
+		<div
 			className={ [
-				'telex-project-card',
-				`telex-project-card--${ typeStr }`,
-				needsUpdate ? 'telex-project-card--has-update' : '',
-				isInstalled ? 'telex-project-card--installed' : '',
+				'telex-project-row',
+				`telex-project-row--${ typeStr }`,
+				needsUpdate ? 'telex-project-row--has-update' : '',
+				isInstalled ? 'telex-project-row--installed' : '',
+				isBusy ? 'telex-project-row--busy' : '',
 			]
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
-			<CardHeader>
-				<div className="telex-card-title-row">
-					<ProjectAvatar
-						name={ project.name }
-						publicId={ project.publicId }
-					/>
-					<div className="telex-card-title-text">
-						<button
-							type="button"
-							className="telex-card-title telex-card-title--btn"
-							onClick={ () => setShowDetail( true ) }
-							aria-label={ sprintf(
-								/* translators: %s: project name */
-								__( 'View details for %s', 'dispatch' ),
-								project.name
-							) }
-						>
-							{ project.name }
-						</button>
-						<TypeBadge type={ typeStr } />
-					</div>
+			{ /* Identity — avatar + name + type */ }
+			<div className="telex-row-identity">
+				<ProjectAvatar
+					name={ project.name }
+					publicId={ project.publicId }
+				/>
+				<div className="telex-row-name">
+					<button
+						type="button"
+						className="telex-row-title-btn"
+						onClick={ () => setShowDetail( true ) }
+						aria-label={ sprintf(
+							/* translators: %s: project name */
+							__( 'View details for %s', 'dispatch' ),
+							project.name
+						) }
+					>
+						{ project.name }
+					</button>
+					<TypeBadge type={ typeStr } />
+				</div>
+			</div>
+
+			{ /* Meta — one clear state, no duplication with the actions zone */ }
+			<div className="telex-row-meta">
+				{ installStep !== null && (
+					<InstallProgress currentStep={ installStep } />
+				) }
+				{ installStep === null && isBusy && (
 					<StatusBadge
 						publicId={ project.publicId }
 						remoteVersion={ project.currentVersion }
 						installed={ installed }
 					/>
-				</div>
-			</CardHeader>
-
-			<CardBody>
-				<div className="telex-card-meta">
-					{ isInstalled && (
-						<span className="telex-meta-item">
-							{ sprintf(
-								/* translators: %s: version number */
-								__( 'v%s installed', 'dispatch' ),
-								installed.version
-							) }
-						</span>
-					) }
-					{ isInstalled && needsUpdate && (
-						<span className="telex-meta-item telex-meta-item--new">
-							{ sprintf(
-								/* translators: %s: version number */
-								__( 'v%s available', 'dispatch' ),
-								project.currentVersion
-							) }
-						</span>
-					) }
-					{ ( needsUpdate || ! isInstalled ) &&
-						project.updatedAt &&
-						relativeDate( project.updatedAt ) && (
-							<span className="telex-meta-item telex-meta-item--timestamp">
-								{ sprintf(
-									/* translators: %s: relative time e.g. "5 minutes ago" */
-									__( 'Built %s', 'dispatch' ),
-									relativeDate( project.updatedAt )
-								) }
-							</span>
+				) }
+				{ installStep === null && ! isBusy && (
+					<>
+						{ /* Update available: version-diff badge only */ }
+						{ needsUpdate && (
+							<StatusBadge
+								publicId={ project.publicId }
+								remoteVersion={ project.currentVersion }
+								installed={ installed }
+							/>
 						) }
-					{ ! isInstalled &&
-						project.currentVersion &&
-						! project.updatedAt && (
+
+						{ /* Installed + up to date: just the current version number */ }
+						{ isInstalled && ! needsUpdate && (
 							<span className="telex-meta-item">
 								{ sprintf(
 									/* translators: %s: version number */
 									__( 'v%s', 'dispatch' ),
-									project.currentVersion
+									installed.version
 								) }
 							</span>
 						) }
-				</div>
 
-				{ project.description && (
-					<p className="telex-card-description">
-						{ project.description }
-					</p>
-				) }
-
-				{ ( installedAgo || showUpdatedAgo ) && (
-					<div className="telex-card-timestamps">
-						{ showUpdatedAgo ? (
-							<span className="telex-timestamp">
-								{ sprintf(
-									/* translators: %s: relative time */
-									__( 'Updated %s', 'dispatch' ),
-									updatedAgo
-								) }
-							</span>
-						) : (
-							installedAgo && (
-								<span className="telex-timestamp">
-									{ sprintf(
-										/* translators: %s: relative time */
-										__( 'Installed %s', 'dispatch' ),
-										installedAgo
-									) }
-								</span>
-							)
+						{ /* Not installed: idle badge */ }
+						{ ! isInstalled && (
+							<StatusBadge
+								publicId={ project.publicId }
+								remoteVersion={ project.currentVersion }
+								installed={ installed }
+							/>
 						) }
-					</div>
-				) }
 
-				{ installStep !== null && (
-					<InstallProgress currentStep={ installStep } />
+						{ timestamp && (
+							<span className="telex-meta-item telex-meta-item--timestamp">
+								{ timestamp }
+							</span>
+						) }
+					</>
 				) }
+			</div>
 
-				<div
-					className="telex-card-actions"
-					role="group"
-					aria-label={ sprintf(
-						/* translators: %s: project name */
-						__( 'Actions for %s', 'dispatch' ),
-						project.name
-					) }
-				>
-					{ /* Primary action — left zone */ }
-					<div className="telex-card-actions__primary">
-						{ isNetworkAdmin ? (
-							<Tooltip
-								text={ __(
-									'Push to all network sites',
-									'dispatch'
-								) }
+			{ /* Actions — primary + icon-only secondary */ }
+			<div
+				className="telex-row-actions"
+				role="group"
+				aria-label={ sprintf(
+					/* translators: %s: project name */
+					__( 'Actions for %s', 'dispatch' ),
+					project.name
+				) }
+			>
+				{ isNetworkAdmin ? (
+					<Tooltip
+						text={ __( 'Push to all network sites', 'dispatch' ) }
+					>
+						<Button
+							variant="primary"
+							onClick={ () => setShowNetworkDeploy( true ) }
+							disabled={ isBusy }
+							icon={ isBusy ? null : globe }
+							__next40pxDefaultSize
+						>
+							{ __( 'Deploy', 'dispatch' ) }
+						</Button>
+					</Tooltip>
+				) : (
+					<>
+						{ ! isInstalled && (
+							<Button
+								variant="primary"
+								onClick={ handleInstall }
+								disabled={ isBusy }
+								icon={ isBusy ? null : download }
+								isBusy={
+									isBusy && installStatus === 'installing'
+								}
+								__next40pxDefaultSize
 							>
-								<Button
-									variant="primary"
-									onClick={ () =>
-										setShowNetworkDeploy( true )
-									}
-									disabled={ isBusy }
-									icon={ isBusy ? null : globe }
-									__next40pxDefaultSize
-								>
-									{ __( 'Deploy', 'dispatch' ) }
-								</Button>
-							</Tooltip>
-						) : (
-							<>
-								{ ! isInstalled && (
-									<Button
-										variant="primary"
-										onClick={ handleInstall }
-										disabled={ isBusy }
-										icon={ isBusy ? null : download }
-										isBusy={
-											isBusy &&
-											installStatus === 'installing'
-										}
-										__next40pxDefaultSize
-									>
-										{ __( 'Install', 'dispatch' ) }
-									</Button>
-								) }
-
-								{ isInstalled && needsUpdate && (
-									<Tooltip
-										text={ sprintf(
-											/* translators: %s: version number */
-											__( 'Get v%s', 'dispatch' ),
-											project.currentVersion
-										) }
-									>
-										<Button
-											variant="primary"
-											onClick={ () =>
-												setShowChangelog( true )
-											}
-											disabled={ isBusy }
-											icon={ isBusy ? null : updateIcon }
-											isBusy={
-												isBusy &&
-												installStatus === 'installing'
-											}
-											__next40pxDefaultSize
-										>
-											{ __( 'Update', 'dispatch' ) }
-										</Button>
-									</Tooltip>
-								) }
-
-								{ isInstalled && ! needsUpdate && (
-									<span className="telex-card-installed-label">
-										<Icon icon={ check } size={ 16 } />
-										{ __( 'Up to date', 'dispatch' ) }
-									</span>
-								) }
-							</>
+								{ __( 'Install', 'dispatch' ) }
+							</Button>
 						) }
-					</div>
+						{ isInstalled && needsUpdate && (
+							<Button
+								variant="primary"
+								onClick={ () => setShowChangelog( true ) }
+								disabled={ isBusy }
+								icon={ isBusy ? null : updateIcon }
+								isBusy={
+									isBusy && installStatus === 'installing'
+								}
+								__next40pxDefaultSize
+							>
+								{ __( 'Update', 'dispatch' ) }
+							</Button>
+						) }
+					</>
+				) }
 
-					{ /* Secondary actions — right zone */ }
-					<div className="telex-card-actions__secondary">
-						<Tooltip
-							text={ sprintf(
+				<div className="telex-row-secondary">
+					<Tooltip
+						text={ sprintf(
+							/* translators: %s: project name */
+							__( 'Edit %s in Telex', 'dispatch' ),
+							project.name
+						) }
+					>
+						<Button
+							variant="tertiary"
+							href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+							target="_blank"
+							rel="noreferrer"
+							aria-label={ sprintf(
 								/* translators: %s: project name */
 								__( 'Edit %s in Telex', 'dispatch' ),
 								project.name
 							) }
+							icon={ globe }
+							__next40pxDefaultSize
+						/>
+					</Tooltip>
+					{ isInstalled && (
+						<Tooltip
+							text={ __( 'Remove from your site', 'dispatch' ) }
 						>
 							<Button
 								variant="tertiary"
-								href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
-								target="_blank"
-								rel="noreferrer"
-								aria-label={ sprintf(
-									/* translators: %s: project name */
-									__( 'Edit %s in Telex', 'dispatch' ),
-									project.name
-								) }
-								icon={ globe }
-								__next40pxDefaultSize
-							/>
-						</Tooltip>
-
-						{ isInstalled && (
-							<Tooltip
-								text={ __(
+								isDestructive
+								icon={ trash }
+								onClick={ () =>
+									setConfirmRemove( project.publicId )
+								}
+								disabled={ isBusy }
+								isBusy={
+									isBusy && installStatus === 'removing'
+								}
+								aria-label={ __(
 									'Remove from your site',
 									'dispatch'
 								) }
-							>
-								<Button
-									variant="tertiary"
-									isDestructive
-									icon={ trash }
-									onClick={ () =>
-										setConfirmRemove( project.publicId )
-									}
-									disabled={ isBusy }
-									isBusy={
-										isBusy && installStatus === 'removing'
-									}
-									aria-label={ __(
-										'Remove from your site',
-										'dispatch'
-									) }
-									__next40pxDefaultSize
-								/>
-							</Tooltip>
-						) }
-					</div>
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+					) }
 				</div>
+			</div>
 
-				{ confirmRemove === project.publicId && (
-					<Modal
-						title={ sprintf(
+			{ /* Modals */ }
+			{ confirmRemove === project.publicId && (
+				<Modal
+					title={ sprintf(
+						/* translators: %s: project name */
+						__( 'Remove "%s"?', 'dispatch' ),
+						project.name
+					) }
+					onRequestClose={ () => setConfirmRemove( null ) }
+					aria-describedby="telex-remove-warning"
+				>
+					<p id="telex-remove-warning">
+						{ sprintf(
 							/* translators: %s: project name */
-							__( 'Remove "%s"?', 'dispatch' ),
+							__(
+								"This will delete %s from your site for good — there's no undo.",
+								'dispatch'
+							),
 							project.name
 						) }
-						onRequestClose={ () => setConfirmRemove( null ) }
-						aria-describedby="telex-remove-warning"
-					>
-						<p id="telex-remove-warning">
-							{ sprintf(
-								/* translators: %s: project name */
-								__(
-									"This will delete %s from your site for good — there's no undo.",
-									'dispatch'
-								),
-								project.name
-							) }
-						</p>
-						<div className="telex-modal-actions">
-							<Button
-								variant="primary"
-								isDestructive
-								onClick={ handleRemove }
-								__next40pxDefaultSize
-							>
-								{ __( 'Yes, remove it', 'dispatch' ) }
-							</Button>
-							<Button
-								variant="secondary"
-								onClick={ () => setConfirmRemove( null ) }
-								__next40pxDefaultSize
-							>
-								{ __( 'Keep it', 'dispatch' ) }
-							</Button>
-						</div>
-					</Modal>
-				) }
-
-				{ showDetail && (
-					<ProjectDetailModal
-						project={ project }
-						installed={ installed }
-						onClose={ () => setShowDetail( false ) }
-						onInstall={ handleInstall }
-						onUpdate={ () => setShowChangelog( true ) }
-						onRemove={ () => setConfirmRemove( project.publicId ) }
-					/>
-				) }
-
-				{ showChangelog && installed && needsUpdate && (
-					<ChangelogModal
-						project={ project }
-						installed={ installed }
-						onConfirm={ () => {
-							setShowChangelog( false );
-							handleUpdate();
-						} }
-						onCancel={ () => setShowChangelog( false ) }
-					/>
-				) }
-
-				{ showNetworkDeploy && (
-					<NetworkDeployModal
-						project={ project }
-						restUrl={ restUrl }
-						onClose={ () => setShowNetworkDeploy( false ) }
-					/>
-				) }
-			</CardBody>
-		</Card>
+					</p>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							isDestructive
+							onClick={ handleRemove }
+							__next40pxDefaultSize
+						>
+							{ __( 'Yes, remove it', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => setConfirmRemove( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'Keep it', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
+			{ showDetail && (
+				<ProjectDetailModal
+					project={ project }
+					installed={ installed }
+					onClose={ () => setShowDetail( false ) }
+					onInstall={ handleInstall }
+					onUpdate={ () => setShowChangelog( true ) }
+					onRemove={ () => setConfirmRemove( project.publicId ) }
+				/>
+			) }
+			{ showChangelog && installed && needsUpdate && (
+				<ChangelogModal
+					project={ project }
+					installed={ installed }
+					onConfirm={ () => {
+						setShowChangelog( false );
+						handleUpdate();
+					} }
+					onCancel={ () => setShowChangelog( false ) }
+				/>
+			) }
+			{ showNetworkDeploy && (
+				<NetworkDeployModal
+					project={ project }
+					restUrl={ restUrl }
+					onClose={ () => setShowNetworkDeploy( false ) }
+				/>
+			) }
+		</div>
 	);
 }
 
@@ -2171,7 +2191,7 @@ function ProjectsApp() {
 
 			{ loading && (
 				<div
-					className="telex-skeleton-grid"
+					className="telex-project-list telex-project-list--loading"
 					role="status"
 					aria-live="polite"
 					aria-label={ __( 'Loading your projects…', 'dispatch' ) }
@@ -2210,7 +2230,7 @@ function ProjectsApp() {
 							className="telex-tab-panel"
 						>
 							<div
-								className="telex-project-grid"
+								className="telex-project-list"
 								role="list"
 								aria-label={ __(
 									'Dispatch projects',
@@ -2224,20 +2244,14 @@ function ProjectsApp() {
 									/>
 								) : (
 									paginated.map( ( project ) => (
-										<div
+										<ProjectCard
 											key={ project.publicId }
-											role="listitem"
-										>
-											<ProjectCard
-												project={ project }
-												restUrl={ restUrl }
-												onRefresh={ fetchData }
-												onToast={ addToast }
-												isNetworkAdmin={
-													isNetworkAdmin
-												}
-											/>
-										</div>
+											project={ project }
+											restUrl={ restUrl }
+											onRefresh={ fetchData }
+											onToast={ addToast }
+											isNetworkAdmin={ isNetworkAdmin }
+										/>
 									) )
 								) }
 							</div>

@@ -7,37 +7,60 @@
 import { __, sprintf, _n } from '@wordpress/i18n';
 
 /**
- * Colour palette for project avatar circles.
- * Each project deterministically maps to one colour based on its publicId.
+ * Curated gradient pairs for project avatars.
+ * Each entry is [startColor, endColor] applied top-left → bottom-right.
+ * All pairs are dark enough to carry white text at 16–17px bold.
  */
-export const AVATAR_PALETTE = [
-	'#2271b1', // WP admin blue
-	'#1e8b3a', // green
-	'#d63638', // red
-	'#7e3bd0', // purple
-	'#c67c0d', // amber
-	'#007cba', // teal-blue
-	'#e65054', // coral
-	'#0ea5e9', // sky
-	'#8b5cf6', // violet
-	'#059669', // emerald
+export const AVATAR_GRADIENTS = [
+	[ '#4f5fea', '#7c3aed' ], // blue → purple
+	[ '#0891b2', '#0ea5e9' ], // cyan → sky
+	[ '#e65054', '#c67c0d' ], // coral → amber
+	[ '#7e3bd0', '#db2777' ], // purple → pink
+	[ '#0073aa', '#0891b2' ], // wp-blue → cyan
+	[ '#059669', '#0f766e' ], // emerald → teal
+	[ '#be123c', '#7e3bd0' ], // crimson → purple
+	[ '#1e40af', '#2563eb' ], // navy → blue
+	[ '#6d28d9', '#4f5fea' ], // violet → blue
+	[ '#065f46', '#0369a1' ], // dark-green → blue
+	[ '#9f1239', '#e65054' ], // rose → coral
+	[ '#334155', '#0073aa' ], // slate → wp-blue
 ];
 
 /**
- * Returns a deterministic colour from AVATAR_PALETTE for a seed string.
- * Uses the djb2 hash so the same seed always produces the same colour.
+ * djb2 hash — non-cryptographic, fast, well-distributed.
  *
- * @param {string} seed Any non-empty string (typically the project publicId).
- * @return {string} A hex colour value from AVATAR_PALETTE.
+ * @param {string} seed Input string.
+ * @return {number} 32-bit integer hash.
  */
-export function getAvatarColor( seed ) {
+export function djb2( seed ) {
 	let hash = 0;
 	for ( let i = 0; i < seed.length; i++ ) {
-		// djb2 hash — non-cryptographic, fast, well-distributed.
 		// eslint-disable-next-line no-bitwise
 		hash = ( ( hash << 5 ) - hash + seed.charCodeAt( i ) ) | 0;
 	}
-	return AVATAR_PALETTE[ Math.abs( hash ) % AVATAR_PALETTE.length ];
+	return hash;
+}
+
+/**
+ * Returns a deterministic gradient pair from AVATAR_GRADIENTS for a seed string.
+ *
+ * @param {string} seed Any non-empty string (typically the project publicId).
+ * @return {string[]} [startColor, endColor] hex pair.
+ */
+export function getAvatarGradient( seed ) {
+	return AVATAR_GRADIENTS[
+		Math.abs( djb2( seed ) ) % AVATAR_GRADIENTS.length
+	];
+}
+
+/**
+ * Legacy single-colour accessor — kept for backward compatibility with tests.
+ *
+ * @param {string} seed Any non-empty string.
+ * @return {string} A hex colour value.
+ */
+export function getAvatarColor( seed ) {
+	return getAvatarGradient( seed )[ 0 ];
 }
 
 /**

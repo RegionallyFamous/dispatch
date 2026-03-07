@@ -7,21 +7,21 @@
 >
     <testsuites>
         <testsuite name="unit">
-            <file>tests/test-activator.php</file>
-            <file>tests/test-admin.php</file>
-            <file>tests/test-audit-log.php</file>
-            <file>tests/test-auth.php</file>
-            <file>tests/test-cache.php</file>
-            <file>tests/test-circuit-breaker.php</file>
-            <file>tests/test-dtos.php</file>
-            <file>tests/test-enums.php</file>
-            <file>tests/test-installer.php</file>
-            <file>tests/test-rest-webhook.php</file>
-            <file>tests/test-rest.php</file>
-            <file>tests/test-sdk.php</file>
-            <file>tests/test-tracker.php</file>
-            <file>tests/test-updater.php</file>
-            <file>tests/test-wp-http-client.php</file>
+            <file>tests/Test_Telex_Activator.php</file>
+            <file>tests/Test_Telex_Admin.php</file>
+            <file>tests/Test_Telex_Audit_Log.php</file>
+            <file>tests/Test_Telex_Auth.php</file>
+            <file>tests/Test_Telex_Cache.php</file>
+            <file>tests/Test_Telex_Circuit_Breaker.php</file>
+            <file>tests/Test_Telex_DTOs.php</file>
+            <file>tests/Test_Telex_Enums.php</file>
+            <file>tests/Test_Telex_Installer.php</file>
+            <file>tests/Test_Telex_REST_Webhook.php</file>
+            <file>tests/Test_Telex_REST.php</file>
+            <file>tests/Test_Telex_SDK.php</file>
+            <file>tests/Test_Telex_Tracker.php</file>
+            <file>tests/Test_Telex_Updater.php</file>
+            <file>tests/Test_Telex_WP_Http_Client.php</file>
         </testsuite>
     </testsuites>
 

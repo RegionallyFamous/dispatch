@@ -1,22 +1,23 @@
 /**
  * Unit tests for src/admin/utils.js
  *
- * Covers: AVATAR_PALETTE, getAvatarColor (djb2 determinism, palette bounds,
- * collision resistance), and relativeDate (all time buckets + edge cases).
+ * Covers: AVATAR_GRADIENTS, getAvatarGradient, getAvatarColor (djb2 determinism,
+ * gradient bounds, collision resistance), and relativeDate (all time buckets).
  */
 import {
-	AVATAR_PALETTE,
+	AVATAR_GRADIENTS,
 	getAvatarColor,
 	relativeDate,
 } from '../../src/admin/utils';
 
 // ---------------------------------------------------------------------------
-// getAvatarColor
+// getAvatarGradient / getAvatarColor
 // ---------------------------------------------------------------------------
 
 describe( 'getAvatarColor', () => {
-	it( 'returns a value from AVATAR_PALETTE', () => {
-		expect( AVATAR_PALETTE ).toContain( getAvatarColor( 'any-seed' ) );
+	it( 'returns the first color of a gradient pair from AVATAR_GRADIENTS', () => {
+		const color = getAvatarColor( 'any-seed' );
+		expect( AVATAR_GRADIENTS.map( ( [ c ] ) => c ) ).toContain( color );
 	} );
 
 	it( 'is deterministic — same seed always returns same colour', () => {
@@ -48,13 +49,15 @@ describe( 'getAvatarColor', () => {
 
 	it( 'handles a single character seed', () => {
 		const colour = getAvatarColor( 'X' );
-		expect( AVATAR_PALETTE ).toContain( colour );
+		expect( AVATAR_GRADIENTS.map( ( [ c ] ) => c ) ).toContain( colour );
 	} );
 
 	it( 'handles a very long seed without throwing', () => {
 		const longSeed = 'a'.repeat( 10000 );
 		expect( () => getAvatarColor( longSeed ) ).not.toThrow();
-		expect( AVATAR_PALETTE ).toContain( getAvatarColor( longSeed ) );
+		expect( AVATAR_GRADIENTS.map( ( [ c ] ) => c ) ).toContain(
+			getAvatarColor( longSeed )
+		);
 	} );
 } );
 
