@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -95,6 +95,11 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 == Changelog ==
 
+= 1.0.2 =
+* Fixed update progress steps restarting mid-animation.
+* Fixed installed version tracker recording the wrong (deployed) version number after an update — now always tracks the latest build version.
+* Eliminated a duplicate `getBuild()` API call that caused spurious "build isn't ready" errors during updates.
+
 = 1.0.1 =
 * Removed OS dark-mode overrides — UI now matches WP admin's light-mode design consistently.
 * Brand accent color now inherits WP admin's active color scheme (`--wp-admin-theme-color`).
@@ -117,6 +122,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.0.2 =
+Bug-fix update. Resolves update progress animation restart, incorrect post-update version tracking, and a race condition that could show a spurious "build isn't ready" error. No database changes required.
 
 = 1.0.1 =
 UI polish update. No database changes or upgrade steps required.

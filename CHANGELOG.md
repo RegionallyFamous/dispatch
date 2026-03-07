@@ -8,6 +8,34 @@ All notable changes to Dispatch for Telex will be documented here.
 
 ---
 
+## [1.0.2] — 2026-03-07
+
+Three bugs introduced by the install/update pipeline are now squashed.
+
+### Fixed
+
+- **Update progress no longer restarts** — the step indicator was being
+  reset to step 1 by an `onBuilding` callback even after the fake-progress
+  timers had already advanced it to step 3. The reset is removed; the
+  indicator now stays wherever it is while waiting for the server-side
+  build to complete.
+- **Installed version is now tracked correctly** — after an update, the
+  tracker was recording the *currently-deployed* version returned by
+  `projects.get()` (e.g. v1) instead of the *latest-build* version (e.g.
+  v2) the user actually installed. The installer now takes
+  `max(api_version, cached_version)`, where the cache value was populated
+  when the "update available" badge was computed and correctly reflects
+  the build that was installed.
+- **Eliminated a duplicate `getBuild()` race condition** — the REST
+  controller and the installer each called `getBuild()` independently. The
+  second call could land between build states and return `not_ready`,
+  surfacing a spurious "This build isn't ready" error immediately after
+  polling had confirmed readiness. The controller now passes its
+  already-fetched build data to the installer, removing the redundant
+  round-trip entirely.
+
+---
+
 ## [1.0.1] — 2026-03-07
 
 A quick but meaningful polish pass. The plugin now looks and feels like it
@@ -95,6 +123,7 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/regionallyfamous/dispatch/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/regionallyfamous/dispatch/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/regionallyfamous/dispatch/releases/tag/v1.0.0
