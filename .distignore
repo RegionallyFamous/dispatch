@@ -20,8 +20,10 @@ node_modules/
 package.json
 package-lock.json
 
-# Composer dev tooling
-vendor/
+# Composer
+# vendor/ is intentionally NOT listed — both bin/build-zip.sh and the CI
+# plugin-check job run `composer install --no-dev` before rsync, so vendor/
+# contains only production runtime dependencies when the dist is assembled.
 composer.json
 composer.lock
 phpcs.xml.dist
