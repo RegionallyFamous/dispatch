@@ -10,7 +10,15 @@ All notable changes to Dispatch for Telex will be documented here.
 
 ## [1.0.2] — 2026-03-07
 
-Three bugs introduced by the install/update pipeline are now squashed.
+Three bugs introduced by the install/update pipeline are now squashed,
+plus a small UI polish.
+
+### Changed
+
+- **Status badge is now inline with the project title** — "Not installed",
+  "Up to date", and version update indicators sit in the same row as the
+  project name instead of on a separate line below it. Cleaner, less
+  vertical noise.
 
 ### Fixed
 

@@ -96,6 +96,7 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 == Changelog ==
 
 = 1.0.2 =
+* Status badge (Not installed / Up to date / update indicator) now sits inline with the project title instead of on a separate line.
 * Fixed update progress steps restarting mid-animation.
 * Fixed installed version tracker recording the wrong (deployed) version number after an update — now always tracks the latest build version.
 * Eliminated a duplicate `getBuild()` API call that caused spurious "build isn't ready" errors during updates.
