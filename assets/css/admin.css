@@ -489,22 +489,24 @@
 	flex: 1;
 }
 
-/* Secondary zone — icon-only actions on the right */
+/* Secondary zone — icon-only actions on the right.
+   Fades in as a group on card hover; :focus-within keeps it visible
+   for keyboard users navigating inside it. */
 .telex-card-actions__secondary {
 	display: flex;
 	align-items: center;
 	gap: 2px;
 	flex-shrink: 0;
+	opacity: 0.55;
+	transition: opacity var(--telex-transition);
 }
 
-/* Icon-only buttons in secondary zone — subtle until hovered */
-.telex-card-actions__secondary .components-button:not(:hover) {
-	color: var(--telex-muted);
-	opacity: 0.6;
+.telex-card-actions__secondary:focus-within,
+.telex-project-card:hover .telex-card-actions__secondary {
+	opacity: 1;
 }
 
 .telex-card-actions__secondary .components-button {
-	transition: opacity var(--telex-transition), color var(--telex-transition);
 	min-width: 36px;
 	padding: 0;
 	justify-content: center;
@@ -558,6 +560,7 @@
  * ------------------------------------------------------------------------- */
 
 @keyframes telex-shimmer {
+
 	0% {
 		background-position: -600px 0;
 	}
@@ -568,12 +571,7 @@
 }
 
 .telex-skeleton {
-	background: linear-gradient(
-		90deg,
-		var(--telex-border) 25%,
-		color-mix(in srgb, var(--telex-border) 40%, var(--telex-surface)) 50%,
-		var(--telex-border) 75%
-	);
+	background: linear-gradient(90deg, var(--telex-border) 25%, color-mix(in srgb, var(--telex-border) 40%, var(--telex-surface)) 50%, var(--telex-border) 75%);
 	background-size: 1200px 100%;
 	animation: telex-shimmer 1.6s ease-in-out infinite;
 	border-radius: 4px;
@@ -684,6 +682,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
 	.telex-skeleton {
 		animation: none;
 		background: var(--telex-border);
@@ -1582,7 +1581,7 @@
 	white-space: nowrap;
 }
 
-.telex-webhook-field .components-button {
+.telex-webhook-field > :last-child {
 	flex-shrink: 0;
 }
 
