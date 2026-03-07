@@ -1,10 +1,15 @@
 /**
  * Telex Admin — Projects Page
  *
- * Renders the project card grid, handles install/update/remove,
- * and manages UI state via @wordpress/data.
+ * Renders the project card grid with tab-based filtering, stats summary,
+ * and live refetch (no full-page reload). State is managed via @wordpress/data.
  */
-import { render, useState, useEffect, Component } from '@wordpress/element';
+import {
+	render,
+	useEffect,
+	useCallback,
+	Component,
+} from '@wordpress/element';
 import {
 	createReduxStore,
 	register,
@@ -20,9 +25,24 @@ import {
 	Notice,
 	SearchControl,
 	Spinner,
+	TabPanel,
+	Tooltip,
+	Icon,
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
+import {
+	update as updateIcon,
+	trash,
+	check,
+	plugins as pluginsIcon,
+	layout as layoutIcon,
+	caution,
+	search as searchIcon,
+	copy,
+	download,
+	info,
+} from '@wordpress/icons';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -30,16 +50,21 @@ import apiFetch from '@wordpress/api-fetch';
 
 const DEFAULT_STATE = {
 	projects: [],
+	installedProjects: {}, // publicId → { version, type, … }
 	loading: false,
 	error: null,
 	searchQuery: '',
-	installing: {}, // publicId → InstallStatus
+	installing: {}, // publicId → 'installing' | 'removing' | 'idle' | 'failed'
 	notice: null,
-	confirmRemove: null, // publicId to confirm
+	confirmRemove: null, // publicId awaiting confirmation
 };
 
 const actions = {
 	setProjects: ( projects ) => ( { type: 'SET_PROJECTS', projects } ),
+	setInstalledProjects: ( installed ) => ( {
+		type: 'SET_INSTALLED',
+		installed,
+	} ),
 	setLoading: ( loading ) => ( { type: 'SET_LOADING', loading } ),
 	setError: ( error ) => ( { type: 'SET_ERROR', error } ),
 	setSearchQuery: ( query ) => ( { type: 'SET_SEARCH', query } ),
@@ -60,6 +85,8 @@ function reducer( state = DEFAULT_STATE, action ) {
 	switch ( action.type ) {
 		case 'SET_PROJECTS':
 			return { ...state, projects: action.projects };
+		case 'SET_INSTALLED':
+			return { ...state, installedProjects: action.installed };
 		case 'SET_LOADING':
 			return { ...state, loading: action.loading };
 		case 'SET_ERROR':
@@ -88,6 +115,7 @@ const store = createReduxStore( 'telex/admin', {
 	actions,
 	selectors: {
 		getProjects: ( state ) => state.projects,
+		getInstalledProjects: ( state ) => state.installedProjects,
 		isLoading: ( state ) => state.loading,
 		getError: ( state ) => state.error,
 		getSearchQuery: ( state ) => state.searchQuery,
@@ -101,7 +129,70 @@ const store = createReduxStore( 'telex/admin', {
 register( store );
 
 // ---------------------------------------------------------------------------
-// Components
+// Stats bar
+// ---------------------------------------------------------------------------
+
+function StatsBar( { projects, installedProjects } ) {
+	const installedCount = projects.filter(
+		( p ) => installedProjects[ p.publicId ]
+	).length;
+
+	const updatesCount = projects.filter( ( p ) => {
+		const inst = installedProjects[ p.publicId ];
+		return inst && p.currentVersion > inst.version;
+	} ).length;
+
+	return (
+		<div
+			className="telex-stats-bar"
+			aria-label={ __( 'Projects summary', 'dispatch' ) }
+		>
+			<div className="telex-stat">
+				<span className="telex-stat__value">{ projects.length }</span>
+				<span className="telex-stat__label">
+					{ __( 'Projects', 'dispatch' ) }
+				</span>
+			</div>
+			<div className="telex-stat">
+				<span className="telex-stat__value">{ installedCount }</span>
+				<span className="telex-stat__label">
+					{ __( 'Installed', 'dispatch' ) }
+				</span>
+			</div>
+			<div
+				className={ `telex-stat${
+					updatesCount > 0 ? ' telex-stat--has-updates' : ''
+				}` }
+			>
+				<span className="telex-stat__value">{ updatesCount }</span>
+				<span className="telex-stat__label">
+					{ __( 'Updates', 'dispatch' ) }
+				</span>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Type badge
+// ---------------------------------------------------------------------------
+
+function TypeBadge( { type } ) {
+	const isTheme = type === 'theme';
+	return (
+		<span
+			className={ `telex-type-badge ${
+				isTheme ? 'telex-type-badge--theme' : 'telex-type-badge--block'
+			}` }
+		>
+			<Icon icon={ isTheme ? layoutIcon : pluginsIcon } size={ 10 } />
+			{ isTheme ? __( 'Theme', 'dispatch' ) : __( 'Block', 'dispatch' ) }
+		</span>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Status badge
 // ---------------------------------------------------------------------------
 
 function StatusBadge( { publicId, remoteVersion, installed } ) {
@@ -131,12 +222,13 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 		);
 	}
 
-	if ( installed && remoteVersion > installed.version ) {
+	if ( remoteVersion > installed.version ) {
 		return (
 			<span className="telex-badge telex-badge--update">
+				<Icon icon={ updateIcon } size={ 10 } />
 				{ sprintf(
 					/* translators: 1: installed version, 2: available version */
-					__( 'v%1$d → v%2$d', 'dispatch' ),
+					__( 'v%1$s → v%2$s', 'dispatch' ),
 					installed.version,
 					remoteVersion
 				) }
@@ -145,18 +237,97 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 	}
 
 	return (
-		<span
-			className="telex-badge telex-badge--installed"
-			aria-label={ __( 'Up to date', 'dispatch' ) }
-		>
+		<span className="telex-badge telex-badge--installed">
+			<Icon icon={ check } size={ 10 } />
 			{ __( 'Up to date', 'dispatch' ) }
 		</span>
 	);
 }
 
-function ProjectCard( { project, installedProjects, restUrl } ) {
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+function EmptyState( { tab, searchQuery } ) {
+	if ( searchQuery ) {
+		return (
+			<div className="telex-empty-state">
+				<div className="telex-empty-state__icon">
+					<Icon icon={ searchIcon } size={ 32 } />
+				</div>
+				<h3>{ __( 'No results', 'dispatch' ) }</h3>
+				<p>
+					{ sprintf(
+						/* translators: %s: search query */
+						__(
+							'No projects match "%s". Try a different search.',
+							'dispatch'
+						),
+						searchQuery
+					) }
+				</p>
+			</div>
+		);
+	}
+
+	const stateMap = {
+		all: {
+			icon: pluginsIcon,
+			heading: __( 'No projects yet', 'dispatch' ),
+			body: __(
+				'Your Telex projects will show up here once you\'ve created some.',
+				'dispatch'
+			),
+		},
+		updates: {
+			icon: check,
+			heading: __( 'Everything is up to date', 'dispatch' ),
+			body: __(
+				'All installed projects are running the latest version.',
+				'dispatch'
+			),
+		},
+		blocks: {
+			icon: pluginsIcon,
+			heading: __( 'No blocks', 'dispatch' ),
+			body: __(
+				"You don't have any block projects in your Telex account.",
+				'dispatch'
+			),
+		},
+		themes: {
+			icon: layoutIcon,
+			heading: __( 'No themes', 'dispatch' ),
+			body: __(
+				"You don't have any theme projects in your Telex account.",
+				'dispatch'
+			),
+		},
+	};
+
+	const state = stateMap[ tab ] || stateMap.all;
+
+	return (
+		<div className="telex-empty-state">
+			<div className="telex-empty-state__icon">
+				<Icon icon={ state.icon } size={ 32 } />
+			</div>
+			<h3>{ state.heading }</h3>
+			<p>{ state.body }</p>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Project card
+// ---------------------------------------------------------------------------
+
+function ProjectCard( { project, restUrl, onRefresh } ) {
 	const { setInstallStatus, setNotice, setConfirmRemove } =
 		useDispatch( 'telex/admin' );
+	const installedProjects = useSelect( ( select ) =>
+		select( 'telex/admin' ).getInstalledProjects()
+	);
 	const confirmRemove = useSelect( ( select ) =>
 		select( 'telex/admin' ).getConfirmRemove()
 	);
@@ -169,14 +340,15 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 	const isInstalled = !! installed;
 	const isBusy =
 		installStatus === 'installing' || installStatus === 'removing';
+	const typeStr = project.projectType?.toLowerCase() || 'block';
 
-	async function handleInstall( activate = false ) {
+	async function handleInstall() {
 		setInstallStatus( project.publicId, 'installing' );
 		try {
 			await apiFetch( {
 				url: `${ restUrl }/projects/${ project.publicId }/install`,
 				method: 'POST',
-				data: { activate },
+				data: { activate: false },
 			} );
 			setNotice( {
 				type: 'success',
@@ -186,13 +358,40 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 					project.name
 				),
 			} );
-			// Reload to sync state.
-			window.location.reload();
+			await onRefresh();
+			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'failed' );
 			setNotice( {
 				type: 'error',
 				message: err.message || __( 'Install failed.', 'dispatch' ),
+			} );
+		}
+	}
+
+	async function handleUpdate() {
+		setInstallStatus( project.publicId, 'installing' );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/install`,
+				method: 'POST',
+				data: { activate: false },
+			} );
+			setNotice( {
+				type: 'success',
+				message: sprintf(
+					/* translators: %s: project name */
+					__( '%s updated successfully.', 'dispatch' ),
+					project.name
+				),
+			} );
+			await onRefresh();
+			setInstallStatus( project.publicId, 'idle' );
+		} catch ( err ) {
+			setInstallStatus( project.publicId, 'failed' );
+			setNotice( {
+				type: 'error',
+				message: err.message || __( 'Update failed.', 'dispatch' ),
 			} );
 		}
 	}
@@ -213,7 +412,8 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 					project.name
 				),
 			} );
-			window.location.reload();
+			await onRefresh();
+			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'idle' );
 			setNotice( {
@@ -224,19 +424,59 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 	}
 
 	return (
-		<Card className="telex-project-card">
+		<Card
+			className={ [
+				'telex-project-card',
+				needsUpdate ? 'telex-project-card--has-update' : '',
+				isInstalled ? 'telex-project-card--installed' : '',
+			]
+				.filter( Boolean )
+				.join( ' ' ) }
+		>
 			<CardHeader>
-				<strong>{ project.name }</strong>
-				<span className="telex-project-type">
-					{ project.projectType || __( 'Block', 'dispatch' ) }
-				</span>
-			</CardHeader>
-			<CardBody>
+				<div className="telex-card-title-row">
+					<strong className="telex-card-title">
+						{ project.name }
+					</strong>
+					<TypeBadge type={ typeStr } />
+				</div>
 				<StatusBadge
 					publicId={ project.publicId }
 					remoteVersion={ project.currentVersion }
 					installed={ installed }
 				/>
+			</CardHeader>
+
+			<CardBody>
+				<div className="telex-card-meta">
+					{ isInstalled && (
+						<span className="telex-meta-item">
+							{ sprintf(
+								/* translators: %s: version number */
+								__( 'Installed: v%s', 'dispatch' ),
+								installed.version
+							) }
+						</span>
+					) }
+					{ isInstalled && needsUpdate && (
+						<span className="telex-meta-item telex-meta-item--new">
+							{ sprintf(
+								/* translators: %s: version number */
+								__( 'Available: v%s', 'dispatch' ),
+								project.currentVersion
+							) }
+						</span>
+					) }
+					{ ! isInstalled && project.currentVersion && (
+						<span className="telex-meta-item">
+							{ sprintf(
+								/* translators: %s: version number */
+								__( 'v%s available', 'dispatch' ),
+								project.currentVersion
+							) }
+						</span>
+					) }
+				</div>
 
 				<div
 					className="telex-card-actions"
@@ -248,61 +488,100 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 					) }
 				>
 					{ ! isInstalled && (
-						<>
+						<Tooltip
+							text={ __(
+								'Download and install to this site',
+								'dispatch'
+							) }
+						>
 							<Button
 								variant="primary"
-								onClick={ () => handleInstall( false ) }
+								onClick={ handleInstall }
 								disabled={ isBusy }
+								icon={ isBusy ? null : download }
+								isBusy={
+									isBusy && installStatus === 'installing'
+								}
 								__next40pxDefaultSize
 							>
 								{ __( 'Install', 'dispatch' ) }
 							</Button>
-							<Button
-								variant="secondary"
-								onClick={ () => handleInstall( true ) }
-								disabled={ isBusy }
-								__next40pxDefaultSize
-							>
-								{ __( 'Install & Activate', 'dispatch' ) }
-							</Button>
-						</>
+						</Tooltip>
 					) }
 
 					{ isInstalled && needsUpdate && (
+						<Tooltip
+							text={ sprintf(
+								/* translators: %s: version number */
+								__( 'Update to v%s', 'dispatch' ),
+								project.currentVersion
+							) }
+						>
+							<Button
+								variant="primary"
+								onClick={ handleUpdate }
+								disabled={ isBusy }
+								icon={ isBusy ? null : updateIcon }
+								isBusy={
+									isBusy && installStatus === 'installing'
+								}
+								__next40pxDefaultSize
+							>
+								{ __( 'Update', 'dispatch' ) }
+							</Button>
+						</Tooltip>
+					) }
+
+					{ isInstalled && ! needsUpdate && (
 						<Button
-							variant="primary"
-							onClick={ () => handleInstall( false ) }
-							disabled={ isBusy }
+							variant="secondary"
+							disabled
+							icon={ check }
 							__next40pxDefaultSize
 						>
-							{ __( 'Update', 'dispatch' ) }
+							{ __( 'Installed', 'dispatch' ) }
 						</Button>
 					) }
 
 					{ isInstalled && (
-						<Button
-							variant="tertiary"
-							isDestructive
-							onClick={ () =>
-								setConfirmRemove( project.publicId )
-							}
-							disabled={ isBusy }
-							__next40pxDefaultSize
+						<Tooltip
+							text={ __( 'Remove from this site', 'dispatch' ) }
 						>
-							{ __( 'Remove', 'dispatch' ) }
-						</Button>
+							<Button
+								variant="tertiary"
+								isDestructive
+								icon={ trash }
+								onClick={ () =>
+									setConfirmRemove( project.publicId )
+								}
+								disabled={ isBusy }
+								isBusy={
+									isBusy && installStatus === 'removing'
+								}
+								__next40pxDefaultSize
+							>
+								{ __( 'Remove', 'dispatch' ) }
+							</Button>
+						</Tooltip>
 					) }
 				</div>
 
 				{ confirmRemove === project.publicId && (
 					<Modal
-						title={ __( 'Confirm removal', 'dispatch' ) }
+						title={ sprintf(
+							/* translators: %s: project name */
+							__( 'Remove "%s"?', 'dispatch' ),
+							project.name
+						) }
 						onRequestClose={ () => setConfirmRemove( null ) }
 					>
 						<p>
 							{ sprintf(
 								/* translators: %s: project name */
-								__( 'Remove %s from this site?', 'dispatch' ),
+								__(
+									'This removes %s from your site and deletes all its files. There\'s no undo.',
+									'dispatch'
+								),
 								project.name
 							) }
 						</p>
@@ -330,16 +609,30 @@ function ProjectCard( { project, installedProjects, restUrl } ) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Main app
+// ---------------------------------------------------------------------------
+
 function ProjectsApp() {
 	const container = document.getElementById( 'telex-projects-app' );
 	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
 	const nonce = container?.dataset?.nonce || '';
 	const disconnectUrl = container?.dataset?.disconnectUrl || '';
 
-	const { setProjects, setLoading, setError, setSearchQuery, clearNotice } =
-		useDispatch( 'telex/admin' );
+	const {
+		setProjects,
+		setInstalledProjects,
+		setLoading,
+		setError,
+		setSearchQuery,
+		clearNotice,
+	} = useDispatch( 'telex/admin' );
+
 	const projects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getProjects()
+	);
+	const installedProjects = useSelect( ( select ) =>
+		select( 'telex/admin' ).getInstalledProjects()
 	);
 	const loading = useSelect( ( select ) =>
 		select( 'telex/admin' ).isLoading()
@@ -352,38 +645,94 @@ function ProjectsApp() {
 		select( 'telex/admin' ).getNotice()
 	);
 
-	const [ installedProjects, setInstalledProjects ] = useState( {} );
+	// Fetch project list + installed tracker data.
+	const fetchData = useCallback( async () => {
+		try {
+			const data = await apiFetch( { url: `${ restUrl }/projects` } );
+			setProjects( data.projects || [] );
+			if ( data.installed ) {
+				setInstalledProjects( data.installed );
+			}
+		} catch ( err ) {
+			setError(
+				err.message || __( 'Failed to load projects.', 'dispatch' )
+			);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ restUrl ] );
 
-	// Fetch on mount — deps intentionally empty; nonce/restUrl are read once
-	// from the DOM on first render and never change.
 	useEffect( () => {
 		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
-
 		setLoading( true );
-
-		apiFetch( { url: `${ restUrl }/projects` } )
-			.then( ( data ) => {
-				setProjects( data.projects || [] );
-				// Tracker data is co-located in the same response.
-				if ( data.installed ) {
-					setInstalledProjects( data.installed );
-				}
-				setLoading( false );
-			} )
-			.catch( ( err ) => {
-				setError(
-					err.message || __( 'Failed to load projects.', 'dispatch' )
-				);
-				setLoading( false );
-			} );
+		fetchData().finally( () => setLoading( false ) );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
-	const filteredProjects = projects.filter(
-		( p ) =>
-			! searchQuery ||
-			p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
-	);
+	// Derived counts for tab titles.
+	const updatesCount = projects.filter( ( p ) => {
+		const inst = installedProjects[ p.publicId ];
+		return inst && p.currentVersion > inst.version;
+	} ).length;
+
+	const blocksCount = projects.filter(
+		( p ) => ( p.projectType?.toLowerCase() || 'block' ) !== 'theme'
+	).length;
+
+	const themesCount = projects.filter(
+		( p ) => p.projectType?.toLowerCase() === 'theme'
+	).length;
+
+	// Filter projects for a given tab + search.
+	function getTabProjects( tabName ) {
+		return projects
+			.filter( ( p ) => {
+				const t = p.projectType?.toLowerCase() || 'block';
+				const inst = installedProjects[ p.publicId ];
+				if ( tabName === 'updates' ) {
+					return inst && p.currentVersion > inst.version;
+				}
+				if ( tabName === 'blocks' ) {
+					return t !== 'theme';
+				}
+				if ( tabName === 'themes' ) {
+					return t === 'theme';
+				}
+				return true;
+			} )
+			.filter(
+				( p ) =>
+					! searchQuery ||
+					p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
+			);
+	}
+
+	const tabs = [
+		{
+			name: 'all',
+			title: projects.length
+				? `${ __( 'All', 'dispatch' ) } (${ projects.length })`
+				: __( 'All', 'dispatch' ),
+		},
+		{
+			name: 'updates',
+			title: updatesCount
+				? `${ __( 'Updates', 'dispatch' ) } (${ updatesCount })`
+				: __( 'Updates', 'dispatch' ),
+			className: updatesCount > 0 ? 'telex-tab--has-updates' : '',
+		},
+		{
+			name: 'blocks',
+			title: blocksCount
+				? `${ __( 'Blocks', 'dispatch' ) } (${ blocksCount })`
+				: __( 'Blocks', 'dispatch' ),
+		},
+		{
+			name: 'themes',
+			title: themesCount
+				? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
+				: __( 'Themes', 'dispatch' ),
+		},
+	];
 
 	return (
 		<div className="telex-app">
@@ -397,19 +746,40 @@ function ProjectsApp() {
 				</Notice>
 			) }
 
+			{ ! loading && ! error && projects.length > 0 && (
+				<StatsBar
+					projects={ projects }
+					installedProjects={ installedProjects }
+				/>
+			) }
+
 			<div className="telex-toolbar" role="search">
-			<SearchControl
-				label={ __( 'Search projects', 'dispatch' ) }
-				value={ searchQuery }
-				onChange={ setSearchQuery }
-				__nextHasNoMarginBottom
-			/>
-				<a
-					href={ disconnectUrl }
-					className="button button-secondary telex-disconnect"
-				>
-					{ __( 'Disconnect', 'dispatch' ) }
-				</a>
+				<SearchControl
+					label={ __( 'Search projects', 'dispatch' ) }
+					value={ searchQuery }
+					onChange={ setSearchQuery }
+					__nextHasNoMarginBottom
+				/>
+				<div className="telex-toolbar-right">
+					<Button
+						variant="secondary"
+						onClick={ () => {
+							setLoading( true );
+							fetchData().finally( () => setLoading( false ) );
+						} }
+						disabled={ loading }
+						aria-label={ __( 'Refresh projects list', 'dispatch' ) }
+						__next40pxDefaultSize
+					>
+						{ loading ? <Spinner /> : __( 'Refresh', 'dispatch' ) }
+					</Button>
+					<a
+						href={ disconnectUrl }
+						className="button button-secondary telex-disconnect"
+					>
+						{ __( 'Disconnect', 'dispatch' ) }
+					</a>
+				</div>
 			</div>
 
 			{ loading && (
@@ -419,6 +789,7 @@ function ProjectsApp() {
 					aria-label={ __( 'Loading projects', 'dispatch' ) }
 				>
 					<Spinner />
+					<span>{ __( 'Loading projects…', 'dispatch' ) }</span>
 				</div>
 			) }
 
@@ -429,26 +800,46 @@ function ProjectsApp() {
 			) }
 
 			{ ! loading && ! error && (
-				<div
-					className="telex-project-grid"
-					role="list"
-					aria-label={ __( 'Dispatch projects', 'dispatch' ) }
-					aria-live="polite"
+				<TabPanel
+					tabs={ tabs }
+					className="telex-tab-panel"
+					initialTabName="all"
 				>
-					{ filteredProjects.length === 0 && (
-						<p>{ __( 'No projects found.', 'dispatch' ) }</p>
-					) }
-					{ filteredProjects.map( ( project ) => (
-						<div key={ project.publicId } role="listitem">
-							<ProjectCard
-								project={ project }
-								installedProjects={ installedProjects }
-								restUrl={ restUrl }
-								nonce={ nonce }
-							/>
-						</div>
-					) ) }
-				</div>
+					{ ( tab ) => {
+						const visible = getTabProjects( tab.name );
+						return (
+							<div
+								className="telex-project-grid"
+								role="list"
+								aria-label={ __(
+									'Dispatch projects',
+									'dispatch'
+								) }
+								aria-live="polite"
+							>
+								{ visible.length === 0 ? (
+									<EmptyState
+										tab={ tab.name }
+										searchQuery={ searchQuery }
+									/>
+								) : (
+									visible.map( ( project ) => (
+										<div
+											key={ project.publicId }
+											role="listitem"
+										>
+											<ProjectCard
+												project={ project }
+												restUrl={ restUrl }
+												onRefresh={ fetchData }
+											/>
+										</div>
+									) )
+								) }
+							</div>
+						);
+					} }
+				</TabPanel>
 			) }
 		</div>
 	);
@@ -459,8 +850,8 @@ function ProjectsApp() {
 // ---------------------------------------------------------------------------
 
 /**
- * Catches any unhandled JS errors inside the React tree and renders a
- * graceful fallback notice instead of a blank white panel.
+ * Catches unhandled JS errors inside the React tree and shows a graceful
+ * fallback instead of a blank white panel.
  */
 class TelexErrorBoundary extends Component {
 	constructor( props ) {
@@ -482,12 +873,12 @@ class TelexErrorBoundary extends Component {
 					<p>
 						<strong>
 							{ __(
-								'Dispatch encountered an unexpected error.',
+								'Something went wrong.',
 								'dispatch'
 							) }
 						</strong>{ ' ' }
 						{ __(
-							'Please reload the page. If the problem persists, check the browser console for details.',
+							'Reload the page to try again. If it keeps happening, check the browser console.',
 							'dispatch'
 						) }
 					</p>
@@ -510,7 +901,6 @@ class TelexErrorBoundary extends Component {
 				</div>
 			);
 		}
-
 		return this.props.children;
 	}
 }

@@ -387,7 +387,7 @@ class Telex_REST {
 
 		$device_code = get_transient( Telex_Auth::TRANSIENT_DEVICE );
 		if ( empty( $device_code ) ) {
-			return new \WP_Error( 'telex_no_device_flow', __( 'No active device flow.', 'dispatch' ), [ 'status' => 400 ] );
+			return new \WP_Error( 'telex_no_device_flow', __( 'No sign-in session in progress.', 'dispatch' ), [ 'status' => 400 ] );
 		}
 
 		$result = Telex_Auth::poll_device_flow( (string) $device_code );

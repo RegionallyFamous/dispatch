@@ -63,7 +63,7 @@ class Telex_Installer {
 			}
 
 			if ( empty( $build['files'] ) ) {
-				return new \WP_Error( 'telex_no_files', __( 'Build has no files.', 'dispatch' ) );
+				return new \WP_Error( 'telex_no_files', __( 'This build has no files to install.', 'dispatch' ) );
 			}
 
 			$build_files = array_map( Telex_Build_File::from_array( ... ), $build['files'] );
