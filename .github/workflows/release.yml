@@ -55,7 +55,7 @@ jobs:
 
             ### Install
 
-            Download `dispatch-for-telex.zip` below and upload it via **Plugins → Add New Plugin → Upload Plugin** in your WordPress admin.
-          files: dispatch-for-telex.zip
+            Download `dispatch-for-telex-${{ steps.version.outputs.VERSION }}.zip` below and upload it via **Plugins → Add New Plugin → Upload Plugin** in your WordPress admin.
+          files: dispatch-for-telex-${{ steps.version.outputs.VERSION }}.zip
           fail_on_unmatched_files: true
           generate_release_notes: false
