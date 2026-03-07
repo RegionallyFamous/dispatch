@@ -82,6 +82,25 @@ class Telex_Tracker {
 		return null !== $info && $remote_version > $info['version'];
 	}
 
+	/**
+	 * Returns the tracker entry for a project with the given WordPress slug,
+	 * or null if no such project is tracked.
+	 *
+	 * Used when intercepting native WordPress upgrades to identify whether
+	 * a plugin/theme is managed by Dispatch.
+	 *
+	 * @param string $slug WordPress plugin directory name or theme slug.
+	 * @return array{version: int, type: string, slug: string, installed_at: string, updated_at: string}|null
+	 */
+	public static function get_by_slug( string $slug ): ?array {
+		foreach ( self::get_all() as $entry ) {
+			if ( isset( $entry['slug'] ) && $entry['slug'] === $slug ) {
+				return $entry;
+			}
+		}
+		return null;
+	}
+
 	// -------------------------------------------------------------------------
 	// Write
 	// -------------------------------------------------------------------------

@@ -100,13 +100,26 @@ function DeviceFlowApp() {
 	const [ copied, setCopied ] = useState( false );
 	const pollRef = useRef( null );
 	const copyTimeoutRef = useRef( null );
+	const pollInFlightRef = useRef( false );
+	// Keep a ref in sync with status so the Heartbeat handler doesn't close
+	// over a stale value from mount time.
+	const statusRef = useRef( status );
+	useEffect( () => {
+		statusRef.current = status;
+	}, [ status ] );
 
 	// Initialise nonce middleware and WP Heartbeat listener on mount only.
 	useEffect( () => {
-		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
+		if ( ! DeviceFlowApp._nonceRegistered ) {
+			apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
+			DeviceFlowApp._nonceRegistered = true;
+		}
 
 		const onHeartbeatTick = ( _event, response ) => {
-			if ( response?.telex?.is_connected && status === STATUS.WAITING ) {
+			if (
+				response?.telex?.is_connected &&
+				statusRef.current === STATUS.WAITING
+			) {
 				stopPolling();
 				setStatus( STATUS.SUCCESS );
 				setTimeout( () => {
@@ -177,6 +190,10 @@ function DeviceFlowApp() {
 	}
 
 	async function pollForToken() {
+		if ( pollInFlightRef.current ) {
+			return; // Previous poll still in-flight; skip this tick.
+		}
+		pollInFlightRef.current = true;
 		try {
 			const data = await apiFetch( { url: `${ restUrl }/auth/device` } );
 
@@ -205,6 +222,8 @@ function DeviceFlowApp() {
 					)
 			);
 			setStatus( STATUS.EXPIRED );
+		} finally {
+			pollInFlightRef.current = false;
 		}
 	}
 

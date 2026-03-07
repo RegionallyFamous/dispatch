@@ -107,7 +107,7 @@ class Telex_Admin {
 	 */
 	public static function save_screen_option( bool|int $status, string $option, int $value ): bool|int {
 		if ( self::SCREEN_OPTION_PER_PAGE === $option ) {
-			return $value;
+			return max( 1, min( 100, $value ) );
 		}
 		return $status;
 	}
@@ -122,12 +122,17 @@ class Telex_Admin {
 	 * @return void
 	 */
 	public static function handle_legacy_actions(): void {
-		if ( ! isset( $_GET['page'] ) || 'telex' !== $_GET['page'] ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- nonce is checked below.
+		$page   = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+		$action = isset( $_GET['telex_action'] ) ? sanitize_text_field( wp_unslash( $_GET['telex_action'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( 'telex' !== $page ) {
 			return;
 		}
 
 		// Disconnect (GET-based with nonce, kept for compatibility).
-		if ( ( $_GET['telex_action'] ?? '' ) === 'disconnect' ) {
+		if ( 'disconnect' === $action ) {
 			check_admin_referer( 'telex_disconnect' );
 
 			if ( ! current_user_can( 'manage_options' ) ) {
@@ -162,6 +167,10 @@ class Telex_Admin {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Dispatch', 'dispatch' ) . '</h1>';
+
+		$badge_class = Telex_Auth::is_connected() ? 'telex-connection-badge telex-connection-badge--connected' : 'telex-connection-badge telex-connection-badge--disconnected';
+		$badge_label = Telex_Auth::is_connected() ? __( 'Connected', 'dispatch' ) : __( 'Not connected', 'dispatch' );
+		printf( '<p class="%s">%s</p>', esc_attr( $badge_class ), esc_html( $badge_label ) );
 
 		// Transient-based notices (post-redirect-get pattern).
 		self::render_notices();
@@ -270,11 +279,12 @@ class Telex_Admin {
 			]
 		);
 
+		$css_mtime = filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' );
 		wp_enqueue_style(
 			'telex-admin',
 			plugins_url( 'assets/css/admin.css', TELEX_PLUGIN_FILE ),
 			[],
-			filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) !== false ? filemtime( TELEX_PLUGIN_DIR . 'assets/css/admin.css' ) : TELEX_PLUGIN_VERSION
+			false !== $css_mtime ? (string) $css_mtime : TELEX_PLUGIN_VERSION
 		);
 
 		wp_set_script_translations( $handle, 'dispatch', TELEX_PLUGIN_DIR . 'languages' );
@@ -454,8 +464,9 @@ class Telex_Admin {
 	 * @return array<string, mixed>
 	 */
 	public static function run_api_reachability_test(): array {
-		$client  = new Telex_WP_Http_Client( timeout: 10 );
-		$request = new \Nyholm\Psr7\Request( 'HEAD', TELEX_PUBLIC_URL );
+		$client = new Telex_WP_Http_Client( timeout: 10 );
+		// Test the API endpoint, not the marketing homepage, so outages are accurately detected.
+		$request = new \Nyholm\Psr7\Request( 'GET', TELEX_API_BASE_URL . '/v1/health' );
 
 		try {
 			$client->sendRequest( $request );

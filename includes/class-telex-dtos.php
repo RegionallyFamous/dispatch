@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Immutable value object representing a Telex project as returned by the API.
  *
- * @phpstan-type ProjectArray array{publicId: string, name: string, slug: string, projectType: ?string, currentVersion: int}
+ * @phpstan-type ProjectArray array{publicId: string, name: string, slug: string, projectType: ?string, currentVersion: int, description: ?string}
  */
 readonly class Telex_Project {
 
@@ -28,6 +28,7 @@ readonly class Telex_Project {
 	 * @param int         $current_version The latest version number from the API.
 	 * @param bool        $is_shared       Whether the project is shared from another account.
 	 * @param bool        $is_owner        Whether the authenticated user owns the project.
+	 * @param string|null $description     Optional human-readable project description.
 	 */
 	public function __construct(
 		public string $public_id,
@@ -37,6 +38,7 @@ readonly class Telex_Project {
 		public int $current_version,
 		public bool $is_shared = false,
 		public bool $is_owner = false,
+		public ?string $description = null,
 	) {}
 
 	/**
@@ -54,6 +56,7 @@ readonly class Telex_Project {
 			current_version: (int) ( $data['currentVersion'] ?? 0 ),
 			is_shared:       (bool) ( $data['isShared'] ?? false ),
 			is_owner:        (bool) ( $data['isOwner'] ?? false ),
+			description:     isset( $data['description'] ) ? (string) $data['description'] : null,
 		);
 	}
 
@@ -71,6 +74,7 @@ readonly class Telex_Project {
 			'currentVersion' => $this->current_version,
 			'isShared'       => $this->is_shared,
 			'isOwner'        => $this->is_owner,
+			'description'    => $this->description,
 		];
 	}
 }

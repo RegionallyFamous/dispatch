@@ -28,6 +28,7 @@ class Telex_Updater {
 		add_filter( 'pre_set_site_transient_update_plugins', self::inject_plugin_updates( ... ) );
 		add_filter( 'pre_set_site_transient_update_themes', self::inject_theme_updates( ... ) );
 		add_filter( 'plugins_api', self::plugins_api_info( ... ), 10, 3 );
+		add_filter( 'upgrader_pre_download', self::intercept_telex_upgrade( ... ), 10, 4 );
 
 		// Register after_plugin_row_* notices for each tracked block.
 		foreach ( Telex_Tracker::get_all() as $public_id => $info ) {
@@ -70,6 +71,9 @@ class Telex_Updater {
 		if ( ! $client ) {
 			return $transient;
 		}
+
+		// Pre-seed per-project caches from the bulk list to avoid N+1 API calls.
+		self::prime_project_caches( $installed );
 
 		foreach ( $installed as $public_id => $info ) {
 			if ( ProjectType::from( $info['type'] ) !== ProjectType::Block ) {
@@ -127,6 +131,9 @@ class Telex_Updater {
 		if ( empty( $installed ) || ! $client ) {
 			return $transient;
 		}
+
+		// Pre-seed per-project caches from the bulk list to avoid N+1 API calls.
+		self::prime_project_caches( $installed );
 
 		foreach ( $installed as $public_id => $info ) {
 			if ( ProjectType::from( $info['type'] ) !== ProjectType::Theme ) {
@@ -269,11 +276,89 @@ class Telex_Updater {
 	}
 
 	// -------------------------------------------------------------------------
+	// upgrader_pre_download — block native WP upgrades for Telex projects
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Intercepts any attempt to run the native WP upgrader on a Telex-managed
+	 * plugin or theme. Because Dispatch injects update entries with an empty
+	 * `package` URL, clicking "Update" from the WordPress Updates screen would
+	 * otherwise fail with a generic "No package specified" error.
+	 *
+	 * Instead we return a descriptive WP_Error that tells the user to use
+	 * the Dispatch screen, which is the only supported update path.
+	 *
+	 * @param false|\WP_Error      $reply      Pass-through value; false means "proceed normally".
+	 * @param string               $package    The download URL (empty for Telex projects).
+	 * @param \WP_Upgrader         $upgrader   The upgrader instance (unused).
+	 * @param array<string, mixed> $hook_extra Context: type, plugin/theme slug, action.
+	 * @return false|\WP_Error
+	 */
+	public static function intercept_telex_upgrade( false|\WP_Error $reply, string $package, \WP_Upgrader $upgrader, array $hook_extra ): false|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterfaceAfterLastUsed
+		// Only intercept when the package is empty (our injected entries always are).
+		if ( '' !== $package || false !== $reply ) {
+			return $reply;
+		}
+
+		$type = $hook_extra['type'] ?? '';
+		$slug = '';
+
+		if ( 'plugin' === $type && isset( $hook_extra['plugin'] ) ) {
+			$parts = explode( '/', (string) $hook_extra['plugin'] );
+			$slug  = $parts[0];
+		} elseif ( 'theme' === $type && isset( $hook_extra['theme'] ) ) {
+			$slug = (string) $hook_extra['theme'];
+		}
+
+		if ( '' === $slug || null === Telex_Tracker::get_by_slug( $slug ) ) {
+			return $reply;
+		}
+
+		return new \WP_Error(
+			'telex_use_dispatch',
+			wp_kses(
+				sprintf(
+					/* translators: %s: URL to the Dispatch admin page */
+					__( 'This project is managed by Dispatch for Telex. <a href="%s">Update it from the Dispatch screen.</a>', 'dispatch' ),
+					esc_url( admin_url( 'admin.php?page=telex' ) )
+				),
+				[ 'a' => [ 'href' => true ] ]
+			)
+		);
+	}
+
+	// -------------------------------------------------------------------------
 	// Helper
 	// -------------------------------------------------------------------------
 
 	/**
 	 * Finds the plugin file path (relative to plugins dir) for a given slug.
+	 *
+	 * @param string $slug The WordPress plugin directory slug.
+	 * @return string Plugin file path, or empty string if not found.
+	 */
+	/**
+	 * Seeds per-project caches from the warm bulk project list so that the
+	 * per-project loops avoid N individual API calls on a cold cache.
+	 *
+	 * @param array<string, mixed> $installed Tracked projects keyed by public ID.
+	 * @return void
+	 */
+	private static function prime_project_caches( array $installed ): void {
+		$bulk = Telex_Cache::get_projects();
+		if ( ! is_array( $bulk ) ) {
+			return;
+		}
+		foreach ( $bulk as $project ) {
+			$id = $project['publicId'] ?? '';
+			if ( $id && isset( $installed[ $id ] ) && null === Telex_Cache::get_project( $id ) ) {
+				Telex_Cache::set_project( $id, $project );
+			}
+		}
+	}
+
+	/**
+	 * Returns the plugin file path (e.g. 'my-plugin/my-plugin.php') for a given slug.
 	 *
 	 * @param string $slug The WordPress plugin directory slug.
 	 * @return string Plugin file path, or empty string if not found.

@@ -393,7 +393,7 @@ class Telex_Auth {
 		$iv_legacy = substr( $raw, 0, $sep_pos );
 		$ct_legacy = substr( $raw, $sep_pos + 2 );
 
-		$plaintext = openssl_decrypt( $ct_legacy, 'aes-256-cbc', $key, 0, $iv_legacy );
+		$plaintext = openssl_decrypt( $ct_legacy, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv_legacy );
 		if ( false === $plaintext ) {
 			return '';
 		}

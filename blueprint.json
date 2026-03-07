@@ -16,7 +16,7 @@
             "step": "installPlugin",
             "pluginData": {
                 "resource": "url",
-                "url": "https://github-proxy.com/proxy/?repo=automattic/telex&release=latest"
+                "url": "https://github-proxy.com/proxy/?repo=regionallyfamous/dispatch&release=latest"
             },
             "options": {
                 "activate": true

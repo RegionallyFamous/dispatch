@@ -16,6 +16,7 @@ import {
 	Card,
 	CardBody,
 	CardHeader,
+	ExternalLink,
 	Modal,
 	Notice,
 	SearchControl,
@@ -157,15 +158,27 @@ function ProjectAvatar( { name, publicId } ) {
 // Store
 // ---------------------------------------------------------------------------
 
+// Per-page preference: PHP passes the saved screen option via data-per-page.
+const _adminContainer = document.getElementById( 'telex-projects-app' );
+const _perPageAttr = parseInt( _adminContainer?.dataset?.perPage, 10 );
+const INITIAL_PER_PAGE =
+	! isNaN( _perPageAttr ) && _perPageAttr > 0 ? _perPageAttr : 24;
+
 const DEFAULT_STATE = {
 	projects: [],
 	installedProjects: {}, // publicId → { version, type, … }
 	loading: false,
 	error: null,
+	authExpired: false,
 	searchQuery: '',
 	installing: {}, // publicId → 'installing' | 'removing' | 'idle' | 'failed'
 	notice: null,
 	confirmRemove: null, // publicId awaiting confirmation
+	currentPage: 1,
+	perPage: INITIAL_PER_PAGE,
+	selectedProjects: [], // publicIds of projects selected for bulk install
+	bulkInstalling: false,
+	installSteps: {}, // publicId → step number (1–4) during install
 };
 
 const actions = {
@@ -176,6 +189,7 @@ const actions = {
 	} ),
 	setLoading: ( loading ) => ( { type: 'SET_LOADING', loading } ),
 	setError: ( error ) => ( { type: 'SET_ERROR', error } ),
+	setAuthExpired: ( expired ) => ( { type: 'SET_AUTH_EXPIRED', expired } ),
 	setSearchQuery: ( query ) => ( { type: 'SET_SEARCH', query } ),
 	setInstallStatus: ( publicId, status ) => ( {
 		type: 'SET_INSTALL_STATUS',
@@ -188,20 +202,42 @@ const actions = {
 		type: 'SET_CONFIRM_REMOVE',
 		publicId,
 	} ),
+	setCurrentPage: ( page ) => ( { type: 'SET_PAGE', page } ),
+	toggleSelection: ( publicId ) => ( { type: 'TOGGLE_SELECTION', publicId } ),
+	clearSelection: () => ( { type: 'CLEAR_SELECTION' } ),
+	selectAllUninstalled: ( publicIds ) => ( {
+		type: 'SELECT_ALL_UNINSTALLED',
+		publicIds,
+	} ),
+	setBulkInstalling: ( installing ) => ( {
+		type: 'SET_BULK_INSTALLING',
+		installing,
+	} ),
+	setInstallStep: ( publicId, step ) => ( {
+		type: 'SET_INSTALL_STEP',
+		publicId,
+		step,
+	} ),
+	clearInstallStep: ( publicId ) => ( {
+		type: 'CLEAR_INSTALL_STEP',
+		publicId,
+	} ),
 };
 
 function reducer( state = DEFAULT_STATE, action ) {
 	switch ( action.type ) {
 		case 'SET_PROJECTS':
-			return { ...state, projects: action.projects };
+			return { ...state, projects: action.projects, currentPage: 1 };
 		case 'SET_INSTALLED':
 			return { ...state, installedProjects: action.installed };
 		case 'SET_LOADING':
 			return { ...state, loading: action.loading };
 		case 'SET_ERROR':
 			return { ...state, error: action.error };
+		case 'SET_AUTH_EXPIRED':
+			return { ...state, authExpired: action.expired };
 		case 'SET_SEARCH':
-			return { ...state, searchQuery: action.query };
+			return { ...state, searchQuery: action.query, currentPage: 1 };
 		case 'SET_INSTALL_STATUS':
 			return {
 				...state,
@@ -214,6 +250,38 @@ function reducer( state = DEFAULT_STATE, action ) {
 			return { ...state, notice: action.notice };
 		case 'SET_CONFIRM_REMOVE':
 			return { ...state, confirmRemove: action.publicId };
+		case 'SET_PAGE':
+			return { ...state, currentPage: action.page };
+		case 'TOGGLE_SELECTION': {
+			const exists = state.selectedProjects.includes( action.publicId );
+			return {
+				...state,
+				selectedProjects: exists
+					? state.selectedProjects.filter(
+							( id ) => id !== action.publicId
+					  )
+					: [ ...state.selectedProjects, action.publicId ],
+			};
+		}
+		case 'CLEAR_SELECTION':
+			return { ...state, selectedProjects: [] };
+		case 'SELECT_ALL_UNINSTALLED':
+			return { ...state, selectedProjects: action.publicIds };
+		case 'SET_BULK_INSTALLING':
+			return { ...state, bulkInstalling: action.installing };
+		case 'SET_INSTALL_STEP':
+			return {
+				...state,
+				installSteps: {
+					...state.installSteps,
+					[ action.publicId ]: action.step,
+				},
+			};
+		case 'CLEAR_INSTALL_STEP': {
+			const { [ action.publicId ]: _removed, ...remainingSteps } =
+				state.installSteps;
+			return { ...state, installSteps: remainingSteps };
+		}
 		default:
 			return state;
 	}
@@ -227,15 +295,167 @@ const store = createReduxStore( 'telex/admin', {
 		getInstalledProjects: ( state ) => state.installedProjects,
 		isLoading: ( state ) => state.loading,
 		getError: ( state ) => state.error,
+		isAuthExpired: ( state ) => state.authExpired,
 		getSearchQuery: ( state ) => state.searchQuery,
 		getInstallStatus: ( state, publicId ) =>
 			state.installing[ publicId ] || 'idle',
 		getNotice: ( state ) => state.notice,
 		getConfirmRemove: ( state ) => state.confirmRemove,
+		getCurrentPage: ( state ) => state.currentPage,
+		getPerPage: ( state ) => state.perPage,
+		getSelectedProjects: ( state ) => state.selectedProjects,
+		isBulkInstalling: ( state ) => state.bulkInstalling,
+		getInstallStep: ( state, publicId ) =>
+			state.installSteps[ publicId ] ?? null,
 	},
 } );
 
 register( store );
+
+// ---------------------------------------------------------------------------
+// Install progress steps
+// ---------------------------------------------------------------------------
+
+const INSTALL_STEPS = [
+	__( 'Downloading build files…', 'dispatch' ),
+	__( 'Validating package…', 'dispatch' ),
+	__( 'Installing…', 'dispatch' ),
+	__( 'Activating…', 'dispatch' ),
+];
+
+function InstallProgress( { currentStep } ) {
+	return (
+		<div className="telex-install-progress" aria-live="polite">
+			{ INSTALL_STEPS.map( ( label, idx ) => {
+				const stepNum = idx + 1;
+				const isDone = stepNum < currentStep;
+				const isActive = stepNum === currentStep;
+				return (
+					<div
+						key={ label }
+						className={ [
+							'telex-install-step',
+							isDone ? 'telex-install-step--done' : '',
+							isActive ? 'telex-install-step--active' : '',
+						]
+							.filter( Boolean )
+							.join( ' ' ) }
+					>
+						{ isActive ? (
+							<Spinner />
+						) : (
+							<span
+								className="telex-install-step__dot"
+								aria-hidden="true"
+							/>
+						) }
+						{ label }
+					</div>
+				);
+			} ) }
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Bulk install toolbar
+// ---------------------------------------------------------------------------
+
+function BulkToolbar( { selectedCount, onInstall, onClear, isBusy } ) {
+	return (
+		<div className="telex-bulk-toolbar" role="toolbar">
+			<span className="telex-bulk-toolbar__count">
+				{ sprintf(
+					/* translators: %d: number of selected projects */
+					_n(
+						'%d project selected',
+						'%d projects selected',
+						selectedCount,
+						'dispatch'
+					),
+					selectedCount
+				) }
+			</span>
+			<Button
+				variant="primary"
+				onClick={ onInstall }
+				disabled={ isBusy }
+				isBusy={ isBusy }
+				__next40pxDefaultSize
+			>
+				{ sprintf(
+					/* translators: %d: number of projects to install */
+					_n(
+						'Install %d project',
+						'Install %d projects',
+						selectedCount,
+						'dispatch'
+					),
+					selectedCount
+				) }
+			</Button>
+			<Button
+				variant="tertiary"
+				onClick={ onClear }
+				disabled={ isBusy }
+				__next40pxDefaultSize
+			>
+				{ __( 'Clear selection', 'dispatch' ) }
+			</Button>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Pagination controls
+// ---------------------------------------------------------------------------
+
+function PaginationControls( {
+	currentPage,
+	totalPages,
+	totalItems,
+	perPage,
+	onPageChange,
+} ) {
+	if ( totalPages <= 1 ) {
+		return null;
+	}
+
+	const start = ( currentPage - 1 ) * perPage + 1;
+	const end = Math.min( currentPage * perPage, totalItems );
+
+	return (
+		<div className="telex-pagination">
+			<span className="telex-pagination__info">
+				{ sprintf(
+					/* translators: 1: first item number, 2: last item number, 3: total */
+					__( '%1$d\u2013%2$d of %3$d', 'dispatch' ),
+					start,
+					end,
+					totalItems
+				) }
+			</span>
+			<div className="telex-pagination__buttons">
+				<Button
+					variant="secondary"
+					onClick={ () => onPageChange( currentPage - 1 ) }
+					disabled={ currentPage === 1 }
+					__next40pxDefaultSize
+				>
+					{ __( '\u2039 Previous', 'dispatch' ) }
+				</Button>
+				<Button
+					variant="secondary"
+					onClick={ () => onPageChange( currentPage + 1 ) }
+					disabled={ currentPage === totalPages }
+					__next40pxDefaultSize
+				>
+					{ __( 'Next \u203a', 'dispatch' ) }
+				</Button>
+			</div>
+		</div>
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Stats bar
@@ -436,12 +656,82 @@ function EmptyState( { tab, searchQuery } ) {
 }
 
 // ---------------------------------------------------------------------------
+// Shared install helper (used by both ProjectCard and bulk-install)
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /install, then poll /build if the server signals the build isn't ready yet.
+ * Resolves when the install is confirmed, rejects with a user-facing error message.
+ *
+ * @param {Function} fetch      apiFetch bound with the correct middleware.
+ * @param {string}   url        REST base URL.
+ * @param {string}   publicId   Project public ID.
+ * @param {Function} onBuilding Called with poll_interval when the build starts.
+ * @return {Promise<Object>} Final install response data.
+ */
+async function installWithPolling( fetch, url, publicId, onBuilding ) {
+	const doInstall = () =>
+		fetch( {
+			url: `${ url }/projects/${ publicId }/install`,
+			method: 'POST',
+			data: { activate: false },
+		} );
+
+	let data = await doInstall();
+
+	if ( data.status !== 'building' ) {
+		return data;
+	}
+
+	// Server queued a build — poll until ready then retry.
+	onBuilding?.( data.poll_interval || 5 );
+
+	const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
+	let pollInterval = data.poll_interval || 5;
+
+	for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
+		// eslint-disable-next-line no-await-in-loop
+		await new Promise( ( r ) => setTimeout( r, pollInterval * 1000 ) );
+
+		// eslint-disable-next-line no-await-in-loop
+		const buildStatus = await fetch( {
+			url: `${ url }/projects/${ publicId }/build`,
+		} );
+
+		if ( buildStatus.poll_interval ) {
+			pollInterval = buildStatus.poll_interval;
+		}
+
+		if ( ! buildStatus.ready ) {
+			continue;
+		}
+
+		// eslint-disable-next-line no-await-in-loop
+		data = await doInstall();
+		return data;
+	}
+
+	throw new Error(
+		__(
+			'The build is taking longer than expected. Try again in a moment.',
+			'dispatch'
+		)
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Project card
 // ---------------------------------------------------------------------------
 
 function ProjectCard( { project, restUrl, onRefresh } ) {
-	const { setInstallStatus, setNotice, setConfirmRemove } =
-		useDispatch( 'telex/admin' );
+	const {
+		setInstallStatus,
+		setNotice,
+		setConfirmRemove,
+		toggleSelection,
+		setInstallStep,
+		clearInstallStep,
+	} = useDispatch( 'telex/admin' );
 	const installedProjects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getInstalledProjects()
 	);
@@ -451,6 +741,13 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	const installStatus = useSelect( ( select ) =>
 		select( 'telex/admin' ).getInstallStatus( project.publicId )
 	);
+	const installStep = useSelect( ( select ) =>
+		select( 'telex/admin' ).getInstallStep( project.publicId )
+	);
+	const selectedProjects = useSelect( ( select ) =>
+		select( 'telex/admin' ).getSelectedProjects()
+	);
+	const isSelected = selectedProjects.includes( project.publicId );
 
 	const installed = installedProjects[ project.publicId ];
 	const needsUpdate = installed && project.currentVersion > installed.version;
@@ -473,64 +770,44 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	 */
 	async function executeInstall( successMessage ) {
 		setInstallStatus( project.publicId, 'installing' );
+		setInstallStep( project.publicId, 1 );
 
-		const doInstallRequest = () =>
-			apiFetch( {
-				url: `${ restUrl }/projects/${ project.publicId }/install`,
-				method: 'POST',
-				data: { activate: false },
-			} );
+		// Advance progress steps on a timer while the install runs.
+		const t1 = setTimeout(
+			() => setInstallStep( project.publicId, 2 ),
+			1200
+		);
+		const t2 = setTimeout(
+			() => setInstallStep( project.publicId, 3 ),
+			2600
+		);
+
+		const clearStepTimers = () => {
+			clearTimeout( t1 );
+			clearTimeout( t2 );
+		};
 
 		try {
-			let data = await doInstallRequest();
-
-			if ( data.status === 'building' ) {
-				setInstallStatus( project.publicId, 'building' );
-
-				const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
-				let pollInterval = data.poll_interval || 5;
-
-				for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
-					// eslint-disable-next-line no-await-in-loop
-					await new Promise( ( r ) =>
-						setTimeout( r, pollInterval * 1000 )
-					);
-
-					// eslint-disable-next-line no-await-in-loop
-					const buildStatus = await apiFetch( {
-						url: `${ restUrl }/projects/${ project.publicId }/build`,
-					} );
-
-					if ( buildStatus.poll_interval ) {
-						pollInterval = buildStatus.poll_interval;
-					}
-
-					if ( ! buildStatus.ready ) {
-						continue;
-					}
-
-					// Build is ready — run the install now.
-					setInstallStatus( project.publicId, 'installing' );
-					// eslint-disable-next-line no-await-in-loop
-					data = await doInstallRequest();
-					break;
+			await installWithPolling(
+				apiFetch,
+				restUrl,
+				project.publicId,
+				() => {
+					clearStepTimers();
+					setInstallStatus( project.publicId, 'building' );
+					setInstallStep( project.publicId, 1 );
 				}
+			);
 
-				if ( data.status === 'building' ) {
-					// Still not ready after MAX_POLLS — surface a friendly message.
-					throw new Error(
-						__(
-							'The build is taking longer than expected. Try again in a moment.',
-							'dispatch'
-						)
-					);
-				}
-			}
-
+			clearStepTimers();
+			setInstallStep( project.publicId, 4 );
+			setTimeout( () => clearInstallStep( project.publicId ), 600 );
 			setNotice( { type: 'success', message: successMessage } );
 			await onRefresh();
 			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
+			clearStepTimers();
+			clearInstallStep( project.publicId );
 			setInstallStatus( project.publicId, 'failed' );
 			setNotice( {
 				type: 'error',
@@ -608,10 +885,24 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				'telex-project-card',
 				needsUpdate ? 'telex-project-card--has-update' : '',
 				isInstalled ? 'telex-project-card--installed' : '',
+				isSelected ? 'telex-project-card--selected' : '',
 			]
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
+			{ ! isInstalled && ! isBusy && (
+				<input
+					type="checkbox"
+					className="telex-card-select"
+					checked={ isSelected }
+					onChange={ () => toggleSelection( project.publicId ) }
+					aria-label={ sprintf(
+						/* translators: %s: project name */
+						__( 'Select %s for bulk install', 'dispatch' ),
+						project.name
+					) }
+				/>
+			) }
 			<CardHeader>
 				<div className="telex-card-title-row">
 					<ProjectAvatar
@@ -679,6 +970,12 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 					) }
 				</div>
 
+				{ project.description && (
+					<p className="telex-card-description">
+						{ project.description }
+					</p>
+				) }
+
 				{ ( installedAgo || showUpdatedAgo ) && (
 					<div className="telex-card-timestamps">
 						{ showUpdatedAgo ? (
@@ -701,6 +998,17 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 							)
 						) }
 					</div>
+				) }
+
+				<ExternalLink
+					href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+					className="telex-card-telex-link"
+				>
+					{ __( 'Edit in Telex', 'dispatch' ) }
+				</ExternalLink>
+
+				{ installStep !== null && (
+					<InstallProgress currentStep={ installStep } />
 				) }
 
 				<div
@@ -847,8 +1155,15 @@ function ProjectsApp() {
 		setInstalledProjects,
 		setLoading,
 		setError,
+		setAuthExpired,
 		setSearchQuery,
 		clearNotice,
+		setNotice,
+		setInstallStatus,
+		setCurrentPage,
+		clearSelection,
+		selectAllUninstalled,
+		setBulkInstalling,
 	} = useDispatch( 'telex/admin' );
 
 	const projects = useSelect( ( select ) =>
@@ -861,11 +1176,26 @@ function ProjectsApp() {
 		select( 'telex/admin' ).isLoading()
 	);
 	const error = useSelect( ( select ) => select( 'telex/admin' ).getError() );
+	const authExpired = useSelect( ( select ) =>
+		select( 'telex/admin' ).isAuthExpired()
+	);
 	const searchQuery = useSelect( ( select ) =>
 		select( 'telex/admin' ).getSearchQuery()
 	);
 	const notice = useSelect( ( select ) =>
 		select( 'telex/admin' ).getNotice()
+	);
+	const currentPage = useSelect( ( select ) =>
+		select( 'telex/admin' ).getCurrentPage()
+	);
+	const perPage = useSelect( ( select ) =>
+		select( 'telex/admin' ).getPerPage()
+	);
+	const selectedProjects = useSelect( ( select ) =>
+		select( 'telex/admin' ).getSelectedProjects()
+	);
+	const bulkInstalling = useSelect( ( select ) =>
+		select( 'telex/admin' ).isBulkInstalling()
 	);
 
 	// Fetch project list + installed tracker data.
@@ -881,32 +1211,53 @@ function ProjectsApp() {
 					setInstalledProjects( data.installed );
 				}
 			} catch ( err ) {
-				setError(
-					err.message ||
-						__(
-							"Couldn't load your projects. Check your connection and try again.",
-							'dispatch'
-						)
-				);
+				if ( err?.code === 'telex_token_expired' ) {
+					setAuthExpired( true );
+				} else {
+					setError(
+						err.message ||
+							__(
+								"Couldn't load your projects. Check your connection and try again.",
+								'dispatch'
+							)
+					);
+				}
 			}
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		},
-		// setError/setProjects/setInstalledProjects are stable dispatch references —
-		// adding them to the dep array causes unnecessary re-renders.
+		// Stable dispatch references excluded from deps intentionally.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[ restUrl ]
 	);
 
 	useEffect( () => {
-		apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
+		// Guard: apiFetch.use() pushes to a global array — register the nonce
+		// middleware at most once per page load even if the component remounts.
+		if ( ! ProjectsApp._nonceRegistered ) {
+			apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
+			ProjectsApp._nonceRegistered = true;
+		}
 		setLoading( true );
 		fetchData().finally( () => setLoading( false ) );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
-	// Piggyback on the WordPress Heartbeat (fires every ~60 s) to detect new
-	// builds while the user stays on the page. When the server reports new
-	// updates we silently force-refresh so the cards update automatically.
+	// Derived counts for tab titles.
+	const updatesCount = projects.filter( ( p ) => {
+		const inst = installedProjects[ p.publicId ];
+		return inst && p.currentVersion > inst.version;
+	} ).length;
+
+	const blocksCount = projects.filter(
+		( p ) => ( p.projectType?.toLowerCase() || 'block' ) !== 'theme'
+	).length;
+
+	const themesCount = projects.filter(
+		( p ) => p.projectType?.toLowerCase() === 'theme'
+	).length;
+
+	// Piggyback on the WordPress Heartbeat to detect new builds while the user
+	// stays on the page. When the server reports more updates we force-refresh.
 	useEffect( () => {
 		if ( ! window.jQuery ) {
 			return;
@@ -918,7 +1269,6 @@ function ProjectsApp() {
 
 		const onHeartbeatTick = ( _e, response ) => {
 			if ( response?.telex?.update_count > updatesCount ) {
-				// New builds appeared since last render — refresh silently.
 				fetchData( true );
 			}
 		};
@@ -936,20 +1286,6 @@ function ProjectsApp() {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ updatesCount ] );
-
-	// Derived counts for tab titles.
-	const updatesCount = projects.filter( ( p ) => {
-		const inst = installedProjects[ p.publicId ];
-		return inst && p.currentVersion > inst.version;
-	} ).length;
-
-	const blocksCount = projects.filter(
-		( p ) => ( p.projectType?.toLowerCase() || 'block' ) !== 'theme'
-	).length;
-
-	const themesCount = projects.filter(
-		( p ) => p.projectType?.toLowerCase() === 'theme'
-	).length;
 
 	// Filter projects for a given tab + search.
 	function getTabProjects( tabName ) {
@@ -973,6 +1309,63 @@ function ProjectsApp() {
 					! searchQuery ||
 					p.name?.toLowerCase().includes( searchQuery.toLowerCase() )
 			);
+	}
+
+	// Bulk install: install all selected (uninstalled) projects sequentially.
+	async function handleBulkInstall() {
+		setBulkInstalling( true );
+		let successCount = 0;
+		let lastError = '';
+
+		for ( const publicId of selectedProjects ) {
+			if ( installedProjects[ publicId ] ) {
+				continue; // already installed
+			}
+			setInstallStatus( publicId, 'installing' );
+			try {
+				// eslint-disable-next-line no-await-in-loop
+				await installWithPolling( apiFetch, restUrl, publicId, () => {
+					setInstallStatus( publicId, 'building' );
+				} );
+				successCount++;
+				setInstallStatus( publicId, 'idle' );
+			} catch ( err ) {
+				setInstallStatus( publicId, 'failed' );
+				lastError = err.message || __( 'Install failed.', 'dispatch' );
+			}
+		}
+
+		await fetchData();
+		clearSelection();
+		setBulkInstalling( false );
+
+		if ( successCount > 0 ) {
+			setNotice( {
+				type: lastError ? 'warning' : 'success',
+				message: lastError
+					? sprintf(
+							/* translators: 1: success count, 2: error */
+							__(
+								'%1$d installed. One or more failed: %2$s',
+								'dispatch'
+							),
+							successCount,
+							lastError
+					  )
+					: sprintf(
+							/* translators: %d: number of projects */
+							_n(
+								'%d project installed successfully.',
+								'%d projects installed successfully.',
+								successCount,
+								'dispatch'
+							),
+							successCount
+					  ),
+			} );
+		} else if ( lastError ) {
+			setNotice( { type: 'error', message: lastError } );
+		}
 	}
 
 	const tabs = [
@@ -1015,7 +1408,23 @@ function ProjectsApp() {
 				</Notice>
 			) }
 
-			{ ! loading && ! error && projects.length > 0 && (
+			{ authExpired && (
+				<Notice
+					status="warning"
+					isDismissible={ false }
+					className="telex-reconnect-notice"
+				>
+					{ __( 'Your Telex connection has expired.', 'dispatch' ) }{ ' ' }
+					<Button
+						variant="link"
+						onClick={ () => window.location.reload() }
+					>
+						{ __( 'Reconnect now', 'dispatch' ) }
+					</Button>
+				</Notice>
+			) }
+
+			{ ! loading && ! error && ! authExpired && projects.length > 0 && (
 				<StatsBar
 					projects={ projects }
 					installedProjects={ installedProjects }
@@ -1070,44 +1479,109 @@ function ProjectsApp() {
 				</Notice>
 			) }
 
-			{ ! loading && ! error && (
+			{ ! loading && ! error && ! authExpired && (
 				<TabPanel
 					tabs={ tabs }
 					className="telex-tab-panel"
 					initialTabName="all"
+					onSelect={ () => setCurrentPage( 1 ) }
 				>
 					{ ( tab ) => {
-						const visible = getTabProjects( tab.name );
+						const allVisible = getTabProjects( tab.name );
+						const totalItems = allVisible.length;
+						const totalPages = Math.ceil( totalItems / perPage );
+						const safePage = Math.min(
+							currentPage,
+							totalPages || 1
+						);
+						const pageStart = ( safePage - 1 ) * perPage;
+						const paginated = allVisible.slice(
+							pageStart,
+							pageStart + perPage
+						);
+
+						// IDs of uninstalled projects on this tab (for bulk select).
+						const uninstalledIds = allVisible
+							.filter(
+								( p ) => ! installedProjects[ p.publicId ]
+							)
+							.map( ( p ) => p.publicId );
+
 						return (
-							<div
-								className="telex-project-grid"
-								role="list"
-								aria-label={ __(
-									'Dispatch projects',
-									'dispatch'
-								) }
-								aria-live="polite"
-							>
-								{ visible.length === 0 ? (
-									<EmptyState
-										tab={ tab.name }
-										searchQuery={ searchQuery }
+							<>
+								{ selectedProjects.length > 0 && (
+									<BulkToolbar
+										selectedCount={
+											selectedProjects.length
+										}
+										onInstall={ handleBulkInstall }
+										onClear={ clearSelection }
+										isBusy={ bulkInstalling }
 									/>
-								) : (
-									visible.map( ( project ) => (
-										<div
-											key={ project.publicId }
-											role="listitem"
-										>
-											<ProjectCard
-												project={ project }
-												restUrl={ restUrl }
-												onRefresh={ fetchData }
-											/>
-										</div>
-									) )
 								) }
-							</div>
+								{ uninstalledIds.length > 0 &&
+									selectedProjects.length === 0 &&
+									! bulkInstalling && (
+										<div className="telex-select-all-row">
+											<Button
+												variant="link"
+												onClick={ () =>
+													selectAllUninstalled(
+														uninstalledIds
+													)
+												}
+												__next40pxDefaultSize
+											>
+												{ sprintf(
+													/* translators: %d: number of uninstalled projects */
+													_n(
+														'Select %d uninstalled project',
+														'Select all %d uninstalled projects',
+														uninstalledIds.length,
+														'dispatch'
+													),
+													uninstalledIds.length
+												) }
+											</Button>
+										</div>
+									) }
+								<div
+									className="telex-project-grid"
+									role="list"
+									aria-label={ __(
+										'Dispatch projects',
+										'dispatch'
+									) }
+									aria-live="polite"
+								>
+									{ paginated.length === 0 ? (
+										<EmptyState
+											tab={ tab.name }
+											searchQuery={ searchQuery }
+										/>
+									) : (
+										paginated.map( ( project ) => (
+											<div
+												key={ project.publicId }
+												role="listitem"
+											>
+												<ProjectCard
+													project={ project }
+													restUrl={ restUrl }
+													onRefresh={ fetchData }
+												/>
+											</div>
+										) )
+									) }
+								</div>
+								<PaginationControls
+									currentPage={ safePage }
+									totalPages={ totalPages }
+									totalItems={ totalItems }
+									perPage={ perPage }
+									onPageChange={ setCurrentPage }
+								/>
+							</>
 						);
 					} }
 				</TabPanel>

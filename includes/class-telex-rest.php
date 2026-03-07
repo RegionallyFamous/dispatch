@@ -199,6 +199,10 @@ class Telex_REST {
 			);
 		}
 
+		// Prune tracker entries whose plugin/theme directory no longer exists on disk.
+		// Inexpensive is_dir() calls; safe on every request.
+		Telex_Tracker::reconcile();
+
 		$installed  = Telex_Tracker::get_all();
 		$from_cache = false;
 
@@ -257,8 +261,9 @@ class Telex_REST {
 			'from_cache' => $from_cache,
 		];
 
-		// ETag for conditional GET — allows clients to skip parsing unchanged responses.
-		$etag          = '"' . md5( wp_json_encode( $body ) ) . '"';
+		// ETag derived only from data content, not the from_cache flag, so clients
+		// receive a 304 whenever the project list hasn't changed regardless of cache state.
+		$etag          = '"' . md5( wp_json_encode( [ $projects, $installed ] ) ) . '"';
 		$if_none_match = trim( $request->get_header( 'If-None-Match' ) ?? '' );
 
 		$response = rest_ensure_response( $body );
@@ -499,8 +504,11 @@ class Telex_REST {
 			return rest_ensure_response( [ 'authorized' => true ] );
 		}
 
-		// Pending array: status is 'pending' or 'slow_down'; slow_down includes an 'interval' hint.
-		return rest_ensure_response( array_merge( [ 'authorized' => false ], $result ) );
+		// Pending: merge server hints then explicitly set authorized=false so a
+		// non-standard API key can never accidentally override it.
+		$pending               = array_merge( [ 'interval' => null ], $result );
+		$pending['authorized'] = false;
+		return rest_ensure_response( $pending );
 	}
 
 	/**

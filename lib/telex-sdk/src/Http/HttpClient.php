@@ -39,7 +39,7 @@ class HttpClient
 
         $decoded = json_decode($body, true);
         if (!is_array($decoded)) {
-            throw new TelexException('Invalid JSON response', absint($status));
+            throw new TelexException('Invalid JSON response', $status);
         }
 
         return $decoded;
@@ -71,7 +71,7 @@ class HttpClient
             'Authorization' => 'Bearer ' . $this->token,
             'Accept'        => 'application/json',
             'Content-Type'  => 'application/json',
-        ], (string) json_encode($body));
+        ], (string) (json_encode($body) ?: '{}'));
 
         $response = $this->client->sendRequest($request);
         $status   = (int) $response->getStatusCode();
@@ -111,14 +111,14 @@ class HttpClient
         $message = $this->parseErrorMessage($body, $status);
 
         if ($status === 401) {
-            throw new AuthenticationException(esc_html($message));
+            throw new AuthenticationException($message);
         }
 
         if ($status === 404) {
-            throw new NotFoundException(esc_html($message));
+            throw new NotFoundException($message);
         }
 
-        throw new TelexException(esc_html($message), absint($status));
+        throw new TelexException($message, $status);
     }
 
     private function parseErrorMessage(string $body, int $status): string

@@ -98,7 +98,7 @@ if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
 // from the plugin header before activation.
 // -----------------------------------------------------------------------------
 global $wp_version;
-if ( isset( $wp_version ) && version_compare( $wp_version, '6.7', '<' ) ) {
+if ( version_compare( $wp_version, '6.7', '<' ) ) {
 	$telex_bail(
 		sprintf(
 			/* translators: %s: current WordPress version */

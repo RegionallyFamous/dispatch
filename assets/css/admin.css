@@ -155,6 +155,7 @@
  * ------------------------------------------------------------------------- */
 
 .telex-project-card {
+	position: relative;
 	box-shadow: var(--telex-shadow);
 	border-radius: var(--telex-radius-lg) !important;
 	border: 1px solid var(--telex-border) !important;
@@ -429,6 +430,215 @@
 	max-width: 340px;
 	margin: 0;
 	line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Connection status badge (PHP-rendered, next to <h1>)
+ * ------------------------------------------------------------------------- */
+
+.telex-connection-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 100px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	margin: -4px 0 16px;
+}
+
+.telex-connection-badge::before {
+	content: "";
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.telex-connection-badge--connected {
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
+}
+
+.telex-connection-badge--connected::before {
+	background: var(--telex-success);
+}
+
+.telex-connection-badge--disconnected {
+	background: #f0f0f1;
+	color: var(--telex-muted);
+}
+
+.telex-connection-badge--disconnected::before {
+	background: var(--telex-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Card description
+ * ------------------------------------------------------------------------- */
+
+.telex-card-description {
+	font-size: 12px;
+	color: var(--telex-muted);
+	line-height: 1.5;
+	margin: 0 0 10px;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+ * Open-in-Telex link on card
+ * ------------------------------------------------------------------------- */
+
+.telex-card-telex-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	color: var(--telex-brand);
+	text-decoration: none;
+	margin-top: 8px;
+}
+
+.telex-card-telex-link:hover {
+	text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+ * Pagination controls
+ * ------------------------------------------------------------------------- */
+
+.telex-pagination {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--telex-border);
+	flex-wrap: wrap;
+}
+
+.telex-pagination__info {
+	font-size: 13px;
+	color: var(--telex-muted);
+}
+
+.telex-pagination__buttons {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Select-all row
+ * ------------------------------------------------------------------------- */
+
+.telex-select-all-row {
+	margin-bottom: 8px;
+}
+
+/* Selected card highlight */
+.telex-project-card--selected {
+	outline: 2px solid var(--telex-brand);
+	outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Bulk action toolbar
+ * ------------------------------------------------------------------------- */
+
+.telex-bulk-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 14px;
+	background: #f0f6fc;
+	border: 1px solid #c3d9f7;
+	border-radius: var(--telex-radius);
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.telex-bulk-toolbar__count {
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d4289;
+	flex: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Project card — checkbox
+ * ------------------------------------------------------------------------- */
+
+.telex-card-select {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	z-index: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Install progress steps (inline on card)
+ * ------------------------------------------------------------------------- */
+
+.telex-install-progress {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 0 4px;
+}
+
+.telex-install-step {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--telex-muted);
+}
+
+.telex-install-step--active {
+	color: #1d2327;
+	font-weight: 500;
+}
+
+.telex-install-step--done {
+	color: var(--telex-success);
+}
+
+.telex-install-step__dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--telex-border);
+	flex-shrink: 0;
+}
+
+.telex-install-step--active .telex-install-step__dot {
+	background: var(--telex-brand);
+}
+
+.telex-install-step--done .telex-install-step__dot {
+	background: var(--telex-success);
+}
+
+.telex-install-step .components-spinner {
+	width: 12px;
+	height: 12px;
+	margin: 0;
+	flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Token-expired reconnect notice
+ * ------------------------------------------------------------------------- */
+
+.telex-reconnect-notice {
+	margin-bottom: 20px;
 }
 
 /* ---------------------------------------------------------------------------

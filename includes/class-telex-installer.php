@@ -80,8 +80,9 @@ class Telex_Installer {
 
 			// Store expected file list before upgrader runs so the
 			// upgrader_source_selection filter can verify integrity.
+			// Keyed on slug because verify_source resolves the slug from the path.
 			set_transient(
-				self::TRANSIENT_EXPECTED . md5( $public_id ),
+				self::TRANSIENT_EXPECTED . md5( $project['slug'] ),
 				array_column( $build['files'], 'path' ),
 				MINUTE_IN_SECONDS
 			);
@@ -90,7 +91,7 @@ class Telex_Installer {
 			$result = self::run_upgrader( $zip_path, $type );
 			remove_filter( 'upgrader_source_selection', self::verify_source( ... ), 10 );
 
-			delete_transient( self::TRANSIENT_EXPECTED . md5( $public_id ) );
+			delete_transient( self::TRANSIENT_EXPECTED . md5( $project['slug'] ) );
 			self::cleanup( $tmp_dir );
 
 			global $wp_filesystem;
@@ -106,6 +107,10 @@ class Telex_Installer {
 			}
 
 			$version = (int) ( $project['currentVersion'] ?? 0 );
+
+			// Determine action BEFORE overwriting the tracker entry.
+			$action = Telex_Tracker::is_installed( $public_id ) ? AuditAction::Update : AuditAction::Install;
+
 			Telex_Tracker::track( $public_id, $version, $type->value, $project['slug'] );
 			Telex_Cache::bust_project( $public_id );
 
@@ -113,13 +118,13 @@ class Telex_Installer {
 			if ( $activate && ProjectType::Block === $type ) {
 				$plugin_file = self::find_plugin_file( $project['slug'] );
 				if ( $plugin_file ) {
-					activate_plugin( $plugin_file );
+					$activated = activate_plugin( $plugin_file );
+					if ( is_wp_error( $activated ) ) {
+						// Log activation failure but don't roll back the install.
+						wp_trigger_error( __METHOD__, 'Plugin activation failed: ' . $activated->get_error_message(), E_USER_WARNING );
+					}
 				}
 			}
-
-			$action = Telex_Tracker::needs_update( $public_id, $version - 1 )
-				? AuditAction::Update
-				: AuditAction::Install;
 
 			Telex_Audit_Log::log(
 				$action,
@@ -415,6 +420,30 @@ class Telex_Installer {
 	): string|\WP_Error {
 		if ( is_wp_error( $source ) ) {
 			return $source;
+		}
+
+		// Verify file count matches the list recorded before extraction.
+		// This catches truncated downloads and tampered archives.
+		$source_parts = explode( '/', rtrim( $source, '/' ) );
+		$slug_guess   = end( $source_parts );
+		$expected     = get_transient( self::TRANSIENT_EXPECTED . md5( $slug_guess ) );
+		if ( is_array( $expected ) ) {
+			$count_iter   = new \RecursiveIteratorIterator(
+				new \RecursiveDirectoryIterator( $source, \RecursiveDirectoryIterator::SKIP_DOTS ),
+				\RecursiveIteratorIterator::LEAVES_ONLY
+			);
+			$actual_count = iterator_count( $count_iter );
+			if ( count( $expected ) !== $actual_count ) {
+				return new \WP_Error(
+					'telex_integrity',
+					sprintf(
+						/* translators: 1: expected count, 2: actual count */
+						__( 'Package integrity check failed: expected %1$d files, found %2$d.', 'dispatch' ),
+						count( $expected ),
+						$actual_count
+					)
+				);
+			}
 		}
 
 		// Scan unpacked files for blocked extensions.
