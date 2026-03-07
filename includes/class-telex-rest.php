@@ -285,7 +285,7 @@ class Telex_REST {
 			return new \WP_Error(
 				$result->get_error_code(),
 				$result->get_error_message(),
-				[ 'status' => 500 ]
+				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
 			);
 		}
 
@@ -324,7 +324,7 @@ class Telex_REST {
 			return new \WP_Error(
 				$result->get_error_code(),
 				$result->get_error_message(),
-				[ 'status' => 500 ]
+				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
 			);
 		}
 
@@ -450,6 +450,38 @@ class Telex_REST {
 	// -------------------------------------------------------------------------
 	// Permission callbacks
 	// -------------------------------------------------------------------------
+
+	// -------------------------------------------------------------------------
+	// Internal helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Maps a Telex WP_Error code to an appropriate HTTP status code.
+	 *
+	 * Installer and auth methods return WP_Error codes that indicate client-side
+	 * problems (bad build state, capability failures, API unavailability). Sending
+	 * all of these as 500 is incorrect and masks the real cause from the frontend.
+	 *
+	 * @param string $code The WP_Error code.
+	 * @return int HTTP status code.
+	 */
+	private static function http_status_for_error( string $code ): int {
+		return match ( $code ) {
+			'telex_not_connected'  => 401,
+			'telex_caps'           => 403,
+			'telex_forbidden'      => 403,
+			'telex_not_installed'  => 404,
+			'telex_active_theme'   => 409,
+			'telex_not_ready'      => 503,
+			'telex_no_files',
+			'telex_path',
+			'telex_ext',
+			'telex_blocked_ext'    => 422,
+			'telex_api',
+			'telex_download'       => 502,
+			default                => 500,
+		};
+	}
 
 	/**
 	 * Permission callback: requires manage_options capability.

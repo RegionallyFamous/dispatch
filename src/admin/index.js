@@ -398,11 +398,12 @@ function ProjectsApp() {
 			) }
 
 			<div className="telex-toolbar" role="search">
-				<SearchControl
-					label={ __( 'Search projects', 'dispatch' ) }
-					value={ searchQuery }
-					onChange={ setSearchQuery }
-				/>
+			<SearchControl
+				label={ __( 'Search projects', 'dispatch' ) }
+				value={ searchQuery }
+				onChange={ setSearchQuery }
+				__nextHasNoMarginBottom
+			/>
 				<a
 					href={ disconnectUrl }
 					className="button button-secondary telex-disconnect"
