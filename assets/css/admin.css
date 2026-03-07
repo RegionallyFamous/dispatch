@@ -5,6 +5,7 @@
  * ------------------------------------------------------------------------- */
 
 :root {
+
 	/* Inherit WP admin's active color scheme — falls back to WP default blue */
 	--telex-brand: var(--wp-admin-theme-color, #3858e9);
 	--telex-brand-hover: var(--wp-admin-theme-color, #2145e6);
@@ -191,17 +192,14 @@
 	border-top-color: var(--telex-update-border) !important;
 }
 
+/* Card header — solid surface, no gradient. Type is communicated by the
+   top accent stripe only. Flat colour reads much more cleanly. */
 .telex-project-card .components-card__header {
 	border-bottom: 1px solid var(--telex-border);
 	padding: 14px 16px 12px;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 8px;
-}
-
-/* Card header — solid surface, no gradient. Type is communicated by the
-   top accent stripe only. Flat colour reads much more cleanly. */
-.telex-project-card .components-card__header {
 	background: var(--telex-surface-alt);
 }
 
