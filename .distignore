@@ -43,6 +43,7 @@ docs/
 # Generated / local
 build/
 *.zip
+.tmp-zip/
 .phpunit.result.cache
 .phpunit.cache/
 coverage/
