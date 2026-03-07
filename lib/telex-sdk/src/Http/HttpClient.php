@@ -39,7 +39,7 @@ class HttpClient
 
         $decoded = json_decode($body, true);
         if (!is_array($decoded)) {
-            throw new TelexException('Invalid JSON response', $status);
+            throw new TelexException('Invalid JSON response', $status); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
         }
 
         return $decoded;
@@ -111,14 +111,14 @@ class HttpClient
         $message = $this->parseErrorMessage($body, $status);
 
         if ($status === 401) {
-            throw new AuthenticationException($message);
+            throw new AuthenticationException($message); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
         }
 
         if ($status === 404) {
-            throw new NotFoundException($message);
+            throw new NotFoundException($message); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
         }
 
-        throw new TelexException($message, $status);
+        throw new TelexException($message, $status); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not HTML output.
     }
 
     private function parseErrorMessage(string $body, int $status): string

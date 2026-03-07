@@ -4,6 +4,7 @@
 # Version control
 .git/
 .gitignore
+.distignore
 
 # AI / editor tooling
 .cursor/

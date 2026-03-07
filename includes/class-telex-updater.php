@@ -332,12 +332,6 @@ class Telex_Updater {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Finds the plugin file path (relative to plugins dir) for a given slug.
-	 *
-	 * @param string $slug The WordPress plugin directory slug.
-	 * @return string Plugin file path, or empty string if not found.
-	 */
-	/**
 	 * Seeds per-project caches from the warm bulk project list so that the
 	 * per-project loops avoid N individual API calls on a cold cache.
 	 *
