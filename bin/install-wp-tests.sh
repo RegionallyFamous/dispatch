@@ -19,9 +19,14 @@ SKIP_DB_CREATE=${6:-false}
 WP_TESTS_DIR=${WP_TESTS_DIR:-/tmp/wordpress-tests-lib}
 WP_CORE_DIR=${WP_CORE_DIR:-/tmp/wordpress}
 
+# Download a URL to a file, or to stdout when $2 is "-".
 download() {
     if [ "$(which curl)" ]; then
-        curl -sSL "$1" > "$2"
+        if [ "$2" = "-" ]; then
+            curl -sSL "$1"
+        else
+            curl -sSL "$1" > "$2"
+        fi
     elif [ "$(which wget)" ]; then
         wget -nv -O "$2" "$1"
     fi
@@ -34,7 +39,9 @@ elif [[ $WP_VERSION == 'nightly' || $WP_VERSION == 'trunk' ]]; then
     WP_TESTS_TAG="trunk"
 else
     if [[ $WP_VERSION == 'latest' ]]; then
-        local_version="$(download https://api.wordpress.org/core/version-check/1.7/ - 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | grep -o '[0-9.]*')"
+        # || true: grep exits 1 on no match; that must not abort the script.
+        local_version="$(download "https://api.wordpress.org/core/version-check/1.7/" - 2>/dev/null \
+            | grep -o '"version":"[^"]*"' | head -1 | grep -o '[0-9.]*' || true)"
         if [[ -z "$local_version" ]]; then
             WP_TESTS_TAG="trunk"
         else
@@ -86,11 +93,26 @@ install_test_suite() {
     fi
 
     download "$zip_url" /tmp/wp-develop.zip
+
+    # Validate the zip before extracting. GitHub returns an HTML 404 page (not a
+    # zip) when a tag doesn't exist yet, which causes unzip to fail with a
+    # confusing error. If the download isn't a valid zip, fall back to trunk.
+    if ! unzip -t /tmp/wp-develop.zip > /dev/null 2>&1; then
+        echo "Warning: '$zip_url' is not a valid zip (tag may not exist yet). Falling back to trunk."
+        rm -f /tmp/wp-develop.zip
+        download "https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip" /tmp/wp-develop.zip
+    fi
+
     unzip -q /tmp/wp-develop.zip -d /tmp/wp-develop-extracted/
 
     # The zip extracts to wordpress-develop-<ref>/ — find the actual dir name.
     local extracted_dir
     extracted_dir="$(find /tmp/wp-develop-extracted -maxdepth 1 -mindepth 1 -type d | head -1)"
+
+    if [[ -z "$extracted_dir" ]]; then
+        echo "Error: could not find extracted WordPress develop directory." >&2
+        exit 1
+    fi
 
     mkdir -p "$WP_TESTS_DIR/includes" "$WP_TESTS_DIR/data"
     cp -r "${extracted_dir}/tests/phpunit/includes/." "$WP_TESTS_DIR/includes/"
