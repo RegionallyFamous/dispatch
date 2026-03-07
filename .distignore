@@ -1,0 +1,56 @@
+# Files and directories excluded from the WordPress.org distribution zip.
+# Also used by the CI plugin-check job to build a clean dist directory.
+
+# Version control
+.git/
+.gitignore
+
+# AI / editor tooling
+.cursor/
+.vscode/
+.idea/
+
+# GitHub-specific
+.github/
+
+# Node / npm
+node_modules/
+.eslintrc.js
+.stylelintrc.json
+package.json
+package-lock.json
+
+# Composer dev tooling
+vendor/
+composer.json
+composer.lock
+phpcs.xml.dist
+phpunit.xml.dist
+phpstan.neon
+phpstan-bootstrap.php
+
+# Build tooling
+Makefile
+/bin/
+/src/
+
+# Tests
+tests/
+
+# Documentation source
+docs/
+
+# Generated / local
+build/
+*.zip
+.phpunit.result.cache
+.phpunit.cache/
+coverage/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# wp-env
+.wp-env.json

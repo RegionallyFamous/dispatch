@@ -153,10 +153,18 @@ jobs:
       - name: Install Composer dependencies (production only)
         run: composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
 
+      - name: Build clean distribution directory
+        # Mirrors what bin/build-zip.sh does: copy only production files so
+        # dev tooling (bin/, tests/, .github/, .eslintrc.js, etc.) is absent
+        # when plugin-check runs — those files must not be in a WP.org zip.
+        run: |
+          mkdir -p /tmp/plugin-dist/dispatch
+          rsync -r --exclude-from=.distignore . /tmp/plugin-dist/dispatch/
+
       - name: WordPress Plugin Check
         uses: wordpress/plugin-check-action@v1
         with:
-          build-dir: '.'
+          build-dir: '/tmp/plugin-dist/dispatch'
           # plugin_readme  — readme.txt is for wordpress.org listing, not runtime.
           # plugin_review_phpcs — covered by the dedicated lint-php job.
           # plugin_updater — false positive: the update hooks inject updates for

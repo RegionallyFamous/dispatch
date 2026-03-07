@@ -2,6 +2,10 @@
 
 namespace Telex\Sdk;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Telex\Sdk\Http\HttpClient;
 use Telex\Sdk\Resources\ProjectResource;
 use Psr\Http\Client\ClientInterface;

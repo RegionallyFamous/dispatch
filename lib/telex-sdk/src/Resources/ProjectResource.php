@@ -2,6 +2,10 @@
 
 namespace Telex\Sdk\Resources;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Telex\Sdk\Http\HttpClient;
 
 class ProjectResource
