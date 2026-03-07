@@ -76,7 +76,12 @@ function StepIndicator( { active } ) {
 					>
 						<span className="telex-step__dot">
 							{ isDone ? (
-								<Icon icon={ check } size={ 12 } />
+								<Icon
+									icon={ check }
+									size={ 12 }
+									aria-hidden={ true }
+									focusable={ false }
+								/>
 							) : (
 								stepNum
 							) }
@@ -284,14 +289,19 @@ function DeviceFlowApp() {
 				<StepIndicator active={ 3 } />
 				<div
 					className="telex-connect-card telex-connect-card--success"
-					aria-live="assertive"
+					role="alert"
 				>
 					<div className="telex-connect-success-icon">
-						<Icon icon={ check } size={ 40 } />
+						<Icon
+							icon={ check }
+							size={ 40 }
+							aria-hidden={ true }
+							focusable={ false }
+						/>
 					</div>
 					<h2>{ __( "You're in!", 'dispatch' ) }</h2>
 					<p>{ __( 'Taking you to your projects…', 'dispatch' ) }</p>
-					<Spinner />
+					<Spinner aria-hidden={ true } />
 				</div>
 			</div>
 		);
@@ -304,7 +314,12 @@ function DeviceFlowApp() {
 				<StepIndicator active={ 1 } />
 				<div className="telex-connect-card">
 					<div className="telex-connect-brand">
-						<Icon icon={ pluginsIcon } size={ 32 } />
+						<Icon
+							icon={ pluginsIcon }
+							size={ 32 }
+							aria-hidden={ true }
+							focusable={ false }
+						/>
 					</div>
 					<h2>{ __( 'Link your Telex account', 'dispatch' ) }</h2>
 					<p>
@@ -313,20 +328,35 @@ function DeviceFlowApp() {
 							'dispatch'
 						) }
 					</p>
-					<div className="telex-connect-features">
-						<div className="telex-connect-feature">
-							<Icon icon={ check } size={ 14 } />
+					<ul className="telex-connect-features">
+						<li className="telex-connect-feature">
+							<Icon
+								icon={ check }
+								size={ 14 }
+								aria-hidden={ true }
+								focusable={ false }
+							/>
 							{ __( "One-time setup — that's it", 'dispatch' ) }
-						</div>
-						<div className="telex-connect-feature">
-							<Icon icon={ check } size={ 14 } />
+						</li>
+						<li className="telex-connect-feature">
+							<Icon
+								icon={ check }
+								size={ 14 }
+								aria-hidden={ true }
+								focusable={ false }
+							/>
 							{ __( 'No password to remember', 'dispatch' ) }
-						</div>
-						<div className="telex-connect-feature">
-							<Icon icon={ check } size={ 14 } />
+						</li>
+						<li className="telex-connect-feature">
+							<Icon
+								icon={ check }
+								size={ 14 }
+								aria-hidden={ true }
+								focusable={ false }
+							/>
 							{ __( 'Disconnect whenever you like', 'dispatch' ) }
-						</div>
-					</div>
+						</li>
+					</ul>
 					<Button
 						variant="primary"
 						onClick={ startDeviceFlow }
@@ -345,10 +375,13 @@ function DeviceFlowApp() {
 				<StepIndicator active={ 1 } />
 				<div
 					className="telex-connect-card telex-connect-card--loading"
-					aria-live="polite"
+					role="status"
+					aria-label={ __( 'Getting your code…', 'dispatch' ) }
 				>
-					<Spinner />
-					<span>{ __( 'Getting your code…', 'dispatch' ) }</span>
+					<Spinner aria-hidden={ true } />
+					<span aria-hidden={ true }>
+						{ __( 'Getting your code…', 'dispatch' ) }
+					</span>
 				</div>
 			</div>
 		);
@@ -367,18 +400,23 @@ function DeviceFlowApp() {
 						) }
 					</p>
 
-					<div className="telex-device-code-block" aria-live="polite">
+					<div className="telex-device-code-block">
 						<div
 							ref={ userCodeRef }
 							className="telex-user-code"
 							role="status"
-							aria-label={ sprintf(
-								/* translators: %s: user code */
-								__( 'Your device code is %s', 'dispatch' ),
-								deviceData.user_code
-							) }
+							aria-live="polite"
 						>
-							{ deviceData.user_code }
+							<span className="screen-reader-text">
+								{ sprintf(
+									/* translators: %s: user code */
+									__( 'Your device code is %s', 'dispatch' ),
+									deviceData.user_code
+								) }
+							</span>
+							<span aria-hidden={ true }>
+								{ deviceData.user_code }
+							</span>
 						</div>
 						<Button
 							variant="tertiary"
@@ -405,10 +443,13 @@ function DeviceFlowApp() {
 						__next40pxDefaultSize
 					>
 						{ __( 'Open Telex and approve →', 'dispatch' ) }
+						<span className="screen-reader-text">
+							{ __( '(opens in a new tab)', 'dispatch' ) }
+						</span>
 					</Button>
 
-					<div className="telex-polling-status" aria-live="polite">
-						<Spinner />
+					<div className="telex-polling-status">
+						<Spinner aria-hidden={ true } />
 						<span>
 							{ __( 'Waiting for you to approve…', 'dispatch' ) }
 						</span>
@@ -431,9 +472,14 @@ function DeviceFlowApp() {
 		return (
 			<div className="telex-connect-wrap">
 				<StepIndicator active={ 1 } />
-				<div className="telex-connect-card" aria-live="assertive">
+				<div className="telex-connect-card" role="alert">
 					<div className="telex-connect-error-icon">
-						<Icon icon={ caution } size={ 32 } />
+						<Icon
+							icon={ caution }
+							size={ 32 }
+							aria-hidden={ true }
+							focusable={ false }
+						/>
 					</div>
 					<Notice status="error" isDismissible={ false }>
 						{ errorMsg ||

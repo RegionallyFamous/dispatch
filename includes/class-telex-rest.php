@@ -310,12 +310,42 @@ class Telex_REST {
 			}
 		}
 
-		// Decorate each project with local install status to eliminate a second round-trip.
+		// The bulk list() API does not include currentVersion. For installed projects we
+		// need the accurate version to detect updates. Use per-project cache when warm
+		// (seeded by Telex_Updater on every WP update-check); fall back to individual
+		// get() calls only for the installed subset — typically 1–5 projects.
+		$remote_versions = [];
+		if ( ! empty( $installed ) ) {
+			$vc = Telex_Auth::get_client();
+			if ( $vc ) {
+				foreach ( array_keys( $installed ) as $installed_id ) {
+					$cp = Telex_Cache::get_project( $installed_id );
+					if ( is_array( $cp ) && isset( $cp['currentVersion'] ) ) {
+						$remote_versions[ $installed_id ] = (int) $cp['currentVersion'];
+					} else {
+						try {
+							$rp                               = $vc->projects->get( $installed_id );
+							$remote_versions[ $installed_id ] = (int) ( $rp['currentVersion'] ?? 0 );
+							Telex_Cache::set_project( $installed_id, $rp );
+						} catch ( \Exception ) {
+							$remote_versions[ $installed_id ] = 0;
+						}
+					}
+				}
+			}
+		}
+
+		// Decorate each project with local install status.
 		$projects = array_map(
-			static function ( array $project ) use ( $installed ): array {
+			static function ( array $project ) use ( $installed, $remote_versions ): array {
 				$id             = $project['publicId'] ?? '';
-				$remote_version = (int) ( $project['currentVersion'] ?? 0 );
+				$remote_version = $remote_versions[ $id ] ?? (int) ( $project['currentVersion'] ?? 0 );
 				$local          = $installed[ $id ] ?? null;
+
+				// Inject currentVersion so the JS side can compare without a separate call.
+				if ( $remote_version > 0 ) {
+					$project['currentVersion'] = $remote_version;
+				}
 
 				$project['_installed']    = null !== $local;
 				$project['_needs_update'] = null !== $local && $remote_version > (int) $local['version'];

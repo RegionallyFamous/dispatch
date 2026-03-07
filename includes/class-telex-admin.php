@@ -166,12 +166,18 @@ class Telex_Admin {
 		$per_page_opt = get_user_option( self::SCREEN_OPTION_PER_PAGE );
 		$per_page     = (int) ( false !== $per_page_opt && '' !== $per_page_opt ? $per_page_opt : 24 );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Dispatch', 'dispatch' ) . '</h1>';
-
 		$badge_class = Telex_Auth::is_connected() ? 'telex-connection-badge telex-connection-badge--connected' : 'telex-connection-badge telex-connection-badge--disconnected';
 		$badge_label = Telex_Auth::is_connected() ? __( 'Connected', 'dispatch' ) : __( 'Not connected', 'dispatch' );
-		printf( '<p class="%s">%s</p>', esc_attr( $badge_class ), esc_html( $badge_label ) );
+
+		echo '<div class="wrap">';
+		echo '<div class="telex-page-header">';
+		echo '<h1>' . esc_html__( 'Dispatch', 'dispatch' ) . '</h1>';
+		printf(
+			'<span class="%s">%s</span>',
+			esc_attr( $badge_class ),
+			esc_html( $badge_label )
+		);
+		echo '</div>';
 
 		// Transient-based notices (post-redirect-get pattern).
 		self::render_notices();

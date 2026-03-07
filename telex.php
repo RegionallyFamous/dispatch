@@ -3,7 +3,7 @@
  * Plugin Name:       Dispatch for Telex
  * Plugin URI:        https://telex.automattic.ai
  * Description:       Deploy blocks and themes built with Telex, Automattic AI Labs' natural language WordPress builder, directly from your WordPress admin.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.7
  * Tested up to:      6.8
  * Requires PHP:      8.2
@@ -26,7 +26,7 @@ if ( defined( 'TELEX_LOADED' ) ) {
 }
 define( 'TELEX_LOADED', true );
 
-define( 'TELEX_PLUGIN_VERSION', '1.0.0' );
+define( 'TELEX_PLUGIN_VERSION', '1.0.1' );
 define( 'TELEX_PLUGIN_FILE', __FILE__ );
 define( 'TELEX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TELEX_PUBLIC_URL', 'https://telex.automattic.ai' );

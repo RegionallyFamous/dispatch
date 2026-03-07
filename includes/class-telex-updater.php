@@ -267,8 +267,8 @@ class Telex_Updater {
 		printf( '<td colspan="%d" class="plugin-update colspanchange">', (int) $cols );
 		echo '<div class="update-message notice inline notice-warning notice-alt"><p>';
 		printf(
-			/* translators: 1: build number, 2: update URL */
-			wp_kses_post( __( 'Update available! Build #%1$s is ready in Dispatch. <a href="%2$s">Update now</a>.', 'dispatch' ) ),
+			/* translators: 1: version number, 2: update URL */
+			wp_kses_post( __( 'Update available! v%1$s is ready in Dispatch. <a href="%2$s">Update now</a>.', 'dispatch' ) ),
 			esc_html( (string) $remote_version ),
 			esc_url( admin_url( 'admin.php?page=telex' ) )
 		);

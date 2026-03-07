@@ -23,7 +23,6 @@ import {
 	Card,
 	CardBody,
 	CardHeader,
-	CheckboxControl,
 	ExternalLink,
 	Modal,
 	Notice,
@@ -39,6 +38,7 @@ import {
 	update as updateIcon,
 	trash,
 	check,
+	close as closeIcon,
 	plugins as pluginsIcon,
 	layout as layoutIcon,
 	search as searchIcon,
@@ -187,10 +187,7 @@ const DEFAULT_STATE = {
 	confirmRemove: null, // publicId awaiting confirmation
 	currentPage: 1,
 	perPage: INITIAL_PER_PAGE,
-	selectedProjects: [], // publicIds of projects selected for bulk operations
-	bulkInstalling: false,
 	installSteps: {}, // publicId → step number (1–4) during install
-	activateFlags: {}, // publicId → boolean (activate after install)
 };
 
 const actions = {
@@ -215,17 +212,6 @@ const actions = {
 		publicId,
 	} ),
 	setCurrentPage: ( page ) => ( { type: 'SET_PAGE', page } ),
-	toggleSelection: ( publicId ) => ( { type: 'TOGGLE_SELECTION', publicId } ),
-	clearSelection: () => ( { type: 'CLEAR_SELECTION' } ),
-	selectAllUninstalled: ( publicIds ) => ( {
-		type: 'SELECT_ALL_UNINSTALLED',
-		publicIds,
-	} ),
-	selectAll: ( publicIds ) => ( { type: 'SELECT_ALL', publicIds } ),
-	setBulkInstalling: ( installing ) => ( {
-		type: 'SET_BULK_INSTALLING',
-		installing,
-	} ),
 	setInstallStep: ( publicId, step ) => ( {
 		type: 'SET_INSTALL_STEP',
 		publicId,
@@ -234,11 +220,6 @@ const actions = {
 	clearInstallStep: ( publicId ) => ( {
 		type: 'CLEAR_INSTALL_STEP',
 		publicId,
-	} ),
-	setActivateFlag: ( publicId, activate ) => ( {
-		type: 'SET_ACTIVATE_FLAG',
-		publicId,
-		activate,
 	} ),
 };
 
@@ -270,25 +251,6 @@ function reducer( state = DEFAULT_STATE, action ) {
 			return { ...state, confirmRemove: action.publicId };
 		case 'SET_PAGE':
 			return { ...state, currentPage: action.page };
-		case 'TOGGLE_SELECTION': {
-			const exists = state.selectedProjects.includes( action.publicId );
-			return {
-				...state,
-				selectedProjects: exists
-					? state.selectedProjects.filter(
-							( id ) => id !== action.publicId
-					  )
-					: [ ...state.selectedProjects, action.publicId ],
-			};
-		}
-		case 'CLEAR_SELECTION':
-			return { ...state, selectedProjects: [] };
-		case 'SELECT_ALL_UNINSTALLED':
-			return { ...state, selectedProjects: action.publicIds };
-		case 'SELECT_ALL':
-			return { ...state, selectedProjects: action.publicIds };
-		case 'SET_BULK_INSTALLING':
-			return { ...state, bulkInstalling: action.installing };
 		case 'SET_INSTALL_STEP':
 			return {
 				...state,
@@ -302,14 +264,6 @@ function reducer( state = DEFAULT_STATE, action ) {
 				state.installSteps;
 			return { ...state, installSteps: remainingSteps };
 		}
-		case 'SET_ACTIVATE_FLAG':
-			return {
-				...state,
-				activateFlags: {
-					...state.activateFlags,
-					[ action.publicId ]: action.activate,
-				},
-			};
 		default:
 			return state;
 	}
@@ -331,12 +285,8 @@ const store = createReduxStore( 'telex/admin', {
 		getConfirmRemove: ( state ) => state.confirmRemove,
 		getCurrentPage: ( state ) => state.currentPage,
 		getPerPage: ( state ) => state.perPage,
-		getSelectedProjects: ( state ) => state.selectedProjects,
-		isBulkInstalling: ( state ) => state.bulkInstalling,
 		getInstallStep: ( state, publicId ) =>
 			state.installSteps[ publicId ] ?? null,
-		getActivateFlag: ( state, publicId ) =>
-			state.activateFlags[ publicId ] ?? false,
 	},
 } );
 
@@ -354,8 +304,18 @@ const INSTALL_STEPS = [
 ];
 
 function InstallProgress( { currentStep } ) {
+	const currentLabel = INSTALL_STEPS[ currentStep - 1 ] || '';
 	return (
-		<div className="telex-install-progress" aria-live="polite">
+		<div className="telex-install-progress">
+			{ /* Scoped live region: only the active step label is announced. */ }
+			<span
+				className="screen-reader-text"
+				role="status"
+				aria-live="polite"
+				aria-atomic="true"
+			>
+				{ currentLabel }
+			</span>
 			{ INSTALL_STEPS.map( ( label, idx ) => {
 				const stepNum = idx + 1;
 				const isDone = stepNum < currentStep;
@@ -370,137 +330,17 @@ function InstallProgress( { currentStep } ) {
 						]
 							.filter( Boolean )
 							.join( ' ' ) }
+						aria-hidden={ true }
 					>
 						{ isActive ? (
-							<Spinner />
+							<Spinner aria-hidden={ true } />
 						) : (
-							<span
-								className="telex-install-step__dot"
-								aria-hidden="true"
-							/>
+							<span className="telex-install-step__dot" />
 						) }
 						{ label }
 					</div>
 				);
 			} ) }
-		</div>
-	);
-}
-
-// ---------------------------------------------------------------------------
-// Bulk install / update / remove toolbar
-// ---------------------------------------------------------------------------
-
-/**
- * @param {Object}   root0
- * @param {number}   root0.selectedCount
- * @param {string}   root0.mode          'install' | 'update' | 'remove'
- * @param {Function} root0.onInstall
- * @param {Function} root0.onUpdate
- * @param {Function} root0.onRemove
- * @param {Function} root0.onClear
- * @param {boolean}  root0.isBusy
- * @return {import('@wordpress/element').WPElement} Rendered element.
- */
-function BulkToolbar( {
-	selectedCount,
-	mode,
-	onInstall,
-	onUpdate,
-	onRemove,
-	onClear,
-	isBusy,
-} ) {
-	return (
-		<div className="telex-bulk-toolbar" role="toolbar">
-			<span className="telex-bulk-toolbar__count">
-				{ sprintf(
-					/* translators: %d: number of selected projects */
-					_n(
-						'%d project selected',
-						'%d projects selected',
-						selectedCount,
-						'dispatch'
-					),
-					selectedCount
-				) }
-			</span>
-
-			{ mode === 'update' && (
-				<Button
-					variant="primary"
-					onClick={ onUpdate }
-					disabled={ isBusy }
-					isBusy={ isBusy }
-					icon={ isBusy ? null : updateIcon }
-					__next40pxDefaultSize
-				>
-					{ sprintf(
-						/* translators: %d: number of projects to update */
-						_n(
-							'Update %d project',
-							'Update %d projects',
-							selectedCount,
-							'dispatch'
-						),
-						selectedCount
-					) }
-				</Button>
-			) }
-
-			{ mode === 'remove' && (
-				<Button
-					variant="primary"
-					isDestructive
-					onClick={ onRemove }
-					disabled={ isBusy }
-					isBusy={ isBusy }
-					icon={ isBusy ? null : trash }
-					__next40pxDefaultSize
-				>
-					{ sprintf(
-						/* translators: %d: number of projects to remove */
-						_n(
-							'Remove %d project',
-							'Remove %d projects',
-							selectedCount,
-							'dispatch'
-						),
-						selectedCount
-					) }
-				</Button>
-			) }
-
-			{ ( ! mode || mode === 'install' ) && (
-				<Button
-					variant="primary"
-					onClick={ onInstall }
-					disabled={ isBusy }
-					isBusy={ isBusy }
-					icon={ isBusy ? null : download }
-					__next40pxDefaultSize
-				>
-					{ sprintf(
-						/* translators: %d: number of projects to install */
-						_n(
-							'Install %d project',
-							'Install %d projects',
-							selectedCount,
-							'dispatch'
-						),
-						selectedCount
-					) }
-				</Button>
-			) }
-
-			<Button
-				variant="tertiary"
-				onClick={ onClear }
-				disabled={ isBusy }
-				__next40pxDefaultSize
-			>
-				{ __( 'Clear selection', 'dispatch' ) }
-			</Button>
 		</div>
 	);
 }
@@ -524,8 +364,15 @@ function PaginationControls( {
 	const end = Math.min( currentPage * perPage, totalItems );
 
 	return (
-		<div className="telex-pagination">
-			<span className="telex-pagination__info">
+		<nav
+			className="telex-pagination"
+			aria-label={ __( 'Pagination', 'dispatch' ) }
+		>
+			<span
+				className="telex-pagination__info"
+				aria-live="polite"
+				aria-atomic="true"
+			>
 				{ sprintf(
 					/* translators: 1: first item number, 2: last item number, 3: total */
 					__( '%1$d\u2013%2$d of %3$d', 'dispatch' ),
@@ -539,6 +386,7 @@ function PaginationControls( {
 					variant="secondary"
 					onClick={ () => onPageChange( currentPage - 1 ) }
 					disabled={ currentPage === 1 }
+					aria-label={ __( 'Go to previous page', 'dispatch' ) }
 					__next40pxDefaultSize
 				>
 					{ __( '\u2039 Previous', 'dispatch' ) }
@@ -547,12 +395,13 @@ function PaginationControls( {
 					variant="secondary"
 					onClick={ () => onPageChange( currentPage + 1 ) }
 					disabled={ currentPage === totalPages }
+					aria-label={ __( 'Go to next page', 'dispatch' ) }
 					__next40pxDefaultSize
 				>
 					{ __( 'Next \u203a', 'dispatch' ) }
 				</Button>
 			</div>
-		</div>
+		</nav>
 	);
 }
 
@@ -573,6 +422,7 @@ function StatsBar( { projects, installedProjects } ) {
 	return (
 		<div
 			className="telex-stats-bar"
+			role="region"
 			aria-label={ __( 'Projects summary', 'dispatch' ) }
 		>
 			<div className="telex-stat">
@@ -613,7 +463,12 @@ function TypeBadge( { type } ) {
 				isTheme ? 'telex-type-badge--theme' : 'telex-type-badge--block'
 			}` }
 		>
-			<Icon icon={ isTheme ? layoutIcon : pluginsIcon } size={ 10 } />
+			<Icon
+				icon={ isTheme ? layoutIcon : pluginsIcon }
+				size={ 10 }
+				aria-hidden={ true }
+				focusable={ false }
+			/>
 			{ isTheme ? __( 'Theme', 'dispatch' ) : __( 'Block', 'dispatch' ) }
 		</span>
 	);
@@ -628,54 +483,68 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 		select( 'telex/admin' ).getInstallStatus( publicId )
 	);
 
-	if (
-		installStatus === 'building' ||
-		installStatus === 'installing' ||
-		installStatus === 'removing'
-	) {
-		const busyLabels = {
-			building: __( 'Building…', 'dispatch' ),
-			installing: __( 'Installing…', 'dispatch' ),
-			removing: __( 'Removing…', 'dispatch' ),
-		};
-		const busyLabel = busyLabels[ installStatus ];
-		return (
-			<span
-				className="telex-badge telex-badge--loading"
-				aria-live="polite"
-			>
-				<Spinner />
-				{ busyLabel }
-			</span>
-		);
-	}
+	const busyLabels = {
+		building: __( 'Building…', 'dispatch' ),
+		installing: __( 'Installing…', 'dispatch' ),
+		removing: __( 'Removing…', 'dispatch' ),
+	};
 
-	if ( ! installed ) {
-		return (
-			<span className="telex-badge telex-badge--idle">
-				{ __( 'Not installed', 'dispatch' ) }
-			</span>
-		);
-	}
+	const isBusy = installStatus in busyLabels;
+	let variantClass;
+	let inner;
 
-	if ( remoteVersion > installed.version ) {
-		return (
-			<span className="telex-badge telex-badge--update">
-				<Icon icon={ updateIcon } size={ 10 } />
+	if ( isBusy ) {
+		variantClass = 'telex-badge--loading';
+		inner = (
+			<>
+				<Spinner aria-hidden={ true } />
+				{ busyLabels[ installStatus ] }
+			</>
+		);
+	} else if ( ! installed ) {
+		variantClass = 'telex-badge--idle';
+		inner = __( 'Not installed', 'dispatch' );
+	} else if ( remoteVersion > installed.version ) {
+		variantClass = 'telex-badge--update';
+		inner = (
+			<>
+				<Icon
+					icon={ updateIcon }
+					size={ 10 }
+					aria-hidden={ true }
+					focusable={ false }
+				/>
 				{ sprintf(
 					/* translators: 1: installed version, 2: available version */
 					__( 'v%1$s → v%2$s', 'dispatch' ),
 					installed.version,
 					remoteVersion
 				) }
-			</span>
+			</>
+		);
+	} else {
+		variantClass = 'telex-badge--installed';
+		inner = (
+			<>
+				<Icon
+					icon={ check }
+					size={ 10 }
+					aria-hidden={ true }
+					focusable={ false }
+				/>
+				{ __( 'Up to date', 'dispatch' ) }
+			</>
 		);
 	}
 
 	return (
-		<span className="telex-badge telex-badge--installed">
-			<Icon icon={ check } size={ 10 } />
-			{ __( 'Up to date', 'dispatch' ) }
+		<span
+			className={ `telex-badge ${ variantClass }` }
+			role="status"
+			aria-live="polite"
+			aria-atomic="true"
+		>
+			{ inner }
 		</span>
 	);
 }
@@ -689,7 +558,12 @@ function EmptyState( { tab, searchQuery } ) {
 		return (
 			<div className="telex-empty-state">
 				<div className="telex-empty-state__icon">
-					<Icon icon={ searchIcon } size={ 32 } />
+					<Icon
+						icon={ searchIcon }
+						size={ 32 }
+						aria-hidden={ true }
+						focusable={ false }
+					/>
 				</div>
 				<h3>{ __( 'No matches', 'dispatch' ) }</h3>
 				<p>
@@ -746,7 +620,12 @@ function EmptyState( { tab, searchQuery } ) {
 	return (
 		<div className="telex-empty-state">
 			<div className="telex-empty-state__icon">
-				<Icon icon={ state.icon } size={ 32 } />
+				<Icon
+					icon={ state.icon }
+					size={ 32 }
+					aria-hidden={ true }
+					focusable={ false }
+				/>
 			</div>
 			<h3>{ state.heading }</h3>
 			<p>{ state.body }</p>
@@ -809,11 +688,15 @@ function Toast( { toast, onDismiss } ) {
 				type="button"
 				className="telex-toast__close"
 				onClick={ () => onDismiss( id ) }
-				aria-label={ __( 'Dismiss', 'dispatch' ) }
+				aria-label={ sprintf(
+					/* translators: %s: notification message */
+					__( 'Dismiss: %s', 'dispatch' ),
+					message
+				) }
 			>
 				&times;
 			</button>
-			<div className="telex-toast__progress" />
+			<div className="telex-toast__progress" aria-hidden={ true } />
 		</div>
 	);
 }
@@ -833,6 +716,7 @@ function ToastList( { toasts, onDismiss } ) {
 	return (
 		<div
 			className="telex-toasts"
+			role="log"
 			aria-label={ __( 'Notifications', 'dispatch' ) }
 		>
 			{ toasts.map( ( t ) => (
@@ -863,6 +747,7 @@ function KeyboardShortcutsModal( { onClose } ) {
 		<Modal
 			title={ __( 'Keyboard shortcuts', 'dispatch' ) }
 			onRequestClose={ onClose }
+			className="telex-shortcuts-modal"
 		>
 			<ul className="telex-shortcuts-grid">
 				{ SHORTCUTS.map( ( shortcut ) => (
@@ -933,8 +818,8 @@ function ProjectDetailModal( {
 				{ isInstalled && (
 					<span className="telex-meta-item">
 						{ sprintf(
-							/* translators: %s: build number */
-							__( 'Build #%s installed', 'dispatch' ),
+							/* translators: %s: version number */
+							__( 'v%s installed', 'dispatch' ),
 							installed.version
 						) }
 					</span>
@@ -942,8 +827,8 @@ function ProjectDetailModal( {
 				{ project.currentVersion && (
 					<span className="telex-meta-item">
 						{ sprintf(
-							/* translators: %s: build number */
-							__( 'Latest: build #%s', 'dispatch' ),
+							/* translators: %s: version number */
+							__( 'Latest: v%s', 'dispatch' ),
 							project.currentVersion
 						) }
 					</span>
@@ -952,13 +837,15 @@ function ProjectDetailModal( {
 
 			{ needsUpdate && (
 				<div className="telex-detail-version-diff">
-					<Icon icon={ updateIcon } size={ 16 } />
+					<Icon
+						icon={ updateIcon }
+						size={ 16 }
+						aria-hidden={ true }
+						focusable={ false }
+					/>
 					{ sprintf(
-						/* translators: 1: installed build, 2: available build */
-						__(
-							'Update available: build #%1$s → #%2$s',
-							'dispatch'
-						),
+						/* translators: 1: installed version, 2: available version */
+						__( 'Update available: v%1$s → v%2$s', 'dispatch' ),
 						installed.version,
 						project.currentVersion
 					) }
@@ -1053,23 +940,14 @@ function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
 			onRequestClose={ onCancel }
 			className="telex-changelog-modal"
 		>
-			<div className="telex-version-diff">
-				<span>
-					{ sprintf(
-						/* translators: %s: build number */
-						__( 'Build #%s', 'dispatch' ),
-						installed.version
-					) }
-				</span>
-				<span className="telex-version-diff__arrow">→</span>
-				<span>
-					{ sprintf(
-						/* translators: %s: build number */
-						__( 'Build #%s', 'dispatch' ),
-						project.currentVersion
-					) }
-				</span>
-			</div>
+			<p className="telex-version-diff">
+				{ sprintf(
+					/* translators: 1: installed version number, 2: available version number */
+					__( 'v%1$s → v%2$s', 'dispatch' ),
+					installed.version,
+					project.currentVersion
+				) }
+			</p>
 
 			{ project.description && (
 				<div className="telex-changelog-body">
@@ -1191,12 +1069,15 @@ function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
 					<span
 						className="telex-webhook-value"
 						title={ visibleSecret ? currentSecret : undefined }
+						aria-live="polite"
+						aria-atomic="true"
 					>
 						{ visibleSecret ? currentSecret : maskedSecret }
 					</span>
 					<Button
 						variant="tertiary"
 						onClick={ () => setVisibleSecret( ( v ) => ! v ) }
+						aria-pressed={ visibleSecret }
 						__next40pxDefaultSize
 					>
 						{ visibleSecret
@@ -1308,7 +1189,7 @@ function NetworkDeployModal( { project, restUrl, onClose } ) {
 
 			{ results && ! results.error && (
 				<>
-					<p>
+					<p aria-live="polite" aria-atomic="true">
 						{ sprintf(
 							/* translators: 1: success count, 2: total count */
 							__(
@@ -1319,31 +1200,42 @@ function NetworkDeployModal( { project, restUrl, onClose } ) {
 							total
 						) }
 					</p>
-					<div className="telex-network-results">
+					<ul className="telex-network-results">
 						{ results.succeeded?.map( ( site ) => (
-							<div
+							<li
 								key={ site.id }
 								className="telex-network-site-row"
 							>
 								<span>{ site.domain }</span>
 								<span className="telex-network-status--ok">
-									<Icon icon={ check } size={ 14 } />
+									<Icon
+										icon={ check }
+										size={ 14 }
+										aria-hidden={ true }
+										focusable={ false }
+									/>
 									{ __( 'Done', 'dispatch' ) }
 								</span>
-							</div>
+							</li>
 						) ) }
 						{ results.failed?.map( ( site ) => (
-							<div
+							<li
 								key={ site.id }
 								className="telex-network-site-row"
 							>
 								<span>{ site.domain }</span>
 								<span className="telex-network-status--fail">
+									<Icon
+										icon={ closeIcon }
+										size={ 14 }
+										aria-hidden={ true }
+										focusable={ false }
+									/>
 									{ site.error || __( 'Failed', 'dispatch' ) }
 								</span>
-							</div>
+							</li>
 						) ) }
-					</div>
+					</ul>
 					<div style={ { marginTop: 16 } }>
 						<Button
 							variant="secondary"
@@ -1453,10 +1345,8 @@ function ProjectCard( {
 	const {
 		setInstallStatus,
 		setConfirmRemove,
-		toggleSelection,
 		setInstallStep,
 		clearInstallStep,
-		setActivateFlag,
 	} = useDispatch( 'telex/admin' );
 	const installedProjects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getInstalledProjects()
@@ -1470,13 +1360,6 @@ function ProjectCard( {
 	const installStep = useSelect( ( select ) =>
 		select( 'telex/admin' ).getInstallStep( project.publicId )
 	);
-	const selectedProjects = useSelect( ( select ) =>
-		select( 'telex/admin' ).getSelectedProjects()
-	);
-	const activateAfterInstall = useSelect( ( select ) =>
-		select( 'telex/admin' ).getActivateFlag( project.publicId )
-	);
-	const isSelected = selectedProjects.includes( project.publicId );
 
 	const [ showDetail, setShowDetail ] = useState( false );
 	const [ showChangelog, setShowChangelog ] = useState( false );
@@ -1555,7 +1438,7 @@ function ProjectCard( {
 				__( '%s is installed!', 'dispatch' ),
 				project.name
 			),
-			activateAfterInstall
+			isBlock // always activate blocks on install
 		);
 	}
 
@@ -1649,26 +1532,13 @@ function ProjectCard( {
 		<Card
 			className={ [
 				'telex-project-card',
+				`telex-project-card--${ typeStr }`,
 				needsUpdate ? 'telex-project-card--has-update' : '',
 				isInstalled ? 'telex-project-card--installed' : '',
-				isSelected ? 'telex-project-card--selected' : '',
 			]
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
-			{ ! isBusy && (
-				<input
-					type="checkbox"
-					className="telex-card-select"
-					checked={ isSelected }
-					onChange={ () => toggleSelection( project.publicId ) }
-					aria-label={ sprintf(
-						/* translators: %s: project name */
-						__( 'Select %s', 'dispatch' ),
-						project.name
-					) }
-				/>
-			) }
 			<CardHeader>
 				<div className="telex-card-title-row">
 					<ProjectAvatar
@@ -1680,12 +1550,27 @@ function ProjectCard( {
 							type="button"
 							className="telex-card-title telex-card-title--btn"
 							onClick={ () => setShowDetail( true ) }
-							title={ __( 'View details', 'dispatch' ) }
+							aria-label={ sprintf(
+								/* translators: %s: project name */
+								__( 'View details for %s', 'dispatch' ),
+								project.name
+							) }
 						>
 							{ project.name }
 						</button>
 						<TypeBadge type={ typeStr } />
 					</div>
+					<ExternalLink
+						href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+						className="telex-card-edit-link"
+						aria-label={ sprintf(
+							/* translators: %s: project name */
+							__( 'Edit %s in Telex', 'dispatch' ),
+							project.name
+						) }
+					>
+						{ __( 'Edit ↗', 'dispatch' ) }
+					</ExternalLink>
 				</div>
 				<StatusBadge
 					publicId={ project.publicId }
@@ -1700,7 +1585,7 @@ function ProjectCard( {
 						<span className="telex-meta-item">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'Build #%s installed', 'dispatch' ),
+								__( 'v%s installed', 'dispatch' ),
 								installed.version
 							) }
 						</span>
@@ -1709,7 +1594,7 @@ function ProjectCard( {
 						<span className="telex-meta-item telex-meta-item--new">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'Build #%s available', 'dispatch' ),
+								__( 'v%s available', 'dispatch' ),
 								project.currentVersion
 							) }
 						</span>
@@ -1731,14 +1616,11 @@ function ProjectCard( {
 							<span className="telex-meta-item">
 								{ sprintf(
 									/* translators: %s: version number */
-									__( 'Build #%s', 'dispatch' ),
+									__( 'v%s', 'dispatch' ),
 									project.currentVersion
 								) }
 							</span>
 						) }
-					{ project.slug && (
-						<code className="telex-slug">{ project.slug }</code>
-					) }
 				</div>
 
 				{ project.description && (
@@ -1771,28 +1653,8 @@ function ProjectCard( {
 					</div>
 				) }
 
-				<ExternalLink
-					href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
-					className="telex-card-telex-link"
-				>
-					{ __( 'Edit in Telex', 'dispatch' ) }
-				</ExternalLink>
-
 				{ installStep !== null && (
 					<InstallProgress currentStep={ installStep } />
-				) }
-
-				{ ! isInstalled && isBlock && ! isBusy && (
-					<div className="telex-card-activate">
-						<CheckboxControl
-							label={ __( 'Activate after install', 'dispatch' ) }
-							checked={ activateAfterInstall }
-							onChange={ ( val ) =>
-								setActivateFlag( project.publicId, val )
-							}
-							__nextHasNoMarginBottom
-						/>
-					</div>
 				) }
 
 				<div
@@ -1850,7 +1712,7 @@ function ProjectCard( {
 								<Tooltip
 									text={ sprintf(
 										/* translators: %s: version number */
-										__( 'Get build #%s', 'dispatch' ),
+										__( 'Get v%s', 'dispatch' ),
 										project.currentVersion
 									) }
 								>
@@ -1920,8 +1782,9 @@ function ProjectCard( {
 							project.name
 						) }
 						onRequestClose={ () => setConfirmRemove( null ) }
+						aria-describedby="telex-remove-warning"
 					>
-						<p>
+						<p id="telex-remove-warning">
 							{ sprintf(
 								/* translators: %s: project name */
 								__(
@@ -2021,12 +1884,7 @@ function ProjectsApp() {
 		setError,
 		setAuthExpired,
 		setSearchQuery,
-		setInstallStatus,
 		setCurrentPage,
-		clearSelection,
-		selectAllUninstalled,
-		selectAll,
-		setBulkInstalling,
 	} = useDispatch( 'telex/admin' );
 
 	const projects = useSelect( ( select ) =>
@@ -2051,13 +1909,6 @@ function ProjectsApp() {
 	const perPage = useSelect( ( select ) =>
 		select( 'telex/admin' ).getPerPage()
 	);
-	const selectedProjects = useSelect( ( select ) =>
-		select( 'telex/admin' ).getSelectedProjects()
-	);
-	const bulkInstalling = useSelect( ( select ) =>
-		select( 'telex/admin' ).isBulkInstalling()
-	);
-
 	// Fetch project list + installed tracker data.
 	const fetchData = useCallback(
 		async ( forceRefresh = false ) => {
@@ -2221,180 +2072,6 @@ function ProjectsApp() {
 			);
 	}
 
-	// Bulk install: install all selected (uninstalled) projects sequentially.
-	async function handleBulkInstall() {
-		setBulkInstalling( true );
-		let successCount = 0;
-		let lastError = '';
-
-		for ( const publicId of selectedProjects ) {
-			if ( installedProjects[ publicId ] ) {
-				continue; // already installed
-			}
-			setInstallStatus( publicId, 'installing' );
-			try {
-				// eslint-disable-next-line no-await-in-loop
-				await installWithPolling( apiFetch, restUrl, publicId, () => {
-					setInstallStatus( publicId, 'building' );
-				} );
-				successCount++;
-				setInstallStatus( publicId, 'idle' );
-			} catch ( err ) {
-				setInstallStatus( publicId, 'failed' );
-				lastError = err.message || __( 'Install failed.', 'dispatch' );
-			}
-		}
-
-		await fetchData();
-		clearSelection();
-		setBulkInstalling( false );
-
-		if ( successCount > 0 ) {
-			addToast( {
-				type: lastError ? 'warning' : 'success',
-				message: lastError
-					? sprintf(
-							/* translators: 1: success count, 2: error */
-							__(
-								'%1$d installed. One or more failed: %2$s',
-								'dispatch'
-							),
-							successCount,
-							lastError
-					  )
-					: sprintf(
-							/* translators: %d: number of projects */
-							_n(
-								'%d project installed!',
-								'%d projects installed!',
-								successCount,
-								'dispatch'
-							),
-							successCount
-					  ),
-			} );
-		} else if ( lastError ) {
-			addToast( { type: 'error', message: lastError } );
-		}
-	}
-
-	// Bulk update: update all selected installed projects with pending updates.
-	async function handleBulkUpdate() {
-		setBulkInstalling( true );
-		let successCount = 0;
-		let lastError = '';
-
-		for ( const publicId of selectedProjects ) {
-			const inst = installedProjects[ publicId ];
-			const proj = projects.find( ( p ) => p.publicId === publicId );
-			if ( ! inst || ! proj || proj.currentVersion <= inst.version ) {
-				continue;
-			}
-			setInstallStatus( publicId, 'installing' );
-			try {
-				// eslint-disable-next-line no-await-in-loop
-				await installWithPolling( apiFetch, restUrl, publicId, () => {
-					setInstallStatus( publicId, 'building' );
-				} );
-				successCount++;
-				setInstallStatus( publicId, 'idle' );
-			} catch ( err ) {
-				setInstallStatus( publicId, 'failed' );
-				lastError = err.message || __( 'Update failed.', 'dispatch' );
-			}
-		}
-
-		await fetchData();
-		clearSelection();
-		setBulkInstalling( false );
-
-		if ( successCount > 0 ) {
-			addToast( {
-				type: lastError ? 'warning' : 'success',
-				message: lastError
-					? sprintf(
-							/* translators: 1: success count, 2: error */
-							__(
-								'%1$d updated. One or more failed: %2$s',
-								'dispatch'
-							),
-							successCount,
-							lastError
-					  )
-					: sprintf(
-							/* translators: %d: number of projects */
-							_n(
-								'%d project updated!',
-								'%d projects updated!',
-								successCount,
-								'dispatch'
-							),
-							successCount
-					  ),
-			} );
-		} else if ( lastError ) {
-			addToast( { type: 'error', message: lastError } );
-		}
-	}
-
-	// Bulk remove: remove all selected installed projects.
-	async function handleBulkRemove() {
-		setBulkInstalling( true );
-		let successCount = 0;
-		let lastError = '';
-
-		for ( const publicId of selectedProjects ) {
-			if ( ! installedProjects[ publicId ] ) {
-				continue;
-			}
-			setInstallStatus( publicId, 'removing' );
-			try {
-				// eslint-disable-next-line no-await-in-loop
-				await apiFetch( {
-					url: `${ restUrl }/projects/${ publicId }`,
-					method: 'DELETE',
-				} );
-				successCount++;
-				setInstallStatus( publicId, 'idle' );
-			} catch ( err ) {
-				setInstallStatus( publicId, 'idle' );
-				lastError = err.message || __( 'Remove failed.', 'dispatch' );
-			}
-		}
-
-		await fetchData();
-		clearSelection();
-		setBulkInstalling( false );
-
-		if ( successCount > 0 ) {
-			addToast( {
-				type: lastError ? 'warning' : 'success',
-				message: lastError
-					? sprintf(
-							/* translators: 1: success count, 2: error */
-							__(
-								'%1$d removed. One or more failed: %2$s',
-								'dispatch'
-							),
-							successCount,
-							lastError
-					  )
-					: sprintf(
-							/* translators: %d: number of projects */
-							_n(
-								'%d project removed.',
-								'%d projects removed.',
-								successCount,
-								'dispatch'
-							),
-							successCount
-					  ),
-			} );
-		} else if ( lastError ) {
-			addToast( { type: 'error', message: lastError } );
-		}
-	}
-
 	const tabs = [
 		{
 			name: 'all',
@@ -2448,14 +2125,16 @@ function ProjectsApp() {
 				/>
 			) }
 
-			<div className="telex-toolbar" role="search">
-				<SearchControl
-					ref={ searchInputRef }
-					label={ __( 'Search projects', 'dispatch' ) }
-					value={ searchQuery }
-					onChange={ setSearchQuery }
-					__nextHasNoMarginBottom
-				/>
+			<div className="telex-toolbar">
+				<div role="search">
+					<SearchControl
+						ref={ searchInputRef }
+						label={ __( 'Search projects', 'dispatch' ) }
+						value={ searchQuery }
+						onChange={ setSearchQuery }
+						__nextHasNoMarginBottom
+					/>
+				</div>
 				<div className="telex-toolbar-right">
 					<Tooltip
 						text={ __( 'Keyboard shortcuts (?)', 'dispatch' ) }
@@ -2483,7 +2162,11 @@ function ProjectsApp() {
 						aria-label={ __( 'Check for new builds', 'dispatch' ) }
 						__next40pxDefaultSize
 					>
-						{ loading ? <Spinner /> : __( 'Refresh', 'dispatch' ) }
+						{ loading ? (
+							<Spinner aria-hidden={ true } />
+						) : (
+							__( 'Refresh', 'dispatch' )
+						) }
 					</Button>
 					<a
 						href={ disconnectUrl }
@@ -2494,16 +2177,21 @@ function ProjectsApp() {
 				</div>
 			</div>
 
-			{ loading && (
-				<div
-					className="telex-loading"
-					aria-live="polite"
-					aria-label={ __( 'Loading your projects', 'dispatch' ) }
-				>
-					<Spinner />
-					<span>{ __( 'Loading your projects…', 'dispatch' ) }</span>
-				</div>
-			) }
+			<div
+				className="telex-loading"
+				role="status"
+				aria-live="polite"
+				aria-atomic="true"
+			>
+				{ loading && (
+					<>
+						<Spinner aria-hidden={ true } />
+						<span>
+							{ __( 'Loading your projects…', 'dispatch' ) }
+						</span>
+					</>
+				) }
+			</div>
 
 			{ error && (
 				<Notice status="error" isDismissible={ false }>
@@ -2532,146 +2220,8 @@ function ProjectsApp() {
 							pageStart + perPage
 						);
 
-						// IDs for bulk operations based on tab context.
-						const uninstalledIds = allVisible
-							.filter(
-								( p ) => ! installedProjects[ p.publicId ]
-							)
-							.map( ( p ) => p.publicId );
-
-						const updatableIds = allVisible
-							.filter( ( p ) => {
-								const inst = installedProjects[ p.publicId ];
-								return inst && p.currentVersion > inst.version;
-							} )
-							.map( ( p ) => p.publicId );
-
-						const installedIds = allVisible
-							.filter( ( p ) => installedProjects[ p.publicId ] )
-							.map( ( p ) => p.publicId );
-
-						// Determine bulk toolbar mode based on what's selected.
-						const selectedInstalled = selectedProjects.filter(
-							( id ) => installedProjects[ id ]
-						);
-						const selectedUninstalled = selectedProjects.filter(
-							( id ) => ! installedProjects[ id ]
-						);
-						const selectedUpdatable = selectedProjects.filter(
-							( id ) => {
-								const inst = installedProjects[ id ];
-								const proj = projects.find(
-									( p ) => p.publicId === id
-								);
-								return (
-									inst &&
-									proj &&
-									proj.currentVersion > inst.version
-								);
-							}
-						);
-
-						let bulkMode = 'install';
-						if (
-							selectedUpdatable.length > 0 &&
-							selectedUninstalled.length === 0
-						) {
-							bulkMode = 'update';
-						} else if (
-							selectedInstalled.length > 0 &&
-							selectedUninstalled.length === 0 &&
-							selectedUpdatable.length === 0
-						) {
-							bulkMode = 'remove';
-						}
-
-						// Select-all row targets depend on tab.
-						let selectAllIds = uninstalledIds;
-						if ( tab.name === 'updates' ) {
-							selectAllIds = updatableIds;
-						} else if (
-							tab.name === 'all' &&
-							installedIds.length > 0
-						) {
-							selectAllIds = installedIds;
-						}
-
-						let selectAllLabel = null;
-						if (
-							tab.name === 'updates' &&
-							updatableIds.length > 0
-						) {
-							selectAllLabel = sprintf(
-								/* translators: %d: count */
-								_n(
-									'Select %d update',
-									'Select all %d updates',
-									updatableIds.length,
-									'dispatch'
-								),
-								updatableIds.length
-							);
-						} else if ( uninstalledIds.length > 0 ) {
-							selectAllLabel = sprintf(
-								/* translators: %d: count */
-								_n(
-									'Select %d uninstalled project',
-									'Select all %d uninstalled projects',
-									uninstalledIds.length,
-									'dispatch'
-								),
-								uninstalledIds.length
-							);
-						}
-
 						return (
 							<>
-								{ selectedProjects.length > 0 && (
-									<BulkToolbar
-										selectedCount={
-											selectedProjects.length
-										}
-										mode={ bulkMode }
-										onInstall={ handleBulkInstall }
-										onUpdate={ handleBulkUpdate }
-										onRemove={ handleBulkRemove }
-										onClear={ clearSelection }
-										isBusy={ bulkInstalling }
-									/>
-								) }
-								{ selectAllLabel &&
-									selectAllIds.length > 0 &&
-									selectedProjects.length === 0 &&
-									! bulkInstalling && (
-										<div className="telex-select-all-row">
-											<Button
-												variant="link"
-												onClick={ () => {
-													if (
-														tab.name === 'updates'
-													) {
-														selectAll(
-															updatableIds
-														);
-													} else if (
-														uninstalledIds.length >
-														0
-													) {
-														selectAllUninstalled(
-															uninstalledIds
-														);
-													} else {
-														selectAll(
-															installedIds
-														);
-													}
-												} }
-												__next40pxDefaultSize
-											>
-												{ selectAllLabel }
-											</Button>
-										</div>
-									) }
 								<div
 									className="telex-project-grid"
 									role="list"
@@ -2679,7 +2229,6 @@ function ProjectsApp() {
 										'Dispatch projects',
 										'dispatch'
 									) }
-									aria-live="polite"
 								>
 									{ paginated.length === 0 ? (
 										<EmptyState
@@ -2760,6 +2309,7 @@ class TelexErrorBoundary extends Component {
 			return (
 				<div
 					className="notice notice-error"
+					role="alert"
 					style={ { margin: '16px 0' } }
 				>
 					<p>

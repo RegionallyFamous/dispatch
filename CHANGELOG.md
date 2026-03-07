@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-03-07
+
+### Changed
+
+- **UI consistency** — removed all `prefers-color-scheme: dark` overrides. The
+  plugin now unconditionally uses WP admin's light-mode design tokens so the UI
+  looks identical regardless of the OS theme setting.
+- **Brand color** — primary accent is now wired to `--wp-admin-theme-color` so
+  buttons, focus rings, and tab underlines automatically match whatever admin
+  color scheme the user has selected in their profile.
+- **"Connected" badge** — moved out of the `<h1>` into a flex row alongside it
+  so it sits cleanly on the same baseline instead of wrapping to a new line.
+  Colors updated to deep green on mint (`#166534` / `#dcfce7`, ~7:1 contrast).
+- **Removed bulk-selection UI** — checkboxes and the bulk toolbar have been
+  removed. Projects now activate automatically on install.
+- **Card redesign** — type-specific accent stripe on the card top border,
+  larger avatars, full-width primary action buttons, and a hover-revealed
+  "Edit in Telex" link.
+- **Type badges** — fixed a flex-stretch bug that caused the badge to fill the
+  full card-header width; badges are now correctly pill-sized.
+
+### Fixed
+
+- Disconnected-badge text contrast raised above WCAG AA (was ~3.5:1, now ~5.8:1).
+
 ## [1.0.0] — 2026-03-06
 
 ### Added

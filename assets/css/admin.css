@@ -5,19 +5,26 @@
  * ------------------------------------------------------------------------- */
 
 :root {
-	--telex-brand: #3858e9;
-	--telex-brand-hover: #2145e6;
-	--telex-success: #1a7828;
-	--telex-success-bg: #edfaef;
-	--telex-update: #856404;
-	--telex-update-bg: #fef9e7;
-	--telex-update-border: #f5c542;
-	--telex-error: #b32d2e;
-	--telex-error-bg: #fce8e8;
-	--telex-muted: #757575;
+	/* Inherit WP admin's active color scheme — falls back to WP default blue */
+	--telex-brand: var(--wp-admin-theme-color, #3858e9);
+	--telex-brand-hover: var(--wp-admin-theme-color, #2145e6);
+
+	/* Semantic colors — tuned for WP admin's light UI */
+	--telex-success: #166534;
+	--telex-success-bg: #dcfce7;
+	--telex-update: #92400e;
+	--telex-update-bg: #fef3c7;
+	--telex-update-border: #fcd34d;
+	--telex-error: #991b1b;
+	--telex-error-bg: #fee2e2;
+
+	/* Surfaces and text — matches WP admin defaults */
+	--telex-muted: #50575e;
 	--telex-border: #dcdcde;
 	--telex-surface: #fff;
-	--telex-surface-alt: #f9f9f9;
+	--telex-surface-alt: #f6f7f7;
+
+	/* Radii, shadow, motion */
 	--telex-radius: 4px;
 	--telex-radius-lg: 8px;
 	--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
@@ -159,26 +166,43 @@
 	box-shadow: var(--telex-shadow);
 	border-radius: var(--telex-radius-lg) !important;
 	border: 1px solid var(--telex-border) !important;
+	border-top-width: 3px !important;
+	border-top-color: var(--telex-border) !important;
 	transition: box-shadow var(--telex-transition), transform var(--telex-transition);
 	overflow: hidden;
 }
 
 .telex-project-card:hover {
 	box-shadow: var(--telex-shadow-hover);
-	transform: translateY(-1px);
+	transform: translateY(-2px);
 }
 
+/* Type-specific top accent stripe */
+.telex-project-card--block {
+	border-top-color: #4f5fea !important;
+}
+
+.telex-project-card--theme {
+	border-top-color: #7c3aed !important;
+}
+
+/* Update indicator overrides type accent */
 .telex-project-card--has-update {
-	border-top: 3px solid var(--telex-update-border) !important;
+	border-top-color: var(--telex-update-border) !important;
 }
 
 .telex-project-card .components-card__header {
-	background: var(--telex-surface-alt);
 	border-bottom: 1px solid var(--telex-border);
-	padding: 12px 16px;
+	padding: 14px 16px 12px;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 8px;
+}
+
+/* Card header — solid surface, no gradient. Type is communicated by the
+   top accent stripe only. Flat colour reads much more cleanly. */
+.telex-project-card .components-card__header {
+	background: var(--telex-surface-alt);
 }
 
 .telex-card-title-row {
@@ -193,28 +217,29 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 36px;
-	height: 36px;
-	border-radius: 8px;
-	font-size: 16px;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	font-size: 17px;
 	font-weight: 700;
 	color: #fff;
 	flex-shrink: 0;
 	line-height: 1;
 	user-select: none;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Title + type badge stacked vertically */
 .telex-card-title-text {
 	display: flex;
 	flex-direction: column;
-	gap: 3px;
+	gap: 4px;
 	min-width: 0;
 	flex: 1;
 }
 
 .telex-card-title {
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 600;
 	color: #1d2327;
 	white-space: nowrap;
@@ -223,10 +248,16 @@
 	line-height: 1.2;
 }
 
-.telex-card-title--btn {
-	background: none;
-	border: none;
-	padding: 0;
+/* WP admin's .wp-core-ui button styles are more specific than a plain class,
+   so we prefix with .wp-admin and use !important for the visual resets. */
+.wp-admin .telex-card-title--btn {
+	background: none !important;
+	border: none !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	padding: 0 !important;
+	min-height: 0 !important;
+	height: auto !important;
 	cursor: pointer;
 	text-align: left;
 	font-size: inherit;
@@ -237,11 +268,39 @@
 	white-space: inherit;
 	overflow: inherit;
 	text-overflow: inherit;
+	width: fit-content;
 }
 
-.telex-card-title--btn:hover {
-	color: var(--telex-brand);
+.wp-admin .telex-card-title--btn:hover {
+	color: var(--telex-brand) !important;
 	text-decoration: underline;
+}
+
+.wp-admin .telex-card-title--btn:focus {
+	outline: 2px solid var(--telex-brand) !important;
+	outline-offset: 2px !important;
+	box-shadow: none !important;
+}
+
+/* Edit in Telex link — inline in card header, top-right */
+.telex-card-edit-link {
+	flex-shrink: 0;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--telex-muted) !important;
+	text-decoration: none;
+	opacity: 0;
+	transition: opacity 0.15s ease, color 0.12s ease;
+	white-space: nowrap;
+}
+
+.telex-card-edit-link:hover {
+	color: var(--telex-brand) !important;
+	text-decoration: underline;
+}
+
+.telex-project-card:hover .telex-card-edit-link {
+	opacity: 1;
 }
 
 .telex-project-card .components-card__body {
@@ -255,6 +314,7 @@
 .telex-type-badge {
 	display: inline-flex;
 	align-items: center;
+	align-self: flex-start;
 	gap: 3px;
 	padding: 2px 7px;
 	border-radius: 100px;
@@ -263,6 +323,7 @@
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	flex-shrink: 0;
+	width: fit-content;
 }
 
 .telex-type-badge .components-icon {
@@ -347,16 +408,6 @@
 	font-weight: 600;
 }
 
-/* WP directory slug — code-style, easy to copy */
-.telex-slug {
-	font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-	font-size: 11px;
-	background: #f0f0f1;
-	color: #50575e;
-	border-radius: 3px;
-	padding: 1px 5px;
-	border: 1px solid #dcdcde;
-}
 
 /* Install / update timestamps */
 .telex-card-timestamps {
@@ -379,12 +430,20 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
-	margin-top: 4px;
+	margin-top: 12px;
+}
+
+/* Primary install/update button — full width for impact */
+.telex-card-actions > .components-button.is-primary:only-child,
+.telex-card-actions > .components-tooltip:only-child .components-button.is-primary {
+	width: 100%;
+	justify-content: center;
 }
 
 /* Mute the "Installed" disabled button so it doesn't steal visual weight */
 .telex-card-actions .components-button[disabled]:not(.is-primary):not(.is-destructive) {
-	opacity: 0.7;
+	opacity: 0.55;
+	font-size: 12px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -400,6 +459,22 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * WP Modal frame height — prevent our modals from stretching to full viewport.
+ * At narrow viewports WP's .components-modal__screen-overlay defaults to
+ * align-items:stretch, which makes the frame fill 100% height even when the
+ * content is tiny. We pin our modals to content height and center them.
+ * ------------------------------------------------------------------------- */
+
+.telex-detail-modal.components-modal__frame,
+.telex-changelog-modal.components-modal__frame,
+.telex-shortcuts-modal.components-modal__frame {
+	align-self: center !important;
+	height: auto !important;
+	max-height: 90vh !important;
+	overflow: auto !important;
+}
+
+/* ---------------------------------------------------------------------------
  * Loading state
  * ------------------------------------------------------------------------- */
 
@@ -410,6 +485,10 @@
 	padding: 40px 0;
 	color: var(--telex-muted);
 	font-size: 14px;
+}
+
+.telex-loading:empty {
+	display: none;
 }
 
 /* ---------------------------------------------------------------------------
@@ -454,19 +533,36 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Connection status badge (PHP-rendered, next to <h1>)
+ * Page header — title + connection badge side by side
+ * ------------------------------------------------------------------------- */
+
+.telex-page-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.telex-page-header h1 {
+	margin: 0;
+	padding: 0;
+	line-height: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Connection status badge
  * ------------------------------------------------------------------------- */
 
 .telex-connection-badge {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	padding: 3px 10px;
+	padding: 4px 10px;
 	border-radius: 100px;
 	font-size: 12px;
 	font-weight: 600;
 	letter-spacing: 0.03em;
-	margin: -4px 0 16px;
+	flex-shrink: 0;
 }
 
 .telex-connection-badge::before {
@@ -489,7 +585,7 @@
 
 .telex-connection-badge--disconnected {
 	background: #f0f0f1;
-	color: var(--telex-muted);
+	color: #50575e;
 }
 
 .telex-connection-badge--disconnected::before {
@@ -509,24 +605,6 @@
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-}
-
-/* ---------------------------------------------------------------------------
- * Open-in-Telex link on card
- * ------------------------------------------------------------------------- */
-
-.telex-card-telex-link {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	font-size: 11px;
-	color: var(--telex-brand);
-	text-decoration: none;
-	margin-top: 8px;
-}
-
-.telex-card-telex-link:hover {
-	text-decoration: underline;
 }
 
 /* ---------------------------------------------------------------------------
@@ -553,54 +631,6 @@
 	display: flex;
 	align-items: center;
 	gap: 4px;
-}
-
-/* ---------------------------------------------------------------------------
- * Select-all row
- * ------------------------------------------------------------------------- */
-
-.telex-select-all-row {
-	margin-bottom: 8px;
-}
-
-/* Selected card highlight */
-.telex-project-card--selected {
-	outline: 2px solid var(--telex-brand);
-	outline-offset: 1px;
-}
-
-/* ---------------------------------------------------------------------------
- * Bulk action toolbar
- * ------------------------------------------------------------------------- */
-
-.telex-bulk-toolbar {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 14px;
-	background: #f0f6fc;
-	border: 1px solid #c3d9f7;
-	border-radius: var(--telex-radius);
-	margin-bottom: 16px;
-	flex-wrap: wrap;
-}
-
-.telex-bulk-toolbar__count {
-	font-size: 13px;
-	font-weight: 600;
-	color: #1d4289;
-	flex: 1;
-}
-
-/* ---------------------------------------------------------------------------
- * Project card — checkbox
- * ------------------------------------------------------------------------- */
-
-.telex-card-select {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-	z-index: 1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -807,6 +837,9 @@
 	flex-direction: column;
 	gap: 8px;
 	margin-bottom: 24px;
+	list-style: none;
+	margin-left: 0;
+	padding-left: 0;
 }
 
 .telex-connect-feature {
@@ -1025,137 +1058,6 @@
 	}
 }
 
-/* ---------------------------------------------------------------------------
- * Dark mode
- * Overrides design tokens only — all component selectors inherit automatically.
- * ------------------------------------------------------------------------- */
-
-@media (prefers-color-scheme: dark) {
-
-	:root {
-		--telex-brand: #738fff;
-		--telex-brand-hover: #8fa5ff;
-		--telex-success: #4ade80;
-		--telex-success-bg: rgba(74, 222, 128, 0.12);
-		--telex-update: #fbbf24;
-		--telex-update-bg: rgba(251, 191, 36, 0.1);
-		--telex-update-border: #f59e0b;
-		--telex-error: #f87171;
-		--telex-error-bg: rgba(248, 113, 113, 0.12);
-		--telex-muted: #9ca3af;
-		--telex-border: #3f3f46;
-		--telex-surface: #1c1c1e;
-		--telex-surface-alt: #27272a;
-		--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
-		--telex-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
-	}
-
-	.telex-app,
-	.telex-project-card,
-	.telex-connect-card,
-	.telex-bulk-toolbar {
-		color: #e4e4e7;
-	}
-
-	.telex-stats-bar {
-		background: var(--telex-surface-alt);
-		border-color: var(--telex-border);
-	}
-
-	.telex-stat__value {
-		color: #f4f4f5;
-	}
-
-	.telex-stat__label {
-		color: var(--telex-muted);
-	}
-
-	.telex-stat--updates .telex-stat__value {
-		color: var(--telex-update);
-	}
-
-	.telex-type-badge--block {
-		background: rgba(115, 143, 255, 0.15);
-		color: #a5b4fc;
-		border-color: rgba(115, 143, 255, 0.3);
-	}
-
-	.telex-type-badge--theme {
-		background: rgba(167, 139, 250, 0.15);
-		color: #c4b5fd;
-		border-color: rgba(167, 139, 250, 0.3);
-	}
-
-	.telex-badge--idle {
-		background: #3f3f46;
-		color: #a1a1aa;
-	}
-
-	.telex-badge--installed {
-		background: rgba(74, 222, 128, 0.15);
-		color: #4ade80;
-	}
-
-	.telex-badge--update {
-		background: rgba(251, 191, 36, 0.15);
-		color: #fbbf24;
-	}
-
-	.telex-badge--loading {
-		background: rgba(115, 143, 255, 0.15);
-		color: #a5b4fc;
-	}
-
-	.telex-card-meta {
-		border-top-color: var(--telex-border);
-	}
-
-	.telex-slug {
-		background: #3f3f46;
-		color: #d4d4d8;
-	}
-
-	.telex-audit-log-badge--success {
-		background: rgba(74, 222, 128, 0.15);
-		color: #4ade80;
-	}
-
-	.telex-audit-log-badge--danger {
-		background: rgba(248, 113, 113, 0.15);
-		color: #f87171;
-	}
-
-	.telex-audit-log-badge--info {
-		background: rgba(115, 143, 255, 0.15);
-		color: #a5b4fc;
-	}
-
-	.telex-connection-badge--connected {
-		background: rgba(74, 222, 128, 0.15);
-		color: #4ade80;
-	}
-
-	.telex-connection-badge--disconnected {
-		background: rgba(248, 113, 113, 0.15);
-		color: #f87171;
-	}
-
-	/* Toast container */
-	.telex-toast {
-		background: #27272a;
-		border-color: #3f3f46;
-		color: #e4e4e7;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-	}
-
-	/* Keyboard shortcut key pills */
-	.telex-shortcut-key {
-		background: #3f3f46;
-		color: #e4e4e7;
-		border-color: #52525b;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-	}
-}
 
 /* ---------------------------------------------------------------------------
  * Toast notifications
@@ -1341,20 +1243,6 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Activate toggle inside cards
- * ------------------------------------------------------------------------- */
-
-.telex-card-activate {
-	padding: 8px 16px 0;
-	font-size: 12px;
-}
-
-.telex-card-activate .components-checkbox-control__label {
-	font-size: 12px;
-	color: var(--telex-muted);
-}
-
-/* ---------------------------------------------------------------------------
  * Project detail modal
  * ------------------------------------------------------------------------- */
 
@@ -1404,16 +1292,11 @@
  * ------------------------------------------------------------------------- */
 
 .telex-changelog-modal .telex-version-diff {
-	display: flex;
-	align-items: center;
-	gap: 10px;
 	font-size: 15px;
 	font-weight: 600;
 	margin-bottom: 12px;
-}
-
-.telex-changelog-modal .telex-version-diff__arrow {
 	color: var(--telex-muted);
+	letter-spacing: 0.02em;
 }
 
 .telex-changelog-modal .telex-changelog-body {
@@ -1498,6 +1381,9 @@
 	margin-top: 8px;
 	max-height: 300px;
 	overflow-y: auto;
+	list-style: none;
+	margin-left: 0;
+	padding-left: 0;
 }
 
 .telex-network-site-row {
