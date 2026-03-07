@@ -81,7 +81,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Run PHPStan
-        run: php -d memory_limit=512M vendor/bin/phpstan analyse --no-progress
+        run: php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
 
   test-php:
     name: PHP Tests (PHP ${{ matrix.php }})
