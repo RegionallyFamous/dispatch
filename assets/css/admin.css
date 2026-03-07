@@ -223,6 +223,27 @@
 	line-height: 1.2;
 }
 
+.telex-card-title--btn {
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	text-align: left;
+	font-size: inherit;
+	font-weight: inherit;
+	color: inherit;
+	font-family: inherit;
+	line-height: inherit;
+	white-space: inherit;
+	overflow: inherit;
+	text-overflow: inherit;
+}
+
+.telex-card-title--btn:hover {
+	color: var(--telex-brand);
+	text-decoration: underline;
+}
+
 .telex-project-card .components-card__body {
 	padding: 14px 16px 16px;
 }
@@ -1002,4 +1023,504 @@
 	.telex-step__label {
 		display: none;
 	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark mode
+ * Overrides design tokens only — all component selectors inherit automatically.
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+
+	:root {
+		--telex-brand: #738fff;
+		--telex-brand-hover: #8fa5ff;
+		--telex-success: #4ade80;
+		--telex-success-bg: rgba(74, 222, 128, 0.12);
+		--telex-update: #fbbf24;
+		--telex-update-bg: rgba(251, 191, 36, 0.1);
+		--telex-update-border: #f59e0b;
+		--telex-error: #f87171;
+		--telex-error-bg: rgba(248, 113, 113, 0.12);
+		--telex-muted: #9ca3af;
+		--telex-border: #3f3f46;
+		--telex-surface: #1c1c1e;
+		--telex-surface-alt: #27272a;
+		--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+		--telex-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+	}
+
+	.telex-app,
+	.telex-project-card,
+	.telex-connect-card,
+	.telex-bulk-toolbar {
+		color: #e4e4e7;
+	}
+
+	.telex-stats-bar {
+		background: var(--telex-surface-alt);
+		border-color: var(--telex-border);
+	}
+
+	.telex-stat__value {
+		color: #f4f4f5;
+	}
+
+	.telex-stat__label {
+		color: var(--telex-muted);
+	}
+
+	.telex-stat--updates .telex-stat__value {
+		color: var(--telex-update);
+	}
+
+	.telex-type-badge--block {
+		background: rgba(115, 143, 255, 0.15);
+		color: #a5b4fc;
+		border-color: rgba(115, 143, 255, 0.3);
+	}
+
+	.telex-type-badge--theme {
+		background: rgba(167, 139, 250, 0.15);
+		color: #c4b5fd;
+		border-color: rgba(167, 139, 250, 0.3);
+	}
+
+	.telex-badge--idle {
+		background: #3f3f46;
+		color: #a1a1aa;
+	}
+
+	.telex-badge--installed {
+		background: rgba(74, 222, 128, 0.15);
+		color: #4ade80;
+	}
+
+	.telex-badge--update {
+		background: rgba(251, 191, 36, 0.15);
+		color: #fbbf24;
+	}
+
+	.telex-badge--loading {
+		background: rgba(115, 143, 255, 0.15);
+		color: #a5b4fc;
+	}
+
+	.telex-card-meta {
+		border-top-color: var(--telex-border);
+	}
+
+	.telex-slug {
+		background: #3f3f46;
+		color: #d4d4d8;
+	}
+
+	.telex-audit-log-badge--success {
+		background: rgba(74, 222, 128, 0.15);
+		color: #4ade80;
+	}
+
+	.telex-audit-log-badge--danger {
+		background: rgba(248, 113, 113, 0.15);
+		color: #f87171;
+	}
+
+	.telex-audit-log-badge--info {
+		background: rgba(115, 143, 255, 0.15);
+		color: #a5b4fc;
+	}
+
+	.telex-connection-badge--connected {
+		background: rgba(74, 222, 128, 0.15);
+		color: #4ade80;
+	}
+
+	.telex-connection-badge--disconnected {
+		background: rgba(248, 113, 113, 0.15);
+		color: #f87171;
+	}
+
+	/* Toast container */
+	.telex-toast {
+		background: #27272a;
+		border-color: #3f3f46;
+		color: #e4e4e7;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+	}
+
+	/* Keyboard shortcut key pills */
+	.telex-shortcut-key {
+		background: #3f3f46;
+		color: #e4e4e7;
+		border-color: #52525b;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Toast notifications
+ * Fixed bottom-right stack; slides in from right, auto-dismisses.
+ * ------------------------------------------------------------------------- */
+
+.telex-toasts {
+	position: fixed;
+	bottom: 24px;
+	right: 24px;
+	z-index: 99999;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 380px;
+	width: calc(100vw - 48px);
+	pointer-events: none;
+}
+
+.telex-toast {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 12px 14px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-left: 4px solid var(--telex-muted);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	animation: telex-toast-in 0.2s ease;
+	pointer-events: all;
+	overflow: hidden;
+}
+
+.telex-toast--success {
+	border-left-color: var(--telex-success);
+}
+
+.telex-toast--error {
+	border-left-color: var(--telex-error);
+}
+
+.telex-toast--warning {
+	border-left-color: var(--telex-update);
+}
+
+.telex-toast--info {
+	border-left-color: var(--telex-brand);
+}
+
+.telex-toast__body {
+	flex: 1;
+	min-width: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.telex-toast__message {
+	color: inherit;
+}
+
+.telex-toast__actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 6px;
+}
+
+.telex-toast__close {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px;
+	color: var(--telex-muted);
+	line-height: 1;
+	font-size: 16px;
+}
+
+.telex-toast__close:hover {
+	color: inherit;
+}
+
+.telex-toast__progress {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 2px;
+	background: var(--telex-muted);
+	animation: telex-toast-progress var(--telex-toast-duration, 4000ms) linear forwards;
+}
+
+.telex-toast--success .telex-toast__progress {
+	background: var(--telex-success);
+}
+
+.telex-toast--error   .telex-toast__progress {
+	background: var(--telex-error);
+}
+
+.telex-toast--warning .telex-toast__progress {
+	background: var(--telex-update);
+}
+
+.telex-toast--info    .telex-toast__progress {
+	background: var(--telex-brand);
+}
+
+@keyframes telex-toast-in {
+
+	from {
+		transform: translateX(110%);
+		opacity: 0;
+	}
+
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+@keyframes telex-toast-progress {
+
+	from {
+		width: 100%;
+	}
+
+	to {
+		width: 0%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.telex-toast {
+		animation: none;
+	}
+
+	.telex-toast__progress {
+		animation: none;
+		width: 0;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Keyboard shortcut modal
+ * ------------------------------------------------------------------------- */
+
+.telex-shortcuts-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px 24px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.telex-shortcuts-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 13px;
+	padding: 4px 0;
+}
+
+.telex-shortcut-key {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 26px;
+	height: 22px;
+	padding: 0 6px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	font-size: 11px;
+	font-weight: 600;
+	color: #1d2327;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+	flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Activate toggle inside cards
+ * ------------------------------------------------------------------------- */
+
+.telex-card-activate {
+	padding: 8px 16px 0;
+	font-size: 12px;
+}
+
+.telex-card-activate .components-checkbox-control__label {
+	font-size: 12px;
+	color: var(--telex-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Project detail modal
+ * ------------------------------------------------------------------------- */
+
+.telex-detail-modal .telex-detail-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.telex-detail-modal .telex-detail-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 16px;
+}
+
+.telex-detail-modal .telex-detail-description {
+	font-size: 14px;
+	line-height: 1.6;
+	color: #3c434a;
+	margin-bottom: 20px;
+}
+
+.telex-detail-modal .telex-detail-version-diff {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	background: var(--telex-update-bg);
+	border: 1px solid var(--telex-update-border);
+	border-radius: var(--telex-radius);
+	font-size: 13px;
+	margin-bottom: 16px;
+}
+
+.telex-detail-modal .telex-detail-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding-top: 16px;
+	border-top: 1px solid var(--telex-border);
+}
+
+/* ---------------------------------------------------------------------------
+ * Changelog confirmation modal
+ * ------------------------------------------------------------------------- */
+
+.telex-changelog-modal .telex-version-diff {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 15px;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+
+.telex-changelog-modal .telex-version-diff__arrow {
+	color: var(--telex-muted);
+}
+
+.telex-changelog-modal .telex-changelog-body {
+	background: var(--telex-surface-alt);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius);
+	padding: 12px 14px;
+	font-size: 13px;
+	line-height: 1.6;
+	margin-bottom: 16px;
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.telex-changelog-modal .telex-changelog-actions {
+	display: flex;
+	gap: 8px;
+	padding-top: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Webhook settings panel
+ * ------------------------------------------------------------------------- */
+
+.telex-webhook-panel {
+	margin-top: 24px;
+	padding: 20px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+}
+
+.telex-webhook-panel h3 {
+	margin: 0 0 4px;
+	font-size: 14px;
+}
+
+.telex-webhook-panel p {
+	margin: 0 0 16px;
+	font-size: 13px;
+	color: var(--telex-muted);
+}
+
+.telex-webhook-field {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.telex-webhook-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--telex-muted);
+	min-width: 60px;
+}
+
+.telex-webhook-value {
+	flex: 1;
+	padding: 6px 10px;
+	background: var(--telex-surface-alt);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius);
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	font-size: 12px;
+	color: inherit;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.telex-webhook-field .components-button {
+	flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Network deploy modal
+ * ------------------------------------------------------------------------- */
+
+.telex-network-results {
+	margin-top: 8px;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.telex-network-site-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 0;
+	border-bottom: 1px solid var(--telex-border);
+	font-size: 13px;
+}
+
+.telex-network-site-row:last-child {
+	border-bottom: none;
+}
+
+.telex-network-status--ok {
+	color: var(--telex-success);
+}
+
+.telex-network-status--fail {
+	color: var(--telex-error);
+}
+
+.telex-network-status--pending {
+	color: var(--telex-muted);
 }

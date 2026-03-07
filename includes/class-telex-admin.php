@@ -38,6 +38,7 @@ class Telex_Admin {
 		}
 
 		add_action( 'admin_init', self::handle_legacy_actions( ... ) );
+		add_action( 'admin_init', self::maybe_export_csv( ... ) );
 		add_filter( 'set-screen-option', self::save_screen_option( ... ), 10, 3 );
 
 		// Site Health integration.
@@ -195,12 +196,20 @@ class Telex_Admin {
 				'telex_disconnect'
 			);
 
+			// Webhook / auto-deploy data.
+			$webhook_url    = rest_url( 'telex/v1/deploy' );
+			$webhook_secret = Telex_REST::get_deploy_secret();
+			$is_network     = is_multisite() ? '1' : '0';
+
 			printf(
-				'<div id="telex-projects-app" data-rest-url="%s" data-nonce="%s" data-per-page="%d" data-disconnect-url="%s"></div>',
+				'<div id="telex-projects-app" data-rest-url="%s" data-nonce="%s" data-per-page="%d" data-disconnect-url="%s" data-webhook-url="%s" data-webhook-secret="%s" data-is-network="%s"></div>',
 				esc_attr( rest_url( 'telex/v1' ) ),
 				esc_attr( wp_create_nonce( 'wp_rest' ) ),
 				absint( $per_page ),
-				esc_attr( $disconnect_url )
+				esc_attr( $disconnect_url ),
+				esc_attr( $webhook_url ),
+				esc_attr( $webhook_secret ),
+				esc_attr( $is_network )
 			);
 		}
 
@@ -222,8 +231,25 @@ class Telex_Admin {
 		$table = new Telex_Audit_Log_Table();
 		$table->prepare_items();
 
+		$export_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'   => 'telex-audit-log',
+					'action' => 'telex_export_csv',
+				],
+				admin_url( 'admin.php' )
+			),
+			'telex_export_csv'
+		);
+
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Dispatch Audit Log', 'dispatch' ) . '</h1>';
+		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Dispatch Audit Log', 'dispatch' ) . '</h1>';
+		printf(
+			' <a href="%s" class="page-title-action">%s</a>',
+			esc_url( $export_url ),
+			esc_html__( 'Export CSV', 'dispatch' )
+		);
+		echo '<hr class="wp-header-end">';
 		echo '<p class="description">' . esc_html__( 'A full history of what\'s happened — installs, updates, removals, and account changes. Read-only.', 'dispatch' ) . '</p>';
 		echo '<form method="get">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
@@ -344,6 +370,73 @@ class Telex_Admin {
 			esc_attr( $type ),
 			esc_html( $message )
 		);
+	}
+
+	// -------------------------------------------------------------------------
+	// CSV export
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Streams the audit log as a CSV download if the correct action + nonce are present.
+	 *
+	 * @return void
+	 */
+	public static function maybe_export_csv(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if (
+			! isset( $_GET['page'], $_GET['action'] ) ||
+			'telex-audit-log' !== $_GET['page'] ||
+			'telex_export_csv' !== $_GET['action']
+		) {
+			return;
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export the audit log.', 'dispatch' ) );
+		}
+
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'telex_export_csv' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'dispatch' ) );
+		}
+
+		$events   = Telex_Audit_Log::get_recent( 10000 );
+		$filename = 'dispatch-audit-' . gmdate( 'Y-m-d' ) . '.csv';
+
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+
+		$out = fopen( 'php://output', 'w' );
+
+		// BOM for Excel UTF-8 compatibility.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		fwrite( $out, "\xEF\xBB\xBF" );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv
+		fputcsv( $out, [ 'Date (UTC)', 'Action', 'Project ID', 'User' ] );
+
+		foreach ( $events as $event ) {
+			$user = $event['user_id']
+				? ( get_userdata( (int) $event['user_id'] )->user_login ?? '' )
+				: '(system)';
+
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv
+			fputcsv(
+				$out,
+				[
+					$event['created_at'] ?? '',
+					$event['action'] ?? '',
+					$event['public_id'] ?? '',
+					$user,
+				]
+			);
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		fclose( $out );
+		exit;
 	}
 
 	// -------------------------------------------------------------------------

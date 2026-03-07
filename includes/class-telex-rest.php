@@ -14,18 +14,24 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Routes:
  *   GET    /telex/v1/projects
+ *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)         (single project detail)
  *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/build   (build readiness)
  *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/install
+ *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/deploy-network  (multisite)
  *   DELETE /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)
  *   POST   /telex/v1/auth/device    (start device flow)
  *   GET    /telex/v1/auth/device    (poll device flow)
  *   DELETE /telex/v1/auth/device    (cancel device flow)
  *   DELETE /telex/v1/auth           (disconnect)
  *   GET    /telex/v1/auth/status    (connection status)
+ *   POST   /telex/v1/deploy         (webhook auto-deploy, HMAC-signed)
+ *   POST   /telex/v1/settings/deploy-secret  (regenerate deploy secret)
  */
 class Telex_REST {
 
-	private const NAMESPACE = 'telex/v1';
+	private const NAMESPACE          = 'telex/v1';
+	private const DEPLOY_SECRET_KEY  = 'dispatch_deploy_secret';
+	private const DEPLOY_REPLAY_SECS = 300; // 5-minute replay window
 
 	/**
 	 * Registers all telex/v1 REST routes.
@@ -170,6 +176,72 @@ class Telex_REST {
 				[
 					'methods'             => \WP_REST_Server::READABLE,
 					'callback'            => [ self::class, 'get_auth_status' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Single project detail.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_project' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Multisite network deploy.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/deploy-network',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'deploy_network' ],
+					'permission_callback' => [ self::class, 'require_network_admin' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Webhook auto-deploy (public endpoint, HMAC-validated).
+		register_rest_route(
+			self::NAMESPACE,
+			'/deploy',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'webhook_deploy' ],
+					'permission_callback' => '__return_true',
+				],
+			]
+		);
+
+		// Regenerate deploy secret.
+		register_rest_route(
+			self::NAMESPACE,
+			'/settings/deploy-secret',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'regenerate_deploy_secret' ],
 					'permission_callback' => [ self::class, 'require_manage_options' ],
 				],
 			]
@@ -557,6 +629,196 @@ class Telex_REST {
 	// Internal helpers
 	// -------------------------------------------------------------------------
 
+	// -------------------------------------------------------------------------
+	// Single project endpoint
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/projects/{id} — returns a single project with local install state.
+	 *
+	 * The response shape mirrors a single item from GET /projects so the React
+	 * ProjectDetailModal can consume it without any special-casing.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function get_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		if ( ! Telex_Auth::is_connected() ) {
+			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Head to Dispatch to link your account.", 'dispatch' ), [ 'status' => 401 ] );
+		}
+
+		$client = Telex_Auth::get_client();
+		if ( ! $client ) {
+			return new \WP_Error( 'telex_client', __( 'Could not initialise Telex client.', 'dispatch' ), [ 'status' => 500 ] );
+		}
+
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+
+		try {
+			$project = $client->projects->get( $public_id );
+		} catch ( \Exception $e ) {
+			return new \WP_Error( 'telex_api', $e->getMessage(), [ 'status' => 502 ] );
+		}
+
+		$installed = Telex_Tracker::get( $public_id );
+		$id        = $project['publicId'] ?? '';
+		$version   = (int) ( $project['currentVersion'] ?? 0 );
+		$local     = $installed ?? null;
+
+		$project['_installed']    = null !== $local;
+		$project['_needs_update'] = null !== $local && $version > (int) ( $local['version'] ?? 0 );
+		$project['_local']        = $local;
+
+		return rest_ensure_response( $project );
+	}
+
+	// -------------------------------------------------------------------------
+	// Multisite network deploy
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /telex/v1/projects/{id}/deploy-network — installs/updates a project on every subsite.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function deploy_network( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		if ( ! is_multisite() ) {
+			return new \WP_Error( 'telex_not_multisite', __( 'Network deploy is only available on multisite installs.', 'dispatch' ), [ 'status' => 400 ] );
+		}
+
+		$public_id = sanitize_text_field( $request->get_param( 'id' ) );
+
+		$sites = get_sites(
+			[
+				'number'   => 200,
+				'public'   => 1,
+				'deleted'  => 0,
+				'spam'     => 0,
+				'archived' => 0,
+			]
+		);
+
+		$succeeded = [];
+		$failed    = [];
+
+		foreach ( $sites as $site ) {
+			switch_to_blog( (int) $site->blog_id );
+
+			$result = Telex_Installer::install( $public_id );
+
+			if ( is_wp_error( $result ) ) {
+				$failed[] = [
+					'id'     => (int) $site->blog_id,
+					'domain' => $site->domain . $site->path,
+					'error'  => $result->get_error_message(),
+				];
+			} else {
+				$succeeded[] = [
+					'id'     => (int) $site->blog_id,
+					'domain' => $site->domain . $site->path,
+				];
+			}
+
+			restore_current_blog();
+		}
+
+		return rest_ensure_response(
+			[
+				'succeeded' => $succeeded,
+				'failed'    => $failed,
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Webhook auto-deploy
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Returns the deploy secret, generating one on first call.
+	 *
+	 * @return string 64-char hex secret.
+	 */
+	public static function get_deploy_secret(): string {
+		$secret = get_option( self::DEPLOY_SECRET_KEY );
+		if ( ! $secret ) {
+			$secret = bin2hex( random_bytes( 32 ) );
+			update_option( self::DEPLOY_SECRET_KEY, $secret, false );
+		}
+		return (string) $secret;
+	}
+
+	/**
+	 * POST /telex/v1/settings/deploy-secret — regenerates the deploy secret.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function regenerate_deploy_secret( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		$secret = bin2hex( random_bytes( 32 ) );
+		update_option( self::DEPLOY_SECRET_KEY, $secret, false );
+		return rest_ensure_response( [ 'secret' => $secret ] );
+	}
+
+	/**
+	 * POST /telex/v1/deploy — HMAC-signed webhook that triggers a project install/update.
+	 *
+	 * Expected payload:  { "project_id": "...", "build_version": 42, "timestamp": 1234567890 }
+	 * Expected header:   X-Telex-Signature: sha256=<hex-digest>
+	 *
+	 * The signature is computed over the raw request body with the deploy secret as the key.
+	 * Requests older than DEPLOY_REPLAY_SECS are rejected to prevent replay attacks.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function webhook_deploy( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		// --- Signature verification -------------------------------------------
+		$sig_header = $request->get_header( 'X-Telex-Signature' );
+		if ( ! $sig_header || ! str_starts_with( $sig_header, 'sha256=' ) ) {
+			return new \WP_Error( 'telex_no_signature', 'Missing or malformed X-Telex-Signature header.', [ 'status' => 401 ] );
+		}
+
+		$provided_sig = substr( $sig_header, 7 );
+		$secret       = self::get_deploy_secret();
+		$body         = $request->get_body();
+		$expected_sig = hash_hmac( 'sha256', $body, $secret );
+
+		if ( ! hash_equals( $expected_sig, $provided_sig ) ) {
+			return new \WP_Error( 'telex_bad_signature', 'Signature verification failed.', [ 'status' => 401 ] );
+		}
+
+		// --- Replay protection ------------------------------------------------
+		$timestamp = (int) $request->get_param( 'timestamp' );
+		if ( $timestamp && abs( time() - $timestamp ) > self::DEPLOY_REPLAY_SECS ) {
+			return new \WP_Error( 'telex_replay', 'Request timestamp is too old.', [ 'status' => 400 ] );
+		}
+
+		// --- Install ----------------------------------------------------------
+		$public_id = sanitize_text_field( (string) ( $request->get_param( 'project_id' ) ?? '' ) );
+		if ( ! $public_id ) {
+			return new \WP_Error( 'telex_missing_id', 'project_id is required.', [ 'status' => 400 ] );
+		}
+
+		$result = Telex_Installer::install( $public_id );
+
+		if ( is_wp_error( $result ) ) {
+			return new \WP_Error(
+				$result->get_error_code(),
+				$result->get_error_message(),
+				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
+			);
+		}
+
+		return rest_ensure_response(
+			[
+				'success'    => true,
+				'project_id' => $public_id,
+			]
+		);
+	}
+
 	/**
 	 * Maps a Telex WP_Error code to an appropriate HTTP status code.
 	 *
@@ -629,5 +891,19 @@ class Telex_REST {
 		return current_user_can( 'delete_plugins' ) || current_user_can( 'delete_themes' )
 			? true
 			: new \WP_Error( 'telex_forbidden', __( "You don't have permission to remove projects.", 'dispatch' ), [ 'status' => 403 ] );
+	}
+
+	/**
+	 * Permission callback: requires manage_network_plugins (super-admin on multisite).
+	 *
+	 * @return bool|\WP_Error
+	 */
+	public static function require_network_admin(): bool|\WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new \WP_Error( 'telex_unauthorized', __( 'You need to be logged in to do that.', 'dispatch' ), [ 'status' => 401 ] );
+		}
+		return current_user_can( 'manage_network_plugins' )
+			? true
+			: new \WP_Error( 'telex_forbidden', __( "You don't have permission to do that.", 'dispatch' ), [ 'status' => 403 ] );
 	}
 }

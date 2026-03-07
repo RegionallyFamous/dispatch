@@ -4,7 +4,14 @@
  * Renders the project card grid with tab-based filtering, stats summary,
  * and live refetch (no full-page reload). State is managed via @wordpress/data.
  */
-import { render, useEffect, useCallback, Component } from '@wordpress/element';
+import {
+	render,
+	useEffect,
+	useCallback,
+	useState,
+	useRef,
+	Component,
+} from '@wordpress/element';
 import {
 	createReduxStore,
 	register,
@@ -16,6 +23,7 @@ import {
 	Card,
 	CardBody,
 	CardHeader,
+	CheckboxControl,
 	ExternalLink,
 	Modal,
 	Notice,
@@ -35,6 +43,9 @@ import {
 	layout as layoutIcon,
 	search as searchIcon,
 	download,
+	globe,
+	copy as copyIcon,
+	keyboardReturn,
 } from '@wordpress/icons';
 
 // ---------------------------------------------------------------------------
@@ -176,9 +187,10 @@ const DEFAULT_STATE = {
 	confirmRemove: null, // publicId awaiting confirmation
 	currentPage: 1,
 	perPage: INITIAL_PER_PAGE,
-	selectedProjects: [], // publicIds of projects selected for bulk install
+	selectedProjects: [], // publicIds of projects selected for bulk operations
 	bulkInstalling: false,
 	installSteps: {}, // publicId → step number (1–4) during install
+	activateFlags: {}, // publicId → boolean (activate after install)
 };
 
 const actions = {
@@ -209,6 +221,7 @@ const actions = {
 		type: 'SELECT_ALL_UNINSTALLED',
 		publicIds,
 	} ),
+	selectAll: ( publicIds ) => ( { type: 'SELECT_ALL', publicIds } ),
 	setBulkInstalling: ( installing ) => ( {
 		type: 'SET_BULK_INSTALLING',
 		installing,
@@ -221,6 +234,11 @@ const actions = {
 	clearInstallStep: ( publicId ) => ( {
 		type: 'CLEAR_INSTALL_STEP',
 		publicId,
+	} ),
+	setActivateFlag: ( publicId, activate ) => ( {
+		type: 'SET_ACTIVATE_FLAG',
+		publicId,
+		activate,
 	} ),
 };
 
@@ -267,6 +285,8 @@ function reducer( state = DEFAULT_STATE, action ) {
 			return { ...state, selectedProjects: [] };
 		case 'SELECT_ALL_UNINSTALLED':
 			return { ...state, selectedProjects: action.publicIds };
+		case 'SELECT_ALL':
+			return { ...state, selectedProjects: action.publicIds };
 		case 'SET_BULK_INSTALLING':
 			return { ...state, bulkInstalling: action.installing };
 		case 'SET_INSTALL_STEP':
@@ -282,6 +302,14 @@ function reducer( state = DEFAULT_STATE, action ) {
 				state.installSteps;
 			return { ...state, installSteps: remainingSteps };
 		}
+		case 'SET_ACTIVATE_FLAG':
+			return {
+				...state,
+				activateFlags: {
+					...state.activateFlags,
+					[ action.publicId ]: action.activate,
+				},
+			};
 		default:
 			return state;
 	}
@@ -307,6 +335,8 @@ const store = createReduxStore( 'telex/admin', {
 		isBulkInstalling: ( state ) => state.bulkInstalling,
 		getInstallStep: ( state, publicId ) =>
 			state.installSteps[ publicId ] ?? null,
+		getActivateFlag: ( state, publicId ) =>
+			state.activateFlags[ publicId ] ?? false,
 	},
 } );
 
@@ -358,10 +388,29 @@ function InstallProgress( { currentStep } ) {
 }
 
 // ---------------------------------------------------------------------------
-// Bulk install toolbar
+// Bulk install / update / remove toolbar
 // ---------------------------------------------------------------------------
 
-function BulkToolbar( { selectedCount, onInstall, onClear, isBusy } ) {
+/**
+ * @param {Object}   root0
+ * @param {number}   root0.selectedCount
+ * @param {string}   root0.mode          'install' | 'update' | 'remove'
+ * @param {Function} root0.onInstall
+ * @param {Function} root0.onUpdate
+ * @param {Function} root0.onRemove
+ * @param {Function} root0.onClear
+ * @param {boolean}  root0.isBusy
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function BulkToolbar( {
+	selectedCount,
+	mode,
+	onInstall,
+	onUpdate,
+	onRemove,
+	onClear,
+	isBusy,
+} ) {
 	return (
 		<div className="telex-bulk-toolbar" role="toolbar">
 			<span className="telex-bulk-toolbar__count">
@@ -376,24 +425,74 @@ function BulkToolbar( { selectedCount, onInstall, onClear, isBusy } ) {
 					selectedCount
 				) }
 			</span>
-			<Button
-				variant="primary"
-				onClick={ onInstall }
-				disabled={ isBusy }
-				isBusy={ isBusy }
-				__next40pxDefaultSize
-			>
-				{ sprintf(
-					/* translators: %d: number of projects to install */
-					_n(
-						'Install %d project',
-						'Install %d projects',
-						selectedCount,
-						'dispatch'
-					),
-					selectedCount
-				) }
-			</Button>
+
+			{ mode === 'update' && (
+				<Button
+					variant="primary"
+					onClick={ onUpdate }
+					disabled={ isBusy }
+					isBusy={ isBusy }
+					icon={ isBusy ? null : updateIcon }
+					__next40pxDefaultSize
+				>
+					{ sprintf(
+						/* translators: %d: number of projects to update */
+						_n(
+							'Update %d project',
+							'Update %d projects',
+							selectedCount,
+							'dispatch'
+						),
+						selectedCount
+					) }
+				</Button>
+			) }
+
+			{ mode === 'remove' && (
+				<Button
+					variant="primary"
+					isDestructive
+					onClick={ onRemove }
+					disabled={ isBusy }
+					isBusy={ isBusy }
+					icon={ isBusy ? null : trash }
+					__next40pxDefaultSize
+				>
+					{ sprintf(
+						/* translators: %d: number of projects to remove */
+						_n(
+							'Remove %d project',
+							'Remove %d projects',
+							selectedCount,
+							'dispatch'
+						),
+						selectedCount
+					) }
+				</Button>
+			) }
+
+			{ ( ! mode || mode === 'install' ) && (
+				<Button
+					variant="primary"
+					onClick={ onInstall }
+					disabled={ isBusy }
+					isBusy={ isBusy }
+					icon={ isBusy ? null : download }
+					__next40pxDefaultSize
+				>
+					{ sprintf(
+						/* translators: %d: number of projects to install */
+						_n(
+							'Install %d project',
+							'Install %d projects',
+							selectedCount,
+							'dispatch'
+						),
+						selectedCount
+					) }
+				</Button>
+			) }
+
 			<Button
 				variant="tertiary"
 				onClick={ onClear }
@@ -656,6 +755,611 @@ function EmptyState( { tab, searchQuery } ) {
 }
 
 // ---------------------------------------------------------------------------
+// Toast notifications (bottom-right, auto-dismiss, undo support)
+// ---------------------------------------------------------------------------
+
+const TOAST_DURATION = 5000; // ms before auto-dismiss
+
+/**
+ * Single dismissible toast with optional undo action and progress bar.
+ *
+ * @param {Object}   root0
+ * @param {Object}   root0.toast
+ * @param {Function} root0.onDismiss
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function Toast( { toast, onDismiss } ) {
+	const { id, type, message, undoFn, duration = TOAST_DURATION } = toast;
+	const [ undoUsed, setUndoUsed ] = useState( false );
+
+	useEffect( () => {
+		const timer = setTimeout( () => onDismiss( id ), duration );
+		return () => clearTimeout( timer );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ id, duration ] );
+
+	function handleUndo() {
+		setUndoUsed( true );
+		onDismiss( id );
+		undoFn?.();
+	}
+
+	return (
+		<div
+			className={ `telex-toast telex-toast--${ type || 'info' }` }
+			role="status"
+			aria-live="polite"
+			style={ { '--telex-toast-duration': `${ duration }ms` } }
+		>
+			<div className="telex-toast__body">
+				<span className="telex-toast__message">{ message }</span>
+				{ undoFn && ! undoUsed && (
+					<div className="telex-toast__actions">
+						<Button
+							variant="link"
+							onClick={ handleUndo }
+							__next40pxDefaultSize={ false }
+						>
+							{ __( 'Undo', 'dispatch' ) }
+						</Button>
+					</div>
+				) }
+			</div>
+			<button
+				type="button"
+				className="telex-toast__close"
+				onClick={ () => onDismiss( id ) }
+				aria-label={ __( 'Dismiss', 'dispatch' ) }
+			>
+				&times;
+			</button>
+			<div className="telex-toast__progress" />
+		</div>
+	);
+}
+
+/**
+ * Fixed bottom-right toast stack.
+ *
+ * @param {Object}   root0
+ * @param {Array}    root0.toasts
+ * @param {Function} root0.onDismiss
+ * @return {import('@wordpress/element').WPElement|null} Toast list or null when empty.
+ */
+function ToastList( { toasts, onDismiss } ) {
+	if ( ! toasts.length ) {
+		return null;
+	}
+	return (
+		<div
+			className="telex-toasts"
+			aria-label={ __( 'Notifications', 'dispatch' ) }
+		>
+			{ toasts.map( ( t ) => (
+				<Toast key={ t.id } toast={ t } onDismiss={ onDismiss } />
+			) ) }
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard shortcuts modal
+// ---------------------------------------------------------------------------
+
+const SHORTCUTS = [
+	{ keys: [ 'R' ], label: __( 'Refresh projects', 'dispatch' ) },
+	{ keys: [ '/' ], label: __( 'Focus search', 'dispatch' ) },
+	{ keys: [ 'Esc' ], label: __( 'Clear search / close modal', 'dispatch' ) },
+	{ keys: [ '?' ], label: __( 'Show this shortcuts list', 'dispatch' ) },
+];
+
+/**
+ * @param {Object}   root0
+ * @param {Function} root0.onClose
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function KeyboardShortcutsModal( { onClose } ) {
+	return (
+		<Modal
+			title={ __( 'Keyboard shortcuts', 'dispatch' ) }
+			onRequestClose={ onClose }
+		>
+			<ul className="telex-shortcuts-grid">
+				{ SHORTCUTS.map( ( shortcut ) => (
+					<li key={ shortcut.label } className="telex-shortcuts-row">
+						<span>
+							{ shortcut.keys.map( ( k ) => (
+								<kbd key={ k } className="telex-shortcut-key">
+									{ k }
+								</kbd>
+							) ) }
+						</span>
+						<span>{ shortcut.label }</span>
+					</li>
+				) ) }
+			</ul>
+		</Modal>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Project detail modal
+// ---------------------------------------------------------------------------
+
+/**
+ * Full project information modal — triggered by clicking the project name.
+ *
+ * @param {Object}   root0
+ * @param {Object}   root0.project
+ * @param {Object}   root0.installed Tracker record for this project, or null.
+ * @param {Function} root0.onClose
+ * @param {Function} root0.onInstall
+ * @param {Function} root0.onUpdate
+ * @param {Function} root0.onRemove
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function ProjectDetailModal( {
+	project,
+	installed,
+	onClose,
+	onInstall,
+	onUpdate,
+	onRemove,
+} ) {
+	const isInstalled = !! installed;
+	const needsUpdate = installed && project.currentVersion > installed.version;
+	const typeStr = project.projectType?.toLowerCase() || 'block';
+
+	return (
+		<Modal
+			title={ project.name }
+			onRequestClose={ onClose }
+			className="telex-detail-modal"
+		>
+			<div className="telex-detail-header">
+				<ProjectAvatar
+					name={ project.name }
+					publicId={ project.publicId }
+				/>
+				<div>
+					<TypeBadge type={ typeStr } />
+				</div>
+			</div>
+
+			<div className="telex-detail-meta">
+				{ project.slug && (
+					<code className="telex-slug">{ project.slug }</code>
+				) }
+				{ isInstalled && (
+					<span className="telex-meta-item">
+						{ sprintf(
+							/* translators: %s: build number */
+							__( 'Build #%s installed', 'dispatch' ),
+							installed.version
+						) }
+					</span>
+				) }
+				{ project.currentVersion && (
+					<span className="telex-meta-item">
+						{ sprintf(
+							/* translators: %s: build number */
+							__( 'Latest: build #%s', 'dispatch' ),
+							project.currentVersion
+						) }
+					</span>
+				) }
+			</div>
+
+			{ needsUpdate && (
+				<div className="telex-detail-version-diff">
+					<Icon icon={ updateIcon } size={ 16 } />
+					{ sprintf(
+						/* translators: 1: installed build, 2: available build */
+						__(
+							'Update available: build #%1$s → #%2$s',
+							'dispatch'
+						),
+						installed.version,
+						project.currentVersion
+					) }
+				</div>
+			) }
+
+			{ project.description && (
+				<p className="telex-detail-description">
+					{ project.description }
+				</p>
+			) }
+
+			<ExternalLink
+				href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+			>
+				{ __( 'View in Telex →', 'dispatch' ) }
+			</ExternalLink>
+
+			<div className="telex-detail-actions">
+				{ ! isInstalled && (
+					<Button
+						variant="primary"
+						onClick={ () => {
+							onInstall();
+							onClose();
+						} }
+						icon={ download }
+						__next40pxDefaultSize
+					>
+						{ __( 'Install', 'dispatch' ) }
+					</Button>
+				) }
+				{ needsUpdate && (
+					<Button
+						variant="primary"
+						onClick={ () => {
+							onUpdate();
+							onClose();
+						} }
+						icon={ updateIcon }
+						__next40pxDefaultSize
+					>
+						{ __( 'Update', 'dispatch' ) }
+					</Button>
+				) }
+				{ isInstalled && (
+					<Button
+						variant="tertiary"
+						isDestructive
+						onClick={ () => {
+							onRemove();
+							onClose();
+						} }
+						icon={ trash }
+						__next40pxDefaultSize
+					>
+						{ __( 'Remove', 'dispatch' ) }
+					</Button>
+				) }
+				<Button
+					variant="secondary"
+					onClick={ onClose }
+					__next40pxDefaultSize
+				>
+					{ __( 'Close', 'dispatch' ) }
+				</Button>
+			</div>
+		</Modal>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Changelog confirmation modal (shown before executing an update)
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {Object}   root0
+ * @param {Object}   root0.project
+ * @param {Object}   root0.installed
+ * @param {Function} root0.onConfirm
+ * @param {Function} root0.onCancel
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
+	return (
+		<Modal
+			title={ sprintf(
+				/* translators: %s: project name */
+				__( 'Update %s', 'dispatch' ),
+				project.name
+			) }
+			onRequestClose={ onCancel }
+			className="telex-changelog-modal"
+		>
+			<div className="telex-version-diff">
+				<span>
+					{ sprintf(
+						/* translators: %s: build number */
+						__( 'Build #%s', 'dispatch' ),
+						installed.version
+					) }
+				</span>
+				<span className="telex-version-diff__arrow">→</span>
+				<span>
+					{ sprintf(
+						/* translators: %s: build number */
+						__( 'Build #%s', 'dispatch' ),
+						project.currentVersion
+					) }
+				</span>
+			</div>
+
+			{ project.description && (
+				<div className="telex-changelog-body">
+					{ project.description }
+				</div>
+			) }
+
+			<p style={ { marginBottom: 12 } }>
+				<ExternalLink
+					href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
+				>
+					{ __( 'View full changelog in Telex →', 'dispatch' ) }
+				</ExternalLink>
+			</p>
+
+			<div className="telex-changelog-actions">
+				<Button
+					variant="primary"
+					onClick={ onConfirm }
+					icon={ updateIcon }
+					__next40pxDefaultSize
+				>
+					{ __( 'Update now', 'dispatch' ) }
+				</Button>
+				<Button
+					variant="secondary"
+					onClick={ onCancel }
+					__next40pxDefaultSize
+				>
+					{ __( 'Not yet', 'dispatch' ) }
+				</Button>
+			</div>
+		</Modal>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Webhook / auto-deploy settings panel
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {Object} root0
+ * @param {string} root0.webhookUrl
+ * @param {string} root0.webhookSecret
+ * @param {string} root0.restUrl
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function WebhookPanel( { webhookUrl, webhookSecret, restUrl } ) {
+	const [ visibleSecret, setVisibleSecret ] = useState( false );
+	const [ copiedUrl, setCopiedUrl ] = useState( false );
+	const [ copiedSecret, setCopiedSecret ] = useState( false );
+	const [ regenerating, setRegenerating ] = useState( false );
+	const [ currentSecret, setCurrentSecret ] = useState( webhookSecret );
+
+	function copy( text, setCopied ) {
+		if ( window.navigator?.clipboard ) {
+			window.navigator.clipboard.writeText( text ).catch( () => {} );
+		}
+		setCopied( true );
+		setTimeout( () => setCopied( false ), 2000 );
+	}
+
+	async function handleRegenerate() {
+		setRegenerating( true );
+		try {
+			const data = await apiFetch( {
+				url: `${ restUrl }/settings/deploy-secret`,
+				method: 'POST',
+			} );
+			setCurrentSecret( data.secret );
+		} catch {
+			// Silently fail — user can reload.
+		}
+		setRegenerating( false );
+	}
+
+	if ( ! webhookUrl ) {
+		return null;
+	}
+
+	const maskedSecret = currentSecret
+		? currentSecret.slice( 0, 8 ) + '••••••••••••••••••••••••'
+		: '';
+
+	return (
+		<div className="telex-webhook-panel">
+			<h3>{ __( 'Auto-deploy webhook', 'dispatch' ) }</h3>
+			<p>
+				{ __(
+					'Give this URL to Telex and it will automatically push new builds to your site.',
+					'dispatch'
+				) }
+			</p>
+
+			<div className="telex-webhook-field">
+				<span className="telex-webhook-label">
+					{ __( 'URL', 'dispatch' ) }
+				</span>
+				<span className="telex-webhook-value" title={ webhookUrl }>
+					{ webhookUrl }
+				</span>
+				<Button
+					variant="secondary"
+					icon={ copyIcon }
+					onClick={ () => copy( webhookUrl, setCopiedUrl ) }
+					__next40pxDefaultSize
+				>
+					{ copiedUrl
+						? __( 'Copied!', 'dispatch' )
+						: __( 'Copy', 'dispatch' ) }
+				</Button>
+			</div>
+
+			{ currentSecret && (
+				<div className="telex-webhook-field">
+					<span className="telex-webhook-label">
+						{ __( 'Secret', 'dispatch' ) }
+					</span>
+					<span
+						className="telex-webhook-value"
+						title={ visibleSecret ? currentSecret : undefined }
+					>
+						{ visibleSecret ? currentSecret : maskedSecret }
+					</span>
+					<Button
+						variant="tertiary"
+						onClick={ () => setVisibleSecret( ( v ) => ! v ) }
+						__next40pxDefaultSize
+					>
+						{ visibleSecret
+							? __( 'Hide', 'dispatch' )
+							: __( 'Show', 'dispatch' ) }
+					</Button>
+					<Button
+						variant="secondary"
+						icon={ copyIcon }
+						onClick={ () => copy( currentSecret, setCopiedSecret ) }
+						__next40pxDefaultSize
+					>
+						{ copiedSecret
+							? __( 'Copied!', 'dispatch' )
+							: __( 'Copy', 'dispatch' ) }
+					</Button>
+					<Button
+						variant="tertiary"
+						onClick={ handleRegenerate }
+						disabled={ regenerating }
+						isBusy={ regenerating }
+						__next40pxDefaultSize
+					>
+						{ __( 'Regenerate', 'dispatch' ) }
+					</Button>
+				</div>
+			) }
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Network deploy modal (multisite)
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {Object}   root0
+ * @param {Object}   root0.project
+ * @param {string}   root0.restUrl
+ * @param {Function} root0.onClose
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function NetworkDeployModal( { project, restUrl, onClose } ) {
+	const [ deploying, setDeploying ] = useState( false );
+	const [ results, setResults ] = useState( null );
+
+	async function handleDeploy() {
+		setDeploying( true );
+		try {
+			const data = await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/deploy-network`,
+				method: 'POST',
+			} );
+			setResults( data );
+		} catch ( err ) {
+			setResults( { error: err.message } );
+		}
+		setDeploying( false );
+	}
+
+	const total = results
+		? ( results.succeeded?.length ?? 0 ) + ( results.failed?.length ?? 0 )
+		: 0;
+
+	return (
+		<Modal
+			title={ sprintf(
+				/* translators: %s: project name */
+				__( 'Deploy "%s" across the network', 'dispatch' ),
+				project.name
+			) }
+			onRequestClose={ onClose }
+		>
+			{ ! results && (
+				<>
+					<p>
+						{ __(
+							'This will install or update this project on every site in your network. Sites that already have the latest build will be skipped.',
+							'dispatch'
+						) }
+					</p>
+					<div style={ { display: 'flex', gap: 8, marginTop: 16 } }>
+						<Button
+							variant="primary"
+							onClick={ handleDeploy }
+							disabled={ deploying }
+							isBusy={ deploying }
+							icon={ deploying ? null : globe }
+							__next40pxDefaultSize
+						>
+							{ __( 'Deploy to all sites', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ onClose }
+							__next40pxDefaultSize
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</>
+			) }
+
+			{ results && results.error && (
+				<Notice status="error" isDismissible={ false }>
+					{ results.error }
+				</Notice>
+			) }
+
+			{ results && ! results.error && (
+				<>
+					<p>
+						{ sprintf(
+							/* translators: 1: success count, 2: total count */
+							__(
+								'%1$d of %2$d sites updated successfully.',
+								'dispatch'
+							),
+							results.succeeded?.length ?? 0,
+							total
+						) }
+					</p>
+					<div className="telex-network-results">
+						{ results.succeeded?.map( ( site ) => (
+							<div
+								key={ site.id }
+								className="telex-network-site-row"
+							>
+								<span>{ site.domain }</span>
+								<span className="telex-network-status--ok">
+									<Icon icon={ check } size={ 14 } />
+									{ __( 'Done', 'dispatch' ) }
+								</span>
+							</div>
+						) ) }
+						{ results.failed?.map( ( site ) => (
+							<div
+								key={ site.id }
+								className="telex-network-site-row"
+							>
+								<span>{ site.domain }</span>
+								<span className="telex-network-status--fail">
+									{ site.error || __( 'Failed', 'dispatch' ) }
+								</span>
+							</div>
+						) ) }
+					</div>
+					<div style={ { marginTop: 16 } }>
+						<Button
+							variant="secondary"
+							onClick={ onClose }
+							__next40pxDefaultSize
+						>
+							{ __( 'Close', 'dispatch' ) }
+						</Button>
+					</div>
+				</>
+			) }
+		</Modal>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Shared install helper (used by both ProjectCard and bulk-install)
 // ---------------------------------------------------------------------------
 
@@ -667,14 +1371,21 @@ function EmptyState( { tab, searchQuery } ) {
  * @param {string}   url        REST base URL.
  * @param {string}   publicId   Project public ID.
  * @param {Function} onBuilding Called with poll_interval when the build starts.
+ * @param {boolean}  activate   Whether to activate the plugin/theme after install.
  * @return {Promise<Object>} Final install response data.
  */
-async function installWithPolling( fetch, url, publicId, onBuilding ) {
+async function installWithPolling(
+	fetch,
+	url,
+	publicId,
+	onBuilding,
+	activate = false
+) {
 	const doInstall = () =>
 		fetch( {
 			url: `${ url }/projects/${ publicId }/install`,
 			method: 'POST',
-			data: { activate: false },
+			data: { activate },
 		} );
 
 	let data = await doInstall();
@@ -723,14 +1434,29 @@ async function installWithPolling( fetch, url, publicId, onBuilding ) {
 // Project card
 // ---------------------------------------------------------------------------
 
-function ProjectCard( { project, restUrl, onRefresh } ) {
+/**
+ * @param {Object}   root0
+ * @param {Object}   root0.project
+ * @param {string}   root0.restUrl
+ * @param {Function} root0.onRefresh
+ * @param {Function} root0.onToast        (toast) => void — adds a toast notification.
+ * @param {boolean}  root0.isNetworkAdmin Whether rendered in WP network admin.
+ * @return {import('@wordpress/element').WPElement} Rendered element.
+ */
+function ProjectCard( {
+	project,
+	restUrl,
+	onRefresh,
+	onToast,
+	isNetworkAdmin,
+} ) {
 	const {
 		setInstallStatus,
-		setNotice,
 		setConfirmRemove,
 		toggleSelection,
 		setInstallStep,
 		clearInstallStep,
+		setActivateFlag,
 	} = useDispatch( 'telex/admin' );
 	const installedProjects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getInstalledProjects()
@@ -747,7 +1473,14 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	const selectedProjects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getSelectedProjects()
 	);
+	const activateAfterInstall = useSelect( ( select ) =>
+		select( 'telex/admin' ).getActivateFlag( project.publicId )
+	);
 	const isSelected = selectedProjects.includes( project.publicId );
+
+	const [ showDetail, setShowDetail ] = useState( false );
+	const [ showChangelog, setShowChangelog ] = useState( false );
+	const [ showNetworkDeploy, setShowNetworkDeploy ] = useState( false );
 
 	const installed = installedProjects[ project.publicId ];
 	const needsUpdate = installed && project.currentVersion > installed.version;
@@ -757,18 +1490,14 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 		installStatus === 'removing' ||
 		installStatus === 'building';
 	const typeStr = project.projectType?.toLowerCase() || 'block';
+	const isBlock = typeStr !== 'theme';
 
 	/**
 	 * Shared install/update handler.
-	 *
-	 * Flow:
-	 *  1. POST /install — if the build is ready the server installs and we're done.
-	 *  2. If the server returns { status:'building' } it has queued the build.
-	 *     We poll GET /build every poll_interval seconds until ready (up to ~2 min).
-	 *  3. Once the build is ready we POST /install again and it completes normally.
-	 * @param {string} successMessage
+	 * @param {string}  successMessage
+	 * @param {boolean} [activate]
 	 */
-	async function executeInstall( successMessage ) {
+	async function executeInstall( successMessage, activate = false ) {
 		setInstallStatus( project.publicId, 'installing' );
 		setInstallStep( project.publicId, 1 );
 
@@ -796,20 +1525,21 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 					clearStepTimers();
 					setInstallStatus( project.publicId, 'building' );
 					setInstallStep( project.publicId, 1 );
-				}
+				},
+				activate
 			);
 
 			clearStepTimers();
 			setInstallStep( project.publicId, 4 );
 			setTimeout( () => clearInstallStep( project.publicId ), 600 );
-			setNotice( { type: 'success', message: successMessage } );
+			onToast( { type: 'success', message: successMessage } );
 			await onRefresh();
 			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
 			clearStepTimers();
 			clearInstallStep( project.publicId );
 			setInstallStatus( project.publicId, 'failed' );
-			setNotice( {
+			onToast( {
 				type: 'error',
 				message:
 					err.message ||
@@ -824,10 +1554,12 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				/* translators: %s: project name */
 				__( '%s is installed!', 'dispatch' ),
 				project.name
-			)
+			),
+			activateAfterInstall
 		);
 	}
 
+	// handleUpdate is invoked after the changelog modal confirms.
 	async function handleUpdate() {
 		await executeInstall(
 			sprintf(
@@ -841,24 +1573,59 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	async function handleRemove() {
 		setInstallStatus( project.publicId, 'removing' );
 		setConfirmRemove( null );
+		const removedPublicId = project.publicId;
+		const removedName = project.name;
 		try {
 			await apiFetch( {
-				url: `${ restUrl }/projects/${ project.publicId }`,
+				url: `${ restUrl }/projects/${ removedPublicId }`,
 				method: 'DELETE',
 			} );
-			setNotice( {
+			await onRefresh();
+			setInstallStatus( removedPublicId, 'idle' );
+			onToast( {
 				type: 'success',
 				message: sprintf(
 					/* translators: %s: project name */
 					__( '%s has been removed.', 'dispatch' ),
-					project.name
+					removedName
 				),
+				undoFn: async () => {
+					setInstallStatus( removedPublicId, 'installing' );
+					try {
+						await installWithPolling(
+							apiFetch,
+							restUrl,
+							removedPublicId,
+							() =>
+								setInstallStatus( removedPublicId, 'building' )
+						);
+						await onRefresh();
+						setInstallStatus( removedPublicId, 'idle' );
+						onToast( {
+							type: 'success',
+							message: sprintf(
+								/* translators: %s: project name */
+								__( '%s has been reinstalled.', 'dispatch' ),
+								removedName
+							),
+						} );
+					} catch ( err ) {
+						setInstallStatus( removedPublicId, 'failed' );
+						onToast( {
+							type: 'error',
+							message:
+								err.message ||
+								__(
+									"Reinstall didn't work. Try again?",
+									'dispatch'
+								),
+						} );
+					}
+				},
 			} );
-			await onRefresh();
-			setInstallStatus( project.publicId, 'idle' );
 		} catch ( err ) {
 			setInstallStatus( project.publicId, 'idle' );
-			setNotice( {
+			onToast( {
 				type: 'error',
 				message:
 					err.message ||
@@ -871,8 +1638,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 	const installedAgo = relativeDate( installed?.installed_at );
 	const updatedAgo = relativeDate( installed?.updated_at );
 
-	// Show "Updated X ago" only when different from install time (i.e. it was
-	// actually updated at least once after the initial install).
+	// Show "Updated X ago" only when different from install time.
 	const showUpdatedAgo =
 		updatedAgo &&
 		installed?.updated_at &&
@@ -890,7 +1656,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
-			{ ! isInstalled && ! isBusy && (
+			{ ! isBusy && (
 				<input
 					type="checkbox"
 					className="telex-card-select"
@@ -898,7 +1664,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 					onChange={ () => toggleSelection( project.publicId ) }
 					aria-label={ sprintf(
 						/* translators: %s: project name */
-						__( 'Select %s for bulk install', 'dispatch' ),
+						__( 'Select %s', 'dispatch' ),
 						project.name
 					) }
 				/>
@@ -910,9 +1676,14 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						publicId={ project.publicId }
 					/>
 					<div className="telex-card-title-text">
-						<strong className="telex-card-title">
+						<button
+							type="button"
+							className="telex-card-title telex-card-title--btn"
+							onClick={ () => setShowDetail( true ) }
+							title={ __( 'View details', 'dispatch' ) }
+						>
 							{ project.name }
-						</strong>
+						</button>
 						<TypeBadge type={ typeStr } />
 					</div>
 				</div>
@@ -1011,6 +1782,19 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 					<InstallProgress currentStep={ installStep } />
 				) }
 
+				{ ! isInstalled && isBlock && ! isBusy && (
+					<div className="telex-card-activate">
+						<CheckboxControl
+							label={ __( 'Activate after install', 'dispatch' ) }
+							checked={ activateAfterInstall }
+							onChange={ ( val ) =>
+								setActivateFlag( project.publicId, val )
+							}
+							__nextHasNoMarginBottom
+						/>
+					</div>
+				) }
+
 				<div
 					className="telex-card-actions"
 					role="group"
@@ -1020,80 +1804,111 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						project.name
 					) }
 				>
-					{ ! isInstalled && (
-						<Tooltip text={ __( 'Add to your site', 'dispatch' ) }>
-							<Button
-								variant="primary"
-								onClick={ handleInstall }
-								disabled={ isBusy }
-								icon={ isBusy ? null : download }
-								isBusy={
-									isBusy && installStatus === 'installing'
-								}
-								__next40pxDefaultSize
-							>
-								{ __( 'Install', 'dispatch' ) }
-							</Button>
-						</Tooltip>
-					) }
-
-					{ isInstalled && needsUpdate && (
-						<Tooltip
-							text={ sprintf(
-								/* translators: %s: version number */
-								__( 'Get v%s', 'dispatch' ),
-								project.currentVersion
-							) }
-						>
-							<Button
-								variant="primary"
-								onClick={ handleUpdate }
-								disabled={ isBusy }
-								icon={ isBusy ? null : updateIcon }
-								isBusy={
-									isBusy && installStatus === 'installing'
-								}
-								__next40pxDefaultSize
-							>
-								{ __( 'Update', 'dispatch' ) }
-							</Button>
-						</Tooltip>
-					) }
-
-					{ isInstalled && ! needsUpdate && (
-						<Button
-							variant="secondary"
-							disabled
-							icon={ check }
-							__next40pxDefaultSize
-						>
-							{ __( 'Installed', 'dispatch' ) }
-						</Button>
-					) }
-
-					{ isInstalled && (
+					{ isNetworkAdmin ? (
 						<Tooltip
 							text={ __(
-								'Uninstall from your site',
+								'Push to all network sites',
 								'dispatch'
 							) }
 						>
 							<Button
-								variant="tertiary"
-								isDestructive
-								icon={ trash }
-								onClick={ () =>
-									setConfirmRemove( project.publicId )
-								}
+								variant="primary"
+								onClick={ () => setShowNetworkDeploy( true ) }
 								disabled={ isBusy }
-								isBusy={
-									isBusy && installStatus === 'removing'
-								}
+								icon={ isBusy ? null : globe }
 								__next40pxDefaultSize
 							>
-								{ __( 'Remove', 'dispatch' ) }
+								{ __( 'Deploy', 'dispatch' ) }
 							</Button>
 						</Tooltip>
+					) : (
+						<>
+							{ ! isInstalled && (
+								<Tooltip
+									text={ __(
+										'Add to your site',
+										'dispatch'
+									) }
+								>
+									<Button
+										variant="primary"
+										onClick={ handleInstall }
+										disabled={ isBusy }
+										icon={ isBusy ? null : download }
+										isBusy={
+											isBusy &&
+											installStatus === 'installing'
+										}
+										__next40pxDefaultSize
+									>
+										{ __( 'Install', 'dispatch' ) }
+									</Button>
+								</Tooltip>
+							) }
+
+							{ isInstalled && needsUpdate && (
+								<Tooltip
+									text={ sprintf(
+										/* translators: %s: version number */
+										__( 'Get build #%s', 'dispatch' ),
+										project.currentVersion
+									) }
+								>
+									<Button
+										variant="primary"
+										onClick={ () =>
+											setShowChangelog( true )
+										}
+										disabled={ isBusy }
+										icon={ isBusy ? null : updateIcon }
+										isBusy={
+											isBusy &&
+											installStatus === 'installing'
+										}
+										__next40pxDefaultSize
+									>
+										{ __( 'Update', 'dispatch' ) }
+									</Button>
+								</Tooltip>
+							) }
+
+							{ isInstalled && ! needsUpdate && (
+								<Button
+									variant="secondary"
+									disabled
+									icon={ check }
+									__next40pxDefaultSize
+								>
+									{ __( 'Installed', 'dispatch' ) }
+								</Button>
+							) }
+
+							{ isInstalled && (
+								<Tooltip
+									text={ __(
+										'Uninstall from your site',
+										'dispatch'
+									) }
+								>
+									<Button
+										variant="tertiary"
+										isDestructive
+										icon={ trash }
+										onClick={ () =>
+											setConfirmRemove( project.publicId )
+										}
+										disabled={ isBusy }
+										isBusy={
+											isBusy &&
+											installStatus === 'removing'
+										}
+										__next40pxDefaultSize
+									>
+										{ __( 'Remove', 'dispatch' ) }
+									</Button>
+								</Tooltip>
+							) }
+						</>
 					) }
 				</div>
 
@@ -1135,6 +1950,37 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						</div>
 					</Modal>
 				) }
+
+				{ showDetail && (
+					<ProjectDetailModal
+						project={ project }
+						installed={ installed }
+						onClose={ () => setShowDetail( false ) }
+						onInstall={ handleInstall }
+						onUpdate={ () => setShowChangelog( true ) }
+						onRemove={ () => setConfirmRemove( project.publicId ) }
+					/>
+				) }
+
+				{ showChangelog && installed && needsUpdate && (
+					<ChangelogModal
+						project={ project }
+						installed={ installed }
+						onConfirm={ () => {
+							setShowChangelog( false );
+							handleUpdate();
+						} }
+						onCancel={ () => setShowChangelog( false ) }
+					/>
+				) }
+
+				{ showNetworkDeploy && (
+					<NetworkDeployModal
+						project={ project }
+						restUrl={ restUrl }
+						onClose={ () => setShowNetworkDeploy( false ) }
+					/>
+				) }
 			</CardBody>
 		</Card>
 	);
@@ -1149,6 +1995,24 @@ function ProjectsApp() {
 	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
 	const nonce = container?.dataset?.nonce || '';
 	const disconnectUrl = container?.dataset?.disconnectUrl || '';
+	const webhookUrl = container?.dataset?.webhookUrl || '';
+	const webhookSecret = container?.dataset?.webhookSecret || '';
+	const isNetworkAdmin = container?.dataset?.isNetwork === '1';
+
+	// Toast state lives here (not Redux) so undoFn closures work cleanly.
+	const [ toasts, setToasts ] = useState( [] );
+	const [ showShortcuts, setShowShortcuts ] = useState( false );
+	const searchInputRef = useRef( null );
+
+	function addToast( toast ) {
+		setToasts( ( prev ) => [
+			...prev,
+			{ id: Date.now() + Math.random(), ...toast },
+		] );
+	}
+	function removeToast( id ) {
+		setToasts( ( prev ) => prev.filter( ( t ) => t.id !== id ) );
+	}
 
 	const {
 		setProjects,
@@ -1157,12 +2021,11 @@ function ProjectsApp() {
 		setError,
 		setAuthExpired,
 		setSearchQuery,
-		clearNotice,
-		setNotice,
 		setInstallStatus,
 		setCurrentPage,
 		clearSelection,
 		selectAllUninstalled,
+		selectAll,
 		setBulkInstalling,
 	} = useDispatch( 'telex/admin' );
 
@@ -1181,9 +2044,6 @@ function ProjectsApp() {
 	);
 	const searchQuery = useSelect( ( select ) =>
 		select( 'telex/admin' ).getSearchQuery()
-	);
-	const notice = useSelect( ( select ) =>
-		select( 'telex/admin' ).getNotice()
 	);
 	const currentPage = useSelect( ( select ) =>
 		select( 'telex/admin' ).getCurrentPage()
@@ -1242,6 +2102,52 @@ function ProjectsApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
 
+	// Keyboard shortcuts.
+	useEffect( () => {
+		function onKeyDown( e ) {
+			const active = e.target?.ownerDocument?.activeElement;
+			const tag = active?.tagName?.toLowerCase();
+			const isEditable =
+				tag === 'input' ||
+				tag === 'textarea' ||
+				active?.isContentEditable;
+			if ( isEditable ) {
+				return;
+			}
+
+			switch ( e.key ) {
+				case 'r':
+				case 'R':
+					e.preventDefault();
+					setLoading( true );
+					fetchData( true ).finally( () => setLoading( false ) );
+					break;
+				case '/':
+					e.preventDefault();
+					// Focus the first input inside the SearchControl.
+					const searchEl = document.querySelector(
+						'.telex-toolbar .components-search-control__input'
+					);
+					searchEl?.focus();
+					break;
+				case 'Escape':
+					if ( searchQuery ) {
+						setSearchQuery( '' );
+					}
+					break;
+				case '?':
+					e.preventDefault();
+					setShowShortcuts( ( v ) => ! v );
+					break;
+				default:
+					break;
+			}
+		}
+		document.addEventListener( 'keydown', onKeyDown );
+		return () => document.removeEventListener( 'keydown', onKeyDown );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ searchQuery ] );
+
 	// Derived counts for tab titles.
 	const updatesCount = projects.filter( ( p ) => {
 		const inst = installedProjects[ p.publicId ];
@@ -1264,12 +2170,16 @@ function ProjectsApp() {
 		}
 
 		const onHeartbeatSend = ( _e, heartbeatData ) => {
-			heartbeatData.telex_poll = true;
+			heartbeatData.telex_poll = true; // eslint-disable-line camelcase
 		};
 
-		const onHeartbeatTick = ( _e, response ) => {
-			if ( response?.telex?.update_count > updatesCount ) {
-				fetchData( true );
+		const onHeartbeatTick = ( _e, data ) => {
+			if ( ! data?.telex ) {
+				return;
+			}
+			if ( data.telex.update_count > updatesCount ) {
+				setLoading( true );
+				fetchData( true ).finally( () => setLoading( false ) );
 			}
 		};
 
@@ -1340,7 +2250,7 @@ function ProjectsApp() {
 		setBulkInstalling( false );
 
 		if ( successCount > 0 ) {
-			setNotice( {
+			addToast( {
 				type: lastError ? 'warning' : 'success',
 				message: lastError
 					? sprintf(
@@ -1355,8 +2265,8 @@ function ProjectsApp() {
 					: sprintf(
 							/* translators: %d: number of projects */
 							_n(
-								'%d project installed successfully.',
-								'%d projects installed successfully.',
+								'%d project installed!',
+								'%d projects installed!',
 								successCount,
 								'dispatch'
 							),
@@ -1364,7 +2274,124 @@ function ProjectsApp() {
 					  ),
 			} );
 		} else if ( lastError ) {
-			setNotice( { type: 'error', message: lastError } );
+			addToast( { type: 'error', message: lastError } );
+		}
+	}
+
+	// Bulk update: update all selected installed projects with pending updates.
+	async function handleBulkUpdate() {
+		setBulkInstalling( true );
+		let successCount = 0;
+		let lastError = '';
+
+		for ( const publicId of selectedProjects ) {
+			const inst = installedProjects[ publicId ];
+			const proj = projects.find( ( p ) => p.publicId === publicId );
+			if ( ! inst || ! proj || proj.currentVersion <= inst.version ) {
+				continue;
+			}
+			setInstallStatus( publicId, 'installing' );
+			try {
+				// eslint-disable-next-line no-await-in-loop
+				await installWithPolling( apiFetch, restUrl, publicId, () => {
+					setInstallStatus( publicId, 'building' );
+				} );
+				successCount++;
+				setInstallStatus( publicId, 'idle' );
+			} catch ( err ) {
+				setInstallStatus( publicId, 'failed' );
+				lastError = err.message || __( 'Update failed.', 'dispatch' );
+			}
+		}
+
+		await fetchData();
+		clearSelection();
+		setBulkInstalling( false );
+
+		if ( successCount > 0 ) {
+			addToast( {
+				type: lastError ? 'warning' : 'success',
+				message: lastError
+					? sprintf(
+							/* translators: 1: success count, 2: error */
+							__(
+								'%1$d updated. One or more failed: %2$s',
+								'dispatch'
+							),
+							successCount,
+							lastError
+					  )
+					: sprintf(
+							/* translators: %d: number of projects */
+							_n(
+								'%d project updated!',
+								'%d projects updated!',
+								successCount,
+								'dispatch'
+							),
+							successCount
+					  ),
+			} );
+		} else if ( lastError ) {
+			addToast( { type: 'error', message: lastError } );
+		}
+	}
+
+	// Bulk remove: remove all selected installed projects.
+	async function handleBulkRemove() {
+		setBulkInstalling( true );
+		let successCount = 0;
+		let lastError = '';
+
+		for ( const publicId of selectedProjects ) {
+			if ( ! installedProjects[ publicId ] ) {
+				continue;
+			}
+			setInstallStatus( publicId, 'removing' );
+			try {
+				// eslint-disable-next-line no-await-in-loop
+				await apiFetch( {
+					url: `${ restUrl }/projects/${ publicId }`,
+					method: 'DELETE',
+				} );
+				successCount++;
+				setInstallStatus( publicId, 'idle' );
+			} catch ( err ) {
+				setInstallStatus( publicId, 'idle' );
+				lastError = err.message || __( 'Remove failed.', 'dispatch' );
+			}
+		}
+
+		await fetchData();
+		clearSelection();
+		setBulkInstalling( false );
+
+		if ( successCount > 0 ) {
+			addToast( {
+				type: lastError ? 'warning' : 'success',
+				message: lastError
+					? sprintf(
+							/* translators: 1: success count, 2: error */
+							__(
+								'%1$d removed. One or more failed: %2$s',
+								'dispatch'
+							),
+							successCount,
+							lastError
+					  )
+					: sprintf(
+							/* translators: %d: number of projects */
+							_n(
+								'%d project removed.',
+								'%d projects removed.',
+								successCount,
+								'dispatch'
+							),
+							successCount
+					  ),
+			} );
+		} else if ( lastError ) {
+			addToast( { type: 'error', message: lastError } );
 		}
 	}
 
@@ -1398,16 +2425,6 @@ function ProjectsApp() {
 
 	return (
 		<div className="telex-app">
-			{ notice && (
-				<Notice
-					status={ notice.type }
-					onRemove={ clearNotice }
-					isDismissible
-				>
-					{ notice.message }
-				</Notice>
-			) }
-
 			{ authExpired && (
 				<Notice
 					status="warning"
@@ -1433,12 +2450,27 @@ function ProjectsApp() {
 
 			<div className="telex-toolbar" role="search">
 				<SearchControl
+					ref={ searchInputRef }
 					label={ __( 'Search projects', 'dispatch' ) }
 					value={ searchQuery }
 					onChange={ setSearchQuery }
 					__nextHasNoMarginBottom
 				/>
 				<div className="telex-toolbar-right">
+					<Tooltip
+						text={ __( 'Keyboard shortcuts (?)', 'dispatch' ) }
+					>
+						<Button
+							variant="tertiary"
+							icon={ keyboardReturn }
+							onClick={ () => setShowShortcuts( true ) }
+							aria-label={ __(
+								'Keyboard shortcuts',
+								'dispatch'
+							) }
+							__next40pxDefaultSize
+						/>
+					</Tooltip>
 					<Button
 						variant="secondary"
 						onClick={ () => {
@@ -1500,12 +2532,97 @@ function ProjectsApp() {
 							pageStart + perPage
 						);
 
-						// IDs of uninstalled projects on this tab (for bulk select).
+						// IDs for bulk operations based on tab context.
 						const uninstalledIds = allVisible
 							.filter(
 								( p ) => ! installedProjects[ p.publicId ]
 							)
 							.map( ( p ) => p.publicId );
+
+						const updatableIds = allVisible
+							.filter( ( p ) => {
+								const inst = installedProjects[ p.publicId ];
+								return inst && p.currentVersion > inst.version;
+							} )
+							.map( ( p ) => p.publicId );
+
+						const installedIds = allVisible
+							.filter( ( p ) => installedProjects[ p.publicId ] )
+							.map( ( p ) => p.publicId );
+
+						// Determine bulk toolbar mode based on what's selected.
+						const selectedInstalled = selectedProjects.filter(
+							( id ) => installedProjects[ id ]
+						);
+						const selectedUninstalled = selectedProjects.filter(
+							( id ) => ! installedProjects[ id ]
+						);
+						const selectedUpdatable = selectedProjects.filter(
+							( id ) => {
+								const inst = installedProjects[ id ];
+								const proj = projects.find(
+									( p ) => p.publicId === id
+								);
+								return (
+									inst &&
+									proj &&
+									proj.currentVersion > inst.version
+								);
+							}
+						);
+
+						let bulkMode = 'install';
+						if (
+							selectedUpdatable.length > 0 &&
+							selectedUninstalled.length === 0
+						) {
+							bulkMode = 'update';
+						} else if (
+							selectedInstalled.length > 0 &&
+							selectedUninstalled.length === 0 &&
+							selectedUpdatable.length === 0
+						) {
+							bulkMode = 'remove';
+						}
+
+						// Select-all row targets depend on tab.
+						let selectAllIds = uninstalledIds;
+						if ( tab.name === 'updates' ) {
+							selectAllIds = updatableIds;
+						} else if (
+							tab.name === 'all' &&
+							installedIds.length > 0
+						) {
+							selectAllIds = installedIds;
+						}
+
+						let selectAllLabel = null;
+						if (
+							tab.name === 'updates' &&
+							updatableIds.length > 0
+						) {
+							selectAllLabel = sprintf(
+								/* translators: %d: count */
+								_n(
+									'Select %d update',
+									'Select all %d updates',
+									updatableIds.length,
+									'dispatch'
+								),
+								updatableIds.length
+							);
+						} else if ( uninstalledIds.length > 0 ) {
+							selectAllLabel = sprintf(
+								/* translators: %d: count */
+								_n(
+									'Select %d uninstalled project',
+									'Select all %d uninstalled projects',
+									uninstalledIds.length,
+									'dispatch'
+								),
+								uninstalledIds.length
+							);
+						}
 
 						return (
 							<>
@@ -1514,34 +2631,44 @@ function ProjectsApp() {
 										selectedCount={
 											selectedProjects.length
 										}
+										mode={ bulkMode }
 										onInstall={ handleBulkInstall }
+										onUpdate={ handleBulkUpdate }
+										onRemove={ handleBulkRemove }
 										onClear={ clearSelection }
 										isBusy={ bulkInstalling }
 									/>
 								) }
-								{ uninstalledIds.length > 0 &&
+								{ selectAllLabel &&
+									selectAllIds.length > 0 &&
 									selectedProjects.length === 0 &&
 									! bulkInstalling && (
 										<div className="telex-select-all-row">
 											<Button
 												variant="link"
-												onClick={ () =>
-													selectAllUninstalled(
-														uninstalledIds
-													)
-												}
+												onClick={ () => {
+													if (
+														tab.name === 'updates'
+													) {
+														selectAll(
+															updatableIds
+														);
+													} else if (
+														uninstalledIds.length >
+														0
+													) {
+														selectAllUninstalled(
+															uninstalledIds
+														);
+													} else {
+														selectAll(
+															installedIds
+														);
+													}
+												} }
 												__next40pxDefaultSize
 											>
-												{ sprintf(
-													/* translators: %d: number of uninstalled projects */
-													_n(
-														'Select %d uninstalled project',
-														'Select all %d uninstalled projects',
-														uninstalledIds.length,
-														'dispatch'
-													),
-													uninstalledIds.length
-												) }
+												{ selectAllLabel }
 											</Button>
 										</div>
 									) }
@@ -1569,6 +2696,10 @@ function ProjectsApp() {
 													project={ project }
 													restUrl={ restUrl }
 													onRefresh={ fetchData }
+													onToast={ addToast }
+													isNetworkAdmin={
+														isNetworkAdmin
+													}
 												/>
 											</div>
 										) )
@@ -1585,6 +2716,22 @@ function ProjectsApp() {
 						);
 					} }
 				</TabPanel>
+			) }
+
+			{ webhookUrl && (
+				<WebhookPanel
+					webhookUrl={ webhookUrl }
+					webhookSecret={ webhookSecret }
+					restUrl={ restUrl }
+				/>
+			) }
+
+			<ToastList toasts={ toasts } onDismiss={ removeToast } />
+
+			{ showShortcuts && (
+				<KeyboardShortcutsModal
+					onClose={ () => setShowShortcuts( false ) }
+				/>
 			) }
 		</div>
 	);
