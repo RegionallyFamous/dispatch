@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
 
 # Default to read-only for all jobs; individual jobs override only what they need.
 # NOTE: To further harden the supply chain, pin all third-party action references
