@@ -128,4 +128,37 @@ Every action is in the audit log. Timestamp, action type, project ID, and user I
 
 ---
 
+## Changelog
+
+### 1.1.0
+- Added a full JavaScript test suite (Jest) covering the admin store reducer, all action creators, every selector, `relativeDate()`, and `getAvatarColor()` — 60 tests.
+- Added PHP tests for the public webhook endpoint: HMAC validation, replay window, per-IP rate limiting, and all error paths.
+- Added PHP tests for the Telex SDK: SSRF constructor guards, HTTP exception mapping (401/404/5xx/oversized), and URL encoding in `ProjectResource`.
+- Added PHP tests for `Telex_WP_Http_Client`: SSRF guard, `WP_Error` conversion, status code guard, header forwarding, and `User-Agent`.
+- Added installer, updater, tracker, auth, and audit log tests covering every previously-uncovered path.
+- Added REST tests for the deploy-secret endpoints and the non-multisite network-deploy guard.
+- `Telex_Installer::install()` accepts an optional injected `TelexClient` for test isolation.
+- All GitHub Actions pinned to immutable SHA digests; PHPUnit upgraded from 9.6 (EOL) to 11.5.
+- `wp-cli/wp-cli` added to dev dependencies; `class-telex-cli.php` now fully covered by PHPStan.
+- Admin store and utility functions extracted to importable modules for testability.
+
+### 1.0.3
+- Fixed a crash that made the projects screen go blank on sites where the project cache had expired.
+- The auto-deploy webhook now validates request timestamps, rejects replayed requests, and rate-limits by IP.
+- Every downloaded file is now verified with a SHA-256 checksum before it touches your site.
+
+### 1.0.2
+- Fixed update progress bar snapping back to step 1 mid-animation.
+- Fixed version tracker recording the old version number after an update.
+- Status badge now sits inline with the project title.
+
+### 1.0.1
+- UI redesign to match WP admin design tokens throughout.
+- Cards redesigned with accent stripe, larger avatars, and full-width action buttons.
+
+### 1.0.0
+- Initial public release.
+
+---
+
 *Built by [Regionally Famous](https://regionallyfamous.com) · [GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html)*

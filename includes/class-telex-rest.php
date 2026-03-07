@@ -388,7 +388,8 @@ class Telex_REST {
 
 		// ETag derived only from data content, not the from_cache flag, so clients
 		// receive a 304 whenever the project list hasn't changed regardless of cache state.
-		$etag          = '"' . md5( wp_json_encode( [ $projects, $installed ] ) ) . '"';
+		$json_payload  = wp_json_encode( [ $projects, $installed ] );
+		$etag          = '"' . md5( false !== $json_payload ? $json_payload : '' ) . '"';
 		$if_none_match = trim( $request->get_header( 'If-None-Match' ) ?? '' );
 
 		$response = rest_ensure_response( $body );
@@ -968,11 +969,11 @@ class Telex_REST {
 	 * problems (bad build state, capability failures, API unavailability). Sending
 	 * all of these as 500 is incorrect and masks the real cause from the frontend.
 	 *
-	 * @param string $code The WP_Error code.
+	 * @param string|int $code The WP_Error code (WP_Error::get_error_code() returns string|int).
 	 * @return int HTTP status code.
 	 */
-	private static function http_status_for_error( string $code ): int {
-		return match ( $code ) {
+	private static function http_status_for_error( string|int $code ): int {
+		return match ( (string) $code ) {
 			'telex_not_connected'  => 401,
 			'telex_caps'           => 403,
 			'telex_forbidden'      => 403,

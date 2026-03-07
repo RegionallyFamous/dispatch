@@ -219,8 +219,13 @@ class Test_Telex_Auth extends WP_UnitTestCase {
 	 * @return array<string, mixed>
 	 */
 	private function make_http_response( int $code, string $body ): array {
+		// WP 6.4+ moved the Requests library to the WpOrg namespace.
+		$dict_class = class_exists( 'WpOrg\Requests\Utility\CaseInsensitiveDictionary' )
+			? 'WpOrg\Requests\Utility\CaseInsensitiveDictionary'
+			: 'Requests_Utility_CaseInsensitiveDictionary';
+
 		return [
-			'headers'       => new \Requests_Utility_CaseInsensitiveDictionary( [] ),
+			'headers'       => new $dict_class( [] ),
 			'body'          => $body,
 			'response'      => [
 				'code'    => $code,
@@ -522,5 +527,66 @@ class Test_Telex_Auth extends WP_UnitTestCase {
 
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertSame( 'telex_network', $result->get_error_code() );
+	}
+
+	// -------------------------------------------------------------------------
+	// CBC legacy migration
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts get_token() migrates a legacy CBC-encrypted token to GCM format on first read.
+	 *
+	 * The legacy format stores base64( iv . '::' . ciphertext ) without the v2: prefix.
+	 *
+	 * @return void
+	 */
+	public function test_get_token_migrates_legacy_cbc_format(): void {
+		$plaintext = 'legacy-access-token';
+
+		// Derive the same key Telex_Auth uses internally.
+		$key = hash( 'sha256', wp_salt( 'auth' ), true );
+
+		// CBC requires a 16-byte IV.
+		$iv         = openssl_random_pseudo_bytes( 16 );
+		$ciphertext = openssl_encrypt( $plaintext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv );
+		$this->assertNotFalse( $ciphertext, 'Test prerequisite: CBC encryption must succeed.' );
+
+		// Encode in legacy format: base64( iv . '::' . ciphertext ).
+		$legacy_encoded = base64_encode( $iv . '::' . $ciphertext );
+
+		// Store the legacy-format value directly in the option, bypassing encrypt().
+		update_option( 'telex_auth_token', $legacy_encoded, false );
+
+		// get_token() should decrypt the legacy format and return the plaintext.
+		$retrieved = Telex_Auth::get_token();
+		$this->assertSame( $plaintext, $retrieved );
+
+		// After migration the stored value must be in v2: GCM format.
+		$stored_after = get_option( 'telex_auth_token' );
+		$this->assertStringStartsWith( 'v2:', $stored_after );
+
+		Telex_Auth::disconnect();
+	}
+
+	// -------------------------------------------------------------------------
+	// get_client — connected path
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts get_client() returns a TelexClient instance when connected and circuit is closed.
+	 *
+	 * @return void
+	 */
+	public function test_get_client_returns_instance_when_connected_and_circuit_closed(): void {
+		Telex_Auth::store_token( 'valid-access-token' );
+
+		// Ensure the circuit breaker is in the closed (available) state.
+		Telex_Circuit_Breaker::record_success();
+
+		$client = Telex_Auth::get_client();
+
+		$this->assertInstanceOf( \Telex\Sdk\TelexClient::class, $client );
+
+		Telex_Auth::disconnect();
 	}
 }

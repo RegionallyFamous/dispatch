@@ -58,6 +58,11 @@ class Telex_Updater {
 	 * @return object
 	 */
 	public static function inject_plugin_updates( object $transient ): object {
+		/**
+		 * WordPress always initialises `response` on this transient before calling the filter.
+		 *
+		 * @phpstan-var object{response: array<string, mixed>, checked?: array<string, string>} $transient
+		 */
 		if ( ! Telex_Auth::is_connected() ) {
 			return $transient;
 		}
@@ -98,6 +103,7 @@ class Telex_Updater {
 				}
 
 				// Inject a pseudo-update package pointing to our REST install endpoint.
+				// @phpstan-ignore assign.propertyReadOnly
 				$transient->response[ $plugin_file ] = (object) [
 					'id'          => 'telex/' . $public_id,
 					'slug'        => $info['slug'],
@@ -121,6 +127,11 @@ class Telex_Updater {
 	 * @return object
 	 */
 	public static function inject_theme_updates( object $transient ): object {
+		/**
+		 * WordPress always initialises `response` on this transient before calling the filter.
+		 *
+		 * @phpstan-var object{response: array<string, mixed>} $transient
+		 */
 		if ( ! Telex_Auth::is_connected() ) {
 			return $transient;
 		}
@@ -152,6 +163,7 @@ class Telex_Updater {
 					continue;
 				}
 
+				// @phpstan-ignore assign.propertyReadOnly
 				$transient->response[ $info['slug'] ] = [
 					'theme'       => $info['slug'],
 					'new_version' => 'v' . $remote_version,

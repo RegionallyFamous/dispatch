@@ -435,7 +435,11 @@ class Telex_Admin {
 		header( 'Pragma: no-cache' );
 		header( 'Expires: 0' );
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 		$out = fopen( 'php://output', 'w' );
+		if ( false === $out ) {
+			wp_die( esc_html__( 'Could not open output stream for CSV export.', 'dispatch' ) );
+		}
 
 		// BOM for Excel UTF-8 compatibility.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite

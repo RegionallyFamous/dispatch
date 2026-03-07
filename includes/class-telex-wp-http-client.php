@@ -118,7 +118,10 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 			throw new Telex_Http_Exception( 'Invalid HTTP response status code: ' . $status_code );
 		}
 
-		$response_headers = wp_remote_retrieve_headers( $wp_response )->getAll();
+		$headers_raw      = wp_remote_retrieve_headers( $wp_response );
+		$response_headers = $headers_raw instanceof \WpOrg\Requests\Utility\CaseInsensitiveDictionary
+			? $headers_raw->getAll()
+			: (array) $headers_raw;
 		$response_body    = wp_remote_retrieve_body( $wp_response );
 
 		// Enforce response size cap (belt-and-suspenders; limit_response_size above handles it at transport level).

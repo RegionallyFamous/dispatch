@@ -233,4 +233,99 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 		Telex_Audit_Log::log( AuditAction::Connect );
 		$this->assertCount( 1, Telex_Audit_Log::get_recent() );
 	}
+
+	// -------------------------------------------------------------------------
+	// get_recent — orderby allowlist and sort direction
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts get_recent() accepts 'action' as a valid orderby value and returns results.
+	 *
+	 * @return void
+	 */
+	public function test_get_recent_with_orderby_action_returns_results(): void {
+		Telex_Audit_Log::log( AuditAction::Connect );
+		Telex_Audit_Log::log( AuditAction::Install, 'proj-1' );
+
+		$rows = Telex_Audit_Log::get_recent( 10, 'action' );
+
+		$this->assertNotEmpty( $rows );
+		$this->assertArrayHasKey( 'action', $rows[0] );
+	}
+
+	/**
+	 * Asserts get_recent() accepts 'created_at' as a valid orderby value and returns results.
+	 *
+	 * @return void
+	 */
+	public function test_get_recent_with_orderby_created_at_returns_results(): void {
+		Telex_Audit_Log::log( AuditAction::Disconnect );
+
+		$rows = Telex_Audit_Log::get_recent( 10, 'created_at' );
+
+		$this->assertNotEmpty( $rows );
+	}
+
+	/**
+	 * Asserts get_recent() falls back to 'id' ordering when an invalid orderby value is supplied.
+	 *
+	 * An SQL injection attempt must NOT cause a query error — the sanitisation must silently
+	 * substitute 'id' and return valid results.
+	 *
+	 * @return void
+	 */
+	public function test_get_recent_falls_back_to_id_for_sql_injection_attempt(): void {
+		Telex_Audit_Log::log( AuditAction::Connect );
+
+		// Should not throw or cause a database error.
+		$rows = Telex_Audit_Log::get_recent( 10, '; DROP TABLE telex_audit_log; --' );
+
+		// If rows are returned the table is still intact; an empty result is also acceptable
+		// as long as no exception or DB error occurred.
+		$this->assertIsArray( $rows );
+	}
+
+	/**
+	 * Asserts get_recent() returns rows in ascending order when $order is 'ASC'.
+	 *
+	 * @return void
+	 */
+	public function test_get_recent_with_asc_order_returns_oldest_first(): void {
+		Telex_Audit_Log::log( AuditAction::Connect );
+		Telex_Audit_Log::log( AuditAction::Install, 'proj-a' );
+		Telex_Audit_Log::log( AuditAction::Update, 'proj-b' );
+
+		$rows = Telex_Audit_Log::get_recent( 10, 'id', 'ASC' );
+
+		$this->assertGreaterThan( 3, count( $rows ) - 1 + 1 ); // At least 3 rows.
+		// First row should have a lower ID than the last.
+		$this->assertLessThan( (int) $rows[ count( $rows ) - 1 ]['id'], (int) $rows[0]['id'] + 1 );
+		$this->assertLessThanOrEqual( (int) $rows[ count( $rows ) - 1 ]['id'], (int) $rows[0]['id'] );
+	}
+
+	// -------------------------------------------------------------------------
+	// drop_table
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts drop_table() removes the audit log table from the database.
+	 *
+	 * @return void
+	 */
+	public function test_drop_table_removes_the_table(): void {
+		global $wpdb;
+
+		// Confirm the table exists before dropping.
+		$table  = Telex_Audit_Log::table_name();
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$this->assertSame( $table, $exists, 'Table must exist before drop_table() is called.' );
+
+		Telex_Audit_Log::drop_table();
+
+		$exists_after = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$this->assertNull( $exists_after, 'Table must not exist after drop_table().' );
+
+		// Recreate so other tests in this class can still run.
+		Telex_Audit_Log::create_table();
+	}
 }

@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.0.3
+Stable tag: 1.1.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,24 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added a full JavaScript test suite (Jest) covering the admin store reducer, all action creators, every selector, `relativeDate()`, and `getAvatarColor()` — 60 tests.
+* Added PHP tests for the public webhook endpoint: HMAC validation, replay window, per-IP rate limiting, and all error paths.
+* Added PHP tests for the Telex SDK: SSRF constructor guards, HTTP exception mapping (401/404/5xx/oversized), and URL encoding in `ProjectResource`.
+* Added PHP tests for `Telex_WP_Http_Client`: SSRF guard, `WP_Error` conversion, status code guard, header forwarding, and `User-Agent`.
+* Added installer tests for build-not-ready, no-files, capability, and checksum-mismatch error paths.
+* Added updater tests for `intercept_telex_upgrade()` and `render_plugin_row_notice()`.
+* Added tracker tests for `get_by_slug()` and corrupted-JSON recovery.
+* Added auth tests for legacy CBC token migration and the `get_client()` connected path.
+* Added audit log tests for the orderby allowlist (SQL injection fallback), ASC ordering, and `drop_table()`.
+* Added REST tests for the deploy-secret GET/POST endpoints and the non-multisite guard on `deploy-network`.
+* `Telex_Installer::install()` accepts an optional injected `TelexClient` for test isolation.
+* All six GitHub Actions in CI and the release workflow are now pinned to immutable SHA digests.
+* PHPUnit upgraded from 9.6 (EOL) to 11.5.
+* Added `wp-cli/wp-cli` to dev dependencies; `class-telex-cli.php` is now fully covered by PHPStan (exclusion removed).
+* Fixed all PHPStan level-8 errors introduced by the WP-CLI integration.
+* Admin store and utility functions extracted to importable modules (`store.js`, `utils.js`) for testability.
 
 = 1.0.3 =
 * Fixed a crash that made the projects screen go blank on sites where the project cache had expired.

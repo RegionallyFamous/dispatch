@@ -13,6 +13,8 @@
     <exclude-pattern>vendor/*</exclude-pattern>
     <exclude-pattern>build/*</exclude-pattern>
     <exclude-pattern>node_modules/*</exclude-pattern>
+    <!-- JS tests are linted by ESLint, not PHPCS -->
+    <exclude-pattern>tests/js/*</exclude-pattern>
 
     <!-- WordPress coding standards (full enforcement on plugin code) -->
     <rule ref="WordPress-Extra">
@@ -64,10 +66,24 @@
         <exclude-pattern>includes/class-telex-dtos.php</exclude-pattern>
     </rule>
 
-    <!-- DTOs and HTTP client/exception live in single files by design -->
+    <!-- DTOs and HTTP client/exception live in single files by design.
+         Test files routinely define stub/helper classes alongside the test case. -->
     <rule ref="Generic.Files.OneObjectStructurePerFile">
         <exclude-pattern>includes/class-telex-dtos.php</exclude-pattern>
         <exclude-pattern>includes/class-telex-wp-http-client.php</exclude-pattern>
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
+    <!-- Test helper stubs (Stub_Psr18_Client, etc.) follow class naming inside
+         their test file rather than living in class-stub-*.php files. -->
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
+    <!-- test-sdk.php uses Nyholm\Psr7 directly; wp_json_encode is available
+         but json_encode is fine here as these target pure SDK logic. -->
+    <rule ref="WordPress.WP.AlternativeFunctions.json_encode_json_encode">
+        <exclude-pattern>tests/*</exclude-pattern>
     </rule>
 
     <!-- PHPCompatibility false positive: $this IS valid in PHP 8.1 backed enum methods -->
@@ -87,5 +103,12 @@
          the CapitalPDangit sniff for the entire tests/ directory. -->
     <rule ref="WordPress.WP.CapitalPDangit">
         <exclude-pattern>tests/*</exclude-pattern>
+    </rule>
+
+    <!-- Tool-directive inline comments (@phpstan-ignore, @phpstan-var, phpcs:ignore)
+         are machine-readable annotations, not prose sentences, so the trailing-
+         punctuation requirement does not apply to them. -->
+    <rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
+        <severity>0</severity>
     </rule>
 </ruleset>

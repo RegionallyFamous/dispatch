@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <phpunit
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
     bootstrap="tests/bootstrap.php"
     colors="true"
 >
@@ -11,10 +11,10 @@
         </testsuite>
     </testsuites>
 
-    <coverage>
+    <source>
         <include>
             <directory suffix=".php">includes/</directory>
             <directory suffix=".php">lib/telex-sdk/src/</directory>
         </include>
-    </coverage>
+    </source>
 </phpunit>

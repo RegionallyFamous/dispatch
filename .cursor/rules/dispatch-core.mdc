@@ -33,7 +33,19 @@ React UI (src/)  →  REST API (Telex_REST)  →  Service Layer (includes/)  →
 ## Before Every Commit
 
 ```bash
-make lint    # ESLint + Stylelint + PHP_CodeSniffer — must pass with zero errors
+make lint    # ESLint + Stylelint + PHP_CodeSniffer + PHPStan level 8 — must pass with zero errors
 make test    # PHPUnit — must pass clean
 make build   # Webpack — must produce a clean output
 ```
+
+## PHPStan
+
+Run `make stan` (or `make lint`, which includes it) after every PHP change. Configuration is in `phpstan.neon` at level 8 with the `szepeviktor/phpstan-wordpress` extension.
+
+Common patterns that PHPStan catches and that must be fixed — never suppressed unless truly unavoidable:
+
+- `fopen()` returns `resource|false` — always guard with `if ( false === $handle )` before use
+- `wp_json_encode()` returns `string|false` — use `?: ''` fallback before passing to `md5()` or similar
+- `WP_Error::get_error_code()` returns `string|int` — widen parameter types accordingly
+- WordPress filter callbacks receive `object` for transients — use `@phpstan-var` to assert the concrete shape
+- SDK method docblocks must be immediately adjacent to the method, never separated by a constant or another block

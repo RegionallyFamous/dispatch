@@ -222,4 +222,46 @@ class Test_Telex_Tracker extends WP_UnitTestCase {
 		Telex_Tracker::reconcile();
 		$this->assertSame( [], Telex_Tracker::get_all() );
 	}
+
+	// -------------------------------------------------------------------------
+	// get_by_slug
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts get_by_slug() returns the tracker entry for a tracked project.
+	 *
+	 * @return void
+	 */
+	public function test_get_by_slug_returns_entry_for_tracked_project(): void {
+		Telex_Tracker::track( 'proj-slug-test', 3, 'block', 'my-unique-slug' );
+
+		$entry = Telex_Tracker::get_by_slug( 'my-unique-slug' );
+
+		$this->assertIsArray( $entry );
+		$this->assertSame( 'my-unique-slug', $entry['slug'] );
+		$this->assertSame( 3, $entry['version'] );
+	}
+
+	/**
+	 * Asserts get_by_slug() returns null for an unknown slug.
+	 *
+	 * @return void
+	 */
+	public function test_get_by_slug_returns_null_for_unknown_slug(): void {
+		$this->assertNull( Telex_Tracker::get_by_slug( 'not-tracked-ever' ) );
+	}
+
+	/**
+	 * Asserts get_all() returns an empty array when the option contains corrupted JSON.
+	 *
+	 * @return void
+	 */
+	public function test_get_all_returns_empty_array_for_corrupted_json(): void {
+		wp_cache_flush();
+		update_option( 'telex_installed_projects', 'NOT_VALID_JSON{{{{', false );
+
+		$result = Telex_Tracker::get_all();
+
+		$this->assertSame( [], $result );
+	}
 }

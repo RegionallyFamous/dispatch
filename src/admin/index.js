@@ -33,7 +33,7 @@ import {
 	Tooltip,
 	Icon,
 } from '@wordpress/components';
-import { __, sprintf, _n } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import {
 	update as updateIcon,
@@ -48,96 +48,8 @@ import {
 	copy as copyIcon,
 	keyboardReturn,
 } from '@wordpress/icons';
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-/**
- * Deterministic color from a seed string.
- * Each project always gets the same color across page loads.
- */
-const AVATAR_PALETTE = [
-	'#2271b1', // WP admin blue
-	'#1e8b3a', // green
-	'#d63638', // red
-	'#7e3bd0', // purple
-	'#c67c0d', // amber
-	'#007cba', // teal-blue
-	'#e65054', // coral
-	'#0ea5e9', // sky
-	'#8b5cf6', // violet
-	'#059669', // emerald
-];
-
-function getAvatarColor( seed ) {
-	let hash = 0;
-	for ( let i = 0; i < seed.length; i++ ) {
-		// djb2 hash — non-cryptographic, fast, well-distributed.
-		// eslint-disable-next-line no-bitwise
-		hash = ( ( hash << 5 ) - hash + seed.charCodeAt( i ) ) | 0;
-	}
-	return AVATAR_PALETTE[ Math.abs( hash ) % AVATAR_PALETTE.length ];
-}
-
-/**
- * Human-readable relative timestamp from an ISO-8601 string.
- * Returns null if the input is missing or unparseable.
- *
- * @param {string|null|undefined} isoString ISO-8601 date string.
- * @return {string|null} Localised relative string, or null.
- */
-function relativeDate( isoString ) {
-	if ( ! isoString ) {
-		return null;
-	}
-	const d = new Date( isoString );
-	if ( isNaN( d.getTime() ) ) {
-		return null;
-	}
-	const seconds = Math.floor( ( Date.now() - d.getTime() ) / 1000 );
-	if ( seconds < 60 ) {
-		return __( 'Just now', 'dispatch' );
-	}
-	const minutes = Math.floor( seconds / 60 );
-	if ( minutes < 60 ) {
-		return sprintf(
-			/* translators: %d: number of minutes */
-			_n( '%d minute ago', '%d minutes ago', minutes, 'dispatch' ),
-			minutes
-		);
-	}
-	const hours = Math.floor( minutes / 60 );
-	if ( hours < 24 ) {
-		return sprintf(
-			/* translators: %d: number of hours */
-			_n( '%d hour ago', '%d hours ago', hours, 'dispatch' ),
-			hours
-		);
-	}
-	const days = Math.floor( hours / 24 );
-	if ( days < 30 ) {
-		return sprintf(
-			/* translators: %d: number of days */
-			_n( '%d day ago', '%d days ago', days, 'dispatch' ),
-			days
-		);
-	}
-	const months = Math.floor( days / 30 );
-	if ( months < 12 ) {
-		return sprintf(
-			/* translators: %d: number of months */
-			_n( '%d month ago', '%d months ago', months, 'dispatch' ),
-			months
-		);
-	}
-	const years = Math.floor( months / 12 );
-	return sprintf(
-		/* translators: %d: number of years */
-		_n( '%d year ago', '%d years ago', years, 'dispatch' ),
-		years
-	);
-}
+import { getAvatarColor, relativeDate } from './utils';
+import { reducer, actions, selectors, DEFAULT_STATE } from './store';
 
 // ---------------------------------------------------------------------------
 // Project avatar
@@ -176,119 +88,14 @@ const _perPageAttr = parseInt( _adminContainer?.dataset?.perPage, 10 );
 const INITIAL_PER_PAGE =
 	! isNaN( _perPageAttr ) && _perPageAttr > 0 ? _perPageAttr : 24;
 
-const DEFAULT_STATE = {
-	projects: [],
-	installedProjects: {}, // publicId → { version, type, … }
-	loading: false,
-	error: null,
-	authExpired: false,
-	searchQuery: '',
-	installing: {}, // publicId → 'installing' | 'removing' | 'idle' | 'failed'
-	notice: null,
-	confirmRemove: null, // publicId awaiting confirmation
-	currentPage: 1,
-	perPage: INITIAL_PER_PAGE,
-	installSteps: {}, // publicId → step number (1–4) during install
-};
-
-const actions = {
-	setProjects: ( projects ) => ( { type: 'SET_PROJECTS', projects } ),
-	setInstalledProjects: ( installed ) => ( {
-		type: 'SET_INSTALLED',
-		installed,
-	} ),
-	setLoading: ( loading ) => ( { type: 'SET_LOADING', loading } ),
-	setError: ( error ) => ( { type: 'SET_ERROR', error } ),
-	setAuthExpired: ( expired ) => ( { type: 'SET_AUTH_EXPIRED', expired } ),
-	setSearchQuery: ( query ) => ( { type: 'SET_SEARCH', query } ),
-	setInstallStatus: ( publicId, status ) => ( {
-		type: 'SET_INSTALL_STATUS',
-		publicId,
-		status,
-	} ),
-	setNotice: ( notice ) => ( { type: 'SET_NOTICE', notice } ),
-	clearNotice: () => ( { type: 'SET_NOTICE', notice: null } ),
-	setConfirmRemove: ( publicId ) => ( {
-		type: 'SET_CONFIRM_REMOVE',
-		publicId,
-	} ),
-	setCurrentPage: ( page ) => ( { type: 'SET_PAGE', page } ),
-	setInstallStep: ( publicId, step ) => ( {
-		type: 'SET_INSTALL_STEP',
-		publicId,
-		step,
-	} ),
-	clearInstallStep: ( publicId ) => ( {
-		type: 'CLEAR_INSTALL_STEP',
-		publicId,
-	} ),
-};
-
-function reducer( state = DEFAULT_STATE, action ) {
-	switch ( action.type ) {
-		case 'SET_PROJECTS':
-			return { ...state, projects: action.projects, currentPage: 1 };
-		case 'SET_INSTALLED':
-			return { ...state, installedProjects: action.installed };
-		case 'SET_LOADING':
-			return { ...state, loading: action.loading };
-		case 'SET_ERROR':
-			return { ...state, error: action.error };
-		case 'SET_AUTH_EXPIRED':
-			return { ...state, authExpired: action.expired };
-		case 'SET_SEARCH':
-			return { ...state, searchQuery: action.query, currentPage: 1 };
-		case 'SET_INSTALL_STATUS':
-			return {
-				...state,
-				installing: {
-					...state.installing,
-					[ action.publicId ]: action.status,
-				},
-			};
-		case 'SET_NOTICE':
-			return { ...state, notice: action.notice };
-		case 'SET_CONFIRM_REMOVE':
-			return { ...state, confirmRemove: action.publicId };
-		case 'SET_PAGE':
-			return { ...state, currentPage: action.page };
-		case 'SET_INSTALL_STEP':
-			return {
-				...state,
-				installSteps: {
-					...state.installSteps,
-					[ action.publicId ]: action.step,
-				},
-			};
-		case 'CLEAR_INSTALL_STEP': {
-			const { [ action.publicId ]: _removed, ...remainingSteps } =
-				state.installSteps;
-			return { ...state, installSteps: remainingSteps };
-		}
-		default:
-			return state;
-	}
-}
+// Merge the runtime per-page preference into the default state.
+const runtimeDefaultState = { ...DEFAULT_STATE, perPage: INITIAL_PER_PAGE };
 
 const store = createReduxStore( 'telex/admin', {
-	reducer,
+	reducer: ( state = runtimeDefaultState, action ) =>
+		reducer( state, action ),
 	actions,
-	selectors: {
-		getProjects: ( state ) => state.projects,
-		getInstalledProjects: ( state ) => state.installedProjects,
-		isLoading: ( state ) => state.loading,
-		getError: ( state ) => state.error,
-		isAuthExpired: ( state ) => state.authExpired,
-		getSearchQuery: ( state ) => state.searchQuery,
-		getInstallStatus: ( state, publicId ) =>
-			state.installing[ publicId ] || 'idle',
-		getNotice: ( state ) => state.notice,
-		getConfirmRemove: ( state ) => state.confirmRemove,
-		getCurrentPage: ( state ) => state.currentPage,
-		getPerPage: ( state ) => state.perPage,
-		getInstallStep: ( state, publicId ) =>
-			state.installSteps[ publicId ] ?? null,
-	},
+	selectors,
 } );
 
 register( store );

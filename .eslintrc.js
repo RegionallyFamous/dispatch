@@ -6,4 +6,12 @@ module.exports = {
 		// them at runtime; they will never live in node_modules.
 		'import/no-unresolved': [ 'error', { ignore: [ '^@wordpress/' ] } ],
 	},
+	overrides: [
+		{
+			// Jest test files: declare Jest globals so ESLint doesn't flag
+			// describe/it/expect/beforeEach/afterEach as undefined.
+			files: [ 'tests/js/**/*.{js,jsx}' ],
+			env: { jest: true },
+		},
+	],
 };

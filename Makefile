@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup build lint test zip clean release
+.PHONY: help setup build lint stan test zip clean release
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -14,9 +14,13 @@ setup: ## Install all PHP and Node dependencies
 build: ## Compile JS/CSS for production
 	npm run build:production
 
-lint: ## Run all linters (JS, CSS, PHP)
+lint: ## Run all linters (JS, CSS, PHP) + PHPStan static analysis
 	npm run lint
 	npm run lint:php
+	php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
+
+stan: ## Run PHPStan static analysis only
+	php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
 
 test: ## Run PHP unit tests
 	npm run test:php

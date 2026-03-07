@@ -31,7 +31,9 @@ class ProjectResource
             $query['per_page'] = (string) $params['perPage'];
         }
 
-        return $this->http->get('/api/v1/projects', $query);
+        /** @var array{projects: array<int, array{publicId: string, name: string, slug: string, projectType: ?string}>, page: int, perPage: int, total: int, totalPages: int} $result */
+        $result = $this->http->get('/api/v1/projects', $query);
+        return $result;
     }
 
     /**
@@ -40,7 +42,9 @@ class ProjectResource
     public function get(string $publicId): array
     {
         $id = rawurlencode($publicId);
-        return $this->http->get("/api/v1/projects/$id");
+        /** @var array{publicId: string, name: string, slug: string, projectType: ?string, currentVersion: int, createdAt: ?string, updatedAt: ?string, artefactXML: string, isShared: bool, isOwner: bool, images: array<int, mixed>} $result */
+        $result = $this->http->get("/api/v1/projects/$id");
+        return $result;
     }
 
     /**

@@ -25,13 +25,13 @@ class HttpClient
         $this->client  = $client;
     }
 
+    /** Maximum acceptable response body size (10 MB). */
+    private const MAX_BODY_BYTES = 10_000_000;
+
     /**
      * @param array<string, string> $params
      * @return array<string, mixed>
      */
-    /** Maximum acceptable response body size (10 MB). */
-    private const MAX_BODY_BYTES = 10_000_000;
-
     public function get(string $path, array $params = []): array
     {
         $response = $this->sendRequest($path, $params);

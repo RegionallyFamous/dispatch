@@ -5,8 +5,6 @@ on:
     tags:
       - 'v*.*.*'
 
-# NOTE: To further harden the supply chain, pin all third-party action references
-# to immutable commit SHAs (e.g. actions/checkout@<SHA>) and review periodically.
 permissions:
   contents: write
 
@@ -22,16 +20,16 @@ jobs:
     needs: [ci-gate]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: '24'
           cache: 'npm'
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@d59004228537ca90c8dca680592a08a675bf52b6 # v2
         with:
           php-version: '8.2'
           extensions: openssl
@@ -52,7 +50,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           name: Dispatch for Telex ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}

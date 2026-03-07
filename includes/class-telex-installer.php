@@ -38,16 +38,18 @@ class Telex_Installer {
 	/**
 	 * Downloads, validates, and installs a Telex project via the WP Upgrader API.
 	 *
-	 * @param string                    $public_id         The Telex project public ID.
-	 * @param bool                      $activate          Whether to activate the plugin immediately after install.
-	 * @param array<string, mixed>|null $pre_fetched_build Optional build data already fetched by the REST controller.
-	 *                                                     When provided, the installer skips its own getBuild() call,
-	 *                                                     avoiding a duplicate round-trip that can race with the
-	 *                                                     Telex API's build-readiness state.
+	 * @param string                      $public_id         The Telex project public ID.
+	 * @param bool                        $activate          Whether to activate the plugin immediately after install.
+	 * @param array<string, mixed>|null   $pre_fetched_build Optional build data already fetched by the REST controller.
+	 *                                                       When provided, the installer skips its own getBuild() call,
+	 *                                                       avoiding a duplicate round-trip that can race with the
+	 *                                                       Telex API's build-readiness state.
+	 * @param \Telex\Sdk\TelexClient|null $client            Optional pre-configured SDK client (used in tests).
+	 *                                                       Falls back to Telex_Auth::get_client() when null.
 	 * @return true|\WP_Error
 	 */
-	public static function install( string $public_id, bool $activate = false, ?array $pre_fetched_build = null ): true|\WP_Error {
-		$client = Telex_Auth::get_client();
+	public static function install( string $public_id, bool $activate = false, ?array $pre_fetched_build = null, ?\Telex\Sdk\TelexClient $client = null ): true|\WP_Error {
+		$client ??= Telex_Auth::get_client();
 		if ( ! $client ) {
 			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Link your account from the Dispatch page.", 'dispatch' ) );
 		}

@@ -13,13 +13,13 @@ parameters:
     excludePaths:
         - vendor/
         - node_modules/
-        # WP-CLI has no published PHPStan stubs; the CLI class is analysed
-        # separately when WP-CLI stubs become available.
-        - includes/class-telex-cli.php
 
     # Bootstrap defines plugin constants for analysis time.
     bootstrapFiles:
         - phpstan-bootstrap.php
+        # WP-CLI ships utility functions (format_items, make_progress_bar, …) as
+        # procedural code in utils.php that Composer does not autoload.
+        - vendor/wp-cli/wp-cli/php/utils.php
 
     # WordPress stubs provide type information for core functions and classes.
     stubFiles:
@@ -30,8 +30,9 @@ parameters:
     treatPhpDocTypesAsCertain: false
 
     ignoreErrors:
-        # WP-CLI add_command call in the main plugin file is guarded by
-        # `defined('WP_CLI') && WP_CLI`. Suppress the one unavoidable reference.
-        - message: '#Call to static method add_command\(\) on an unknown class WP_CLI#'
-          path: telex.php
+        # WP_CLI\NoOp uses __call() magic for tick()/finish(). PHPStan cannot
+        # statically resolve dynamic methods via __call on a union type.
+        - message: '#Call to an undefined method cli\\progress\\Bar\|WP_CLI\\NoOp::(tick|finish)\(\)\.#'
+          path: includes/class-telex-cli.php
+
 

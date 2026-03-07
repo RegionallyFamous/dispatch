@@ -18,7 +18,7 @@ PHP 8.2+ features are required — use them:
 
 ## WordPress Coding Standards
 
-Run `make lint` after every PHP change. Config lives in `phpcs.xml.dist` (`WordPress-Extra` + `WordPress-Docs`).
+Run `make lint` after every PHP change. This runs PHPCS (`WordPress-Extra` + `WordPress-Docs`) **and** PHPStan at level 8. Both must pass clean — zero errors, zero suppression without a documented reason.
 
 - Short array syntax `[]` always — never `array()`
 - Service classes are static-only, named `Telex_*`, one per file at `includes/class-telex-*.php`

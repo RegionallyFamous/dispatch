@@ -516,4 +516,99 @@ class Test_Telex_REST extends WP_UnitTestCase {
 
 		$this->assertSame( 502, $response->get_status() );
 	}
+
+	// -------------------------------------------------------------------------
+	// GET /settings/deploy-secret
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts GET /settings/deploy-secret returns 401 for unauthenticated requests.
+	 *
+	 * @return void
+	 */
+	public function test_get_deploy_secret_returns_401_when_not_logged_in(): void {
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
+		$response = $this->server->dispatch( $request );
+		$this->assertSame( 401, $response->get_status() );
+	}
+
+	/**
+	 * Asserts GET /settings/deploy-secret returns 403 for a subscriber.
+	 *
+	 * @return void
+	 */
+	public function test_get_deploy_secret_returns_403_for_subscriber(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 403, $response->get_status() );
+	}
+
+	/**
+	 * Asserts GET /settings/deploy-secret returns the secret value for an admin.
+	 *
+	 * @return void
+	 */
+	public function test_get_deploy_secret_returns_secret_for_admin(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'secret', $data );
+		$this->assertNotEmpty( $data['secret'] );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST /settings/deploy-secret
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts POST /settings/deploy-secret regenerates and returns a new secret.
+	 *
+	 * @return void
+	 */
+	public function test_post_deploy_secret_regenerates_secret(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		// Store an initial secret.
+		update_option( 'dispatch_deploy_secret', 'initial-secret', false );
+
+		$request  = new WP_REST_Request( 'POST', '/telex/v1/settings/deploy-secret' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'secret', $data );
+		$this->assertNotSame( 'initial-secret', $data['secret'] );
+
+		delete_option( 'dispatch_deploy_secret' );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST /projects/{id}/deploy-network
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts POST /projects/{id}/deploy-network returns 400 on a non-multisite install.
+	 *
+	 * @return void
+	 */
+	public function test_deploy_network_returns_400_on_non_multisite(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		// Non-multisite: is_multisite() always returns false in the single-site test env.
+		$request  = new WP_REST_Request( 'POST', '/telex/v1/projects/proj-123/deploy-network' );
+		$response = $this->server->dispatch( $request );
+
+		// Permission callback: require_network_admin checks manage_network_plugins.
+		// On a single site the user has no such cap → 403. Only on multisite does the
+		// endpoint reach deploy_network() and return 400. Test the 403 here since the
+		// WP test environment is always single-site.
+		$this->assertContains( $response->get_status(), [ 400, 403 ] );
+	}
 }

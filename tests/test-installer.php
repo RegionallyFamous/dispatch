@@ -248,8 +248,237 @@ class Test_Telex_Installer extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// install — with injected mock client
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts install() returns telex_not_ready when the build status is 'not_ready'.
+	 *
+	 * @return void
+	 */
+	public function test_install_returns_not_ready_when_build_building(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$client = $this->make_mock_client(
+			project: [
+				'publicId'       => 'proj-build',
+				'name'           => 'Build Block',
+				'slug'           => 'build-block',
+				'projectType'    => 'block',
+				'currentVersion' => 1,
+			],
+			build: [ 'status' => 'not_ready' ]
+		);
+
+		$result = Telex_Installer::install( 'proj-build', false, null, $client );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'telex_not_ready', $result->get_error_code() );
+	}
+
+	/**
+	 * Asserts install() returns telex_no_files when the build has an empty files array.
+	 *
+	 * @return void
+	 */
+	public function test_install_returns_no_files_when_build_files_empty(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$client = $this->make_mock_client(
+			project: [
+				'publicId'       => 'proj-empty',
+				'name'           => 'Empty Block',
+				'slug'           => 'empty-block',
+				'projectType'    => 'block',
+				'currentVersion' => 1,
+			],
+			build: [ 'files' => [] ]
+		);
+
+		$result = Telex_Installer::install( 'proj-empty', false, null, $client );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'telex_no_files', $result->get_error_code() );
+	}
+
+	/**
+	 * Asserts install() returns telex_caps when the user lacks install_plugins capability.
+	 *
+	 * @return void
+	 */
+	public function test_install_returns_caps_error_for_user_without_install_permission(): void {
+		wp_set_current_user( 0 ); // No capabilities.
+
+		$client = $this->make_mock_client(
+			project: [
+				'publicId'       => 'proj-caps',
+				'name'           => 'Caps Block',
+				'slug'           => 'caps-block',
+				'projectType'    => 'block',
+				'currentVersion' => 1,
+			],
+			build: [
+				'files' => [
+					[
+						'path'   => 'index.js',
+						'sha256' => '',
+					],
+				],
+			]
+		);
+
+		$result = Telex_Installer::install( 'proj-caps', false, null, $client );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'telex_caps', $result->get_error_code() );
+	}
+
+	/**
+	 * Asserts install() returns telex_checksum when the downloaded file content does not
+	 * match the expected SHA-256 hash from the build manifest.
+	 *
+	 * @return void
+	 */
+	public function test_install_returns_checksum_mismatch_when_file_hash_wrong(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$expected_sha = hash( 'sha256', 'correct-content' );
+
+		$client = $this->make_mock_client(
+			project: [
+				'publicId'       => 'proj-sha',
+				'name'           => 'SHA Block',
+				'slug'           => 'sha-block',
+				'projectType'    => 'block',
+				'currentVersion' => 1,
+			],
+			build: [
+				'files' => [
+					[
+						'path'   => 'index.js',
+						'size'   => 10,
+						'sha256' => $expected_sha,
+					],
+				],
+			],
+			file_content: 'tampered-content' // SHA-256 will not match $expected_sha.
+		);
+
+		$result = Telex_Installer::install( 'proj-sha', false, null, $client );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'telex_checksum', $result->get_error_code() );
+	}
+
+	// -------------------------------------------------------------------------
+	// remove — happy paths
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts remove() untracks a block project even when the plugin directory is absent.
+	 *
+	 * WordPress's delete_plugins() is only invoked when is_dir() returns true; when the
+	 * directory is already gone, remove() still untracks the entry and returns true.
+	 *
+	 * @return void
+	 */
+	public function test_remove_untracks_plugin_project_when_directory_missing(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		Telex_Tracker::track( 'proj-gone-plugin', 1, 'block', 'definitely-absent-plugin-' . wp_generate_uuid4() );
+
+		$result = Telex_Installer::remove( 'proj-gone-plugin' );
+
+		$this->assertTrue( $result );
+		$this->assertNull( Telex_Tracker::get( 'proj-gone-plugin' ) );
+	}
+
+	/**
+	 * Asserts remove() untracks a theme project even when the theme directory is absent.
+	 *
+	 * @return void
+	 */
+	public function test_remove_untracks_theme_project_when_directory_missing(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		Telex_Tracker::track( 'proj-gone-theme', 1, 'theme', 'definitely-absent-theme-' . wp_generate_uuid4() );
+
+		$result = Telex_Installer::remove( 'proj-gone-theme' );
+
+		$this->assertTrue( $result );
+		$this->assertNull( Telex_Tracker::get( 'proj-gone-theme' ) );
+	}
+
+	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Creates a mock TelexClient that returns configurable project, build, and file data.
+	 *
+	 * @param array<string,mixed> $project      Data returned by projects->get().
+	 * @param array<string,mixed> $build        Data returned by projects->getBuild().
+	 * @param string              $file_content Content returned by projects->getBuildFile().
+	 * @return \Telex\Sdk\TelexClient
+	 */
+	private function make_mock_client( array $project, array $build, string $file_content = '' ): \Telex\Sdk\TelexClient {
+		return new \Telex\Sdk\TelexClient(
+			[
+				'token'      => 'test-token',
+				'baseUrl'    => 'https://telex.app',
+				'httpClient' => new class( $project, $build, $file_content ) implements \Psr\Http\Client\ClientInterface {
+					/**
+					 * Raw project data to return.
+					 *
+					 * @var array<string,mixed>
+					 */
+					private array $project;
+					/**
+					 * Raw build data to return.
+					 *
+					 * @var array<string,mixed>
+					 */
+					private array $build;
+					/**
+					 * Raw file content to return.
+					 *
+					 * @var string
+					 */
+					private string $file_content;
+
+					/**
+					 * Stores the stub data for subsequent sendRequest() calls.
+					 *
+					 * @param array<string,mixed> $project      Raw project data.
+					 * @param array<string,mixed> $build        Raw build data.
+					 * @param string              $file_content Raw file content.
+					 */
+					public function __construct( array $project, array $build, string $file_content ) {
+						$this->project      = $project;
+						$this->build        = $build;
+						$this->file_content = $file_content;
+					}
+
+					/**
+					 * Routes the request to the matching stub response based on the URL path.
+					 *
+					 * @param \Psr\Http\Message\RequestInterface $request Outgoing PSR-7 request.
+					 * @return \Psr\Http\Message\ResponseInterface
+					 */
+					public function sendRequest( \Psr\Http\Message\RequestInterface $request ): \Psr\Http\Message\ResponseInterface {
+						$path = $request->getUri()->getPath();
+						if ( str_contains( $path, '/build/file' ) ) {
+							return new \Nyholm\Psr7\Response( 200, [], $this->file_content );
+						}
+						if ( str_contains( $path, '/build' ) ) {
+							return new \Nyholm\Psr7\Response( 200, [], (string) json_encode( $this->build ) );
+						}
+						return new \Nyholm\Psr7\Response( 200, [], (string) json_encode( $this->project ) );
+					}
+				},
+			]
+		);
+	}
 
 	/**
 	 * Creates a temporary directory and returns its path.
