@@ -35,7 +35,3 @@ parameters:
         - message: '#Call to static method add_command\(\) on an unknown class WP_CLI#'
           path: telex.php
 
-        # build/*.asset.php files are Webpack output — they don't exist at
-        # analysis time. The runtime file_exists() guard already handles this.
-        - identifier: include.fileNotFound
-          path: includes/class-telex-admin.php
