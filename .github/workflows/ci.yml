@@ -34,7 +34,11 @@ jobs:
         run: npm run lint:css
 
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high
+        # All npm packages are devDependencies (build tooling only — nothing ships
+        # to WordPress). Audit only production deps to avoid false positives from
+        # build tools like @wordpress/scripts that can't be patched without a
+        # breaking downgrade.
+        run: npm audit --audit-level=high --omit=dev
 
   lint-php:
     name: Lint PHP
