@@ -446,7 +446,10 @@ class Telex_REST {
 			);
 		}
 
-		$result = Telex_Installer::install( $public_id, $activate );
+		// Pass the already-fetched build data to the installer to avoid a second
+		// getBuild() round-trip. A duplicate call can race with the build-readiness
+		// state and incorrectly report "not ready" immediately after confirmation.
+		$result = Telex_Installer::install( $public_id, $activate, $build );
 
 		if ( is_wp_error( $result ) ) {
 			return new \WP_Error(

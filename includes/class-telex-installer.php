@@ -42,7 +42,14 @@ class Telex_Installer {
 	 * @param bool   $activate  Whether to activate the plugin immediately after install.
 	 * @return true|\WP_Error
 	 */
-	public static function install( string $public_id, bool $activate = false ): true|\WP_Error {
+	/**
+	 * @param array<string, mixed>|null $pre_fetched_build Optional build data already fetched by the
+	 *                                                     REST controller. When provided, the installer
+	 *                                                     skips its own getBuild() call, avoiding a
+	 *                                                     duplicate round-trip that can race with the
+	 *                                                     Telex API's build-readiness state.
+	 */
+	public static function install( string $public_id, bool $activate = false, ?array $pre_fetched_build = null ): true|\WP_Error {
 		$client = Telex_Auth::get_client();
 		if ( ! $client ) {
 			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Link your account from the Dispatch page.", 'dispatch' ) );
@@ -56,7 +63,9 @@ class Telex_Installer {
 				return new \WP_Error( 'telex_caps', __( "You don't have permission to install this type of project.", 'dispatch' ) );
 			}
 
-			$build = $client->projects->getBuild( $public_id );
+			// Reuse pre-fetched build data when available to avoid a duplicate
+			// API call that can race with the build-readiness state on Telex's side.
+			$build = $pre_fetched_build ?? $client->projects->getBuild( $public_id );
 
 			if ( isset( $build['status'] ) && 'not_ready' === $build['status'] ) {
 				return new \WP_Error( 'telex_not_ready', __( "This build isn't ready yet — give it a second and try again.", 'dispatch' ) );
@@ -106,7 +115,16 @@ class Telex_Installer {
 				return $result;
 			}
 
-			$version = (int) ( $project['currentVersion'] ?? 0 );
+			// The Telex API sometimes returns the currently-deployed version in
+			// projects.get() rather than the latest-build version. To ensure we
+			// always track the version that was actually installed, we take the
+			// higher of the API value and the per-project cache value (which was
+			// populated when the "update available" notice was computed and
+			// accurately reflects the build the user intended to install).
+			$api_version    = (int) ( $project['currentVersion'] ?? 0 );
+			$cached_project = Telex_Cache::get_project( $public_id );
+			$cached_version = $cached_project ? (int) ( $cached_project['currentVersion'] ?? 0 ) : 0;
+			$version        = max( $api_version, $cached_version );
 
 			// Determine action BEFORE overwriting the tracker entry.
 			$action = Telex_Tracker::is_installed( $public_id ) ? AuditAction::Update : AuditAction::Install;

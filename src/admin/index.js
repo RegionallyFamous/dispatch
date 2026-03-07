@@ -1400,17 +1400,19 @@ function ProjectCard( {
 		};
 
 		try {
-			await installWithPolling(
-				apiFetch,
-				restUrl,
-				project.publicId,
-				() => {
-					clearStepTimers();
-					setInstallStatus( project.publicId, 'building' );
-					setInstallStep( project.publicId, 1 );
-				},
-				activate
-			);
+		await installWithPolling(
+			apiFetch,
+			restUrl,
+			project.publicId,
+			() => {
+				// Build is queued server-side. Cancel the fake-progress timers
+				// so they don't fire during the (potentially long) build wait.
+				// Leave the step indicator wherever it is — no reset.
+				clearStepTimers();
+				setInstallStatus( project.publicId, 'building' );
+			},
+			activate
+		);
 
 			clearStepTimers();
 			setInstallStep( project.publicId, 4 );
@@ -1449,7 +1451,8 @@ function ProjectCard( {
 				/* translators: %s: project name */
 				__( '%s is updated!', 'dispatch' ),
 				project.name
-			)
+			),
+			isBlock // keep blocks active after an update
 		);
 	}
 
