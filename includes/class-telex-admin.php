@@ -135,7 +135,7 @@ class Telex_Admin {
 			}
 
 			Telex_Auth::disconnect();
-			self::set_notice( 'info', __( 'Disconnected from Telex account.', 'dispatch' ) );
+			self::set_notice( 'info', __( 'Disconnected! You can reconnect from this page anytime.', 'dispatch' ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=telex' ) );
 			exit;
 		}
@@ -215,7 +215,7 @@ class Telex_Admin {
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Dispatch Audit Log', 'dispatch' ) . '</h1>';
-		echo '<p class="description">' . esc_html__( 'A read-only record of security-relevant events: installs, updates, removals, and authentication changes.', 'dispatch' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'A full history of what\'s happened — installs, updates, removals, and account changes. Read-only.', 'dispatch' ) . '</p>';
 		echo '<form method="get">';
 		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
 		$table->display();
@@ -355,10 +355,30 @@ class Telex_Admin {
 			return $response;
 		}
 
+		$is_connected = Telex_Auth::is_connected();
+
 		$response['telex'] = [
-			'is_connected'   => Telex_Auth::is_connected(),
+			'is_connected'   => $is_connected,
 			'circuit_status' => Telex_Circuit_Breaker::status(),
+			'update_count'   => 0,
 		];
+
+		// Count available updates using the cached project list — no API call.
+		if ( $is_connected ) {
+			$cached = Telex_Cache::get_projects();
+			if ( is_array( $cached ) ) {
+				$installed = Telex_Tracker::get_all();
+				$count     = 0;
+				foreach ( $cached as $project ) {
+					$id    = $project['publicId'] ?? '';
+					$local = $installed[ $id ] ?? null;
+					if ( null !== $local && ( (int) ( $project['currentVersion'] ?? 0 ) ) > (int) $local['version'] ) {
+						++$count;
+					}
+				}
+				$response['telex']['update_count'] = $count;
+			}
+		}
 
 		return $response;
 	}
@@ -466,7 +486,7 @@ class Telex_Admin {
 				'label' => __( 'Dispatch', 'dispatch' ),
 				'color' => 'blue',
 			],
-			'description' => '<p>' . esc_html__( 'Your site can reach the Telex API.', 'dispatch' ) . '</p>',
+			'description' => '<p>' . esc_html__( 'Your site can talk to the Telex API. All good!', 'dispatch' ) . '</p>',
 			'test'        => 'telex_api_reachable',
 		];
 	}

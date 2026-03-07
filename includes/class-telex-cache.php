@@ -21,7 +21,7 @@ class Telex_Cache {
 	private const TRANSIENT_PROJECT  = 'telex_project_'; // + md5(publicId)
 	/** Stale copy kept longer than the live TTL for serve-stale-on-error. */
 	private const TRANSIENT_STALE = 'telex_projects_stale';
-	private const TTL_PROJECTS    = HOUR_IN_SECONDS;
+	private const TTL_PROJECTS    = 5 * MINUTE_IN_SECONDS;
 	private const TTL_PROJECT     = 5 * MINUTE_IN_SECONDS;
 	private const TTL_STALE       = 24 * HOUR_IN_SECONDS;
 	private const CRON_HOOK       = 'telex_cache_warm';

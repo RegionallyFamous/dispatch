@@ -372,12 +372,12 @@ function EmptyState( { tab, searchQuery } ) {
 				<div className="telex-empty-state__icon">
 					<Icon icon={ searchIcon } size={ 32 } />
 				</div>
-				<h3>{ __( 'No results', 'dispatch' ) }</h3>
+				<h3>{ __( 'No matches', 'dispatch' ) }</h3>
 				<p>
 					{ sprintf(
 						/* translators: %s: search query */
 						__(
-							'No projects match "%s". Try a different search.',
+							'Nothing matched "%s". Give something else a try.',
 							'dispatch'
 						),
 						searchQuery
@@ -390,33 +390,33 @@ function EmptyState( { tab, searchQuery } ) {
 	const stateMap = {
 		all: {
 			icon: pluginsIcon,
-			heading: __( 'No projects yet', 'dispatch' ),
+			heading: __( 'Nothing here yet', 'dispatch' ),
 			body: __(
-				"Your Telex projects will show up here once you've created some.",
+				'Head over to Telex and create a project — it will show up right here.',
 				'dispatch'
 			),
 		},
 		updates: {
 			icon: check,
-			heading: __( 'Everything is up to date', 'dispatch' ),
+			heading: __( "You're all caught up!", 'dispatch' ),
 			body: __(
-				'All installed projects are running the latest version.',
+				'Every installed project is on the latest version. Nice work.',
 				'dispatch'
 			),
 		},
 		blocks: {
 			icon: pluginsIcon,
-			heading: __( 'No blocks', 'dispatch' ),
+			heading: __( 'No block projects yet', 'dispatch' ),
 			body: __(
-				"You don't have any block projects in your Telex account.",
+				"You haven't built any block projects in Telex yet.",
 				'dispatch'
 			),
 		},
 		themes: {
 			icon: layoutIcon,
-			heading: __( 'No themes', 'dispatch' ),
+			heading: __( 'No theme projects yet', 'dispatch' ),
 			body: __(
-				"You don't have any theme projects in your Telex account.",
+				"You haven't built any theme projects in Telex yet.",
 				'dispatch'
 			),
 		},
@@ -533,7 +533,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				type: 'error',
 				message:
 					err.message ||
-					__( 'Installation failed. Please try again.', 'dispatch' ),
+					__( "That didn't work. Try again?", 'dispatch' ),
 			} );
 		}
 	}
@@ -542,7 +542,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 		await executeInstall(
 			sprintf(
 				/* translators: %s: project name */
-				__( '%s installed successfully.', 'dispatch' ),
+				__( '%s is installed!', 'dispatch' ),
 				project.name
 			)
 		);
@@ -552,7 +552,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 		await executeInstall(
 			sprintf(
 				/* translators: %s: project name */
-				__( '%s updated successfully.', 'dispatch' ),
+				__( '%s is updated!', 'dispatch' ),
 				project.name
 			)
 		);
@@ -570,7 +570,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				type: 'success',
 				message: sprintf(
 					/* translators: %s: project name */
-					__( '%s removed.', 'dispatch' ),
+					__( '%s has been removed.', 'dispatch' ),
 					project.name
 				),
 			} );
@@ -580,7 +580,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 			setInstallStatus( project.publicId, 'idle' );
 			setNotice( {
 				type: 'error',
-				message: err.message || __( 'Remove failed.', 'dispatch' ),
+				message: err.message || __( "Couldn't remove it. Try again?", 'dispatch' ),
 			} );
 		}
 	}
@@ -633,7 +633,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<span className="telex-meta-item">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'v%s installed', 'dispatch' ),
+								__( 'Build #%s installed', 'dispatch' ),
 								installed.version
 							) }
 						</span>
@@ -642,16 +642,27 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<span className="telex-meta-item telex-meta-item--new">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'v%s available', 'dispatch' ),
+								__( 'Build #%s available', 'dispatch' ),
 								project.currentVersion
 							) }
 						</span>
 					) }
-					{ ! isInstalled && project.currentVersion && (
+					{ ( needsUpdate || ! isInstalled ) &&
+						project.updatedAt &&
+						relativeDate( project.updatedAt ) && (
+							<span className="telex-meta-item telex-meta-item--timestamp">
+								{ sprintf(
+									/* translators: %s: relative time e.g. "5 minutes ago" */
+									__( 'Built %s', 'dispatch' ),
+									relativeDate( project.updatedAt )
+								) }
+							</span>
+						) }
+					{ ! isInstalled && project.currentVersion && ! project.updatedAt && (
 						<span className="telex-meta-item">
 							{ sprintf(
 								/* translators: %s: version number */
-								__( 'v%s available', 'dispatch' ),
+								__( 'Build #%s', 'dispatch' ),
 								project.currentVersion
 							) }
 						</span>
@@ -696,10 +707,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 				>
 					{ ! isInstalled && (
 						<Tooltip
-							text={ __(
-								'Download and install to this site',
-								'dispatch'
-							) }
+							text={ 						__( 'Add to your site', 'dispatch' ) }
 						>
 							<Button
 								variant="primary"
@@ -720,7 +728,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<Tooltip
 							text={ sprintf(
 								/* translators: %s: version number */
-								__( 'Update to v%s', 'dispatch' ),
+								__( 'Get v%s', 'dispatch' ),
 								project.currentVersion
 							) }
 						>
@@ -752,7 +760,7 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 
 					{ isInstalled && (
 						<Tooltip
-							text={ __( 'Remove from this site', 'dispatch' ) }
+							text={ __( 'Uninstall from your site', 'dispatch' ) }
 						>
 							<Button
 								variant="tertiary"
@@ -785,10 +793,10 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 						<p>
 							{ sprintf(
 								/* translators: %s: project name */
-								__(
-									"This removes %s from your site and deletes all its files. There's no undo.",
-									'dispatch'
-								),
+						__(
+								"This will delete %s from your site for good — there's no undo.",
+								'dispatch'
+							),
 								project.name
 							) }
 						</p>
@@ -799,15 +807,15 @@ function ProjectCard( { project, restUrl, onRefresh } ) {
 								onClick={ handleRemove }
 								__next40pxDefaultSize
 							>
-								{ __( 'Remove', 'dispatch' ) }
-							</Button>
-							<Button
-								variant="secondary"
-								onClick={ () => setConfirmRemove( null ) }
-								__next40pxDefaultSize
-							>
-								{ __( 'Cancel', 'dispatch' ) }
-							</Button>
+						{ __( 'Yes, remove it', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => setConfirmRemove( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'Keep it', 'dispatch' ) }
+						</Button>
 						</div>
 					</Modal>
 				) }
@@ -853,16 +861,19 @@ function ProjectsApp() {
 	);
 
 	// Fetch project list + installed tracker data.
-	const fetchData = useCallback( async () => {
+	const fetchData = useCallback( async ( forceRefresh = false ) => {
 		try {
-			const data = await apiFetch( { url: `${ restUrl }/projects` } );
+			const url = forceRefresh
+				? `${ restUrl }/projects?force_refresh=1`
+				: `${ restUrl }/projects`;
+			const data = await apiFetch( { url } );
 			setProjects( data.projects || [] );
 			if ( data.installed ) {
 				setInstalledProjects( data.installed );
 			}
 		} catch ( err ) {
 			setError(
-				err.message || __( 'Failed to load projects.', 'dispatch' )
+				err.message || __( "Couldn't load your projects. Check your connection and try again.", 'dispatch' )
 			);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -874,6 +885,35 @@ function ProjectsApp() {
 		fetchData().finally( () => setLoading( false ) );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
+
+	// Piggyback on the WordPress Heartbeat (fires every ~60 s) to detect new
+	// builds while the user stays on the page. When the server reports new
+	// updates we silently force-refresh so the cards update automatically.
+	useEffect( () => {
+		if ( ! window.jQuery ) {
+			return;
+		}
+
+		const onHeartbeatSend = ( _e, heartbeatData ) => {
+			heartbeatData.telex_poll = true;
+		};
+
+		const onHeartbeatTick = ( _e, response ) => {
+			if ( response?.telex?.update_count > updatesCount ) {
+				// New builds appeared since last render — refresh silently.
+				fetchData( true );
+			}
+		};
+
+		window.jQuery( document ).on( 'heartbeat-send.telex-admin', onHeartbeatSend );
+		window.jQuery( document ).on( 'heartbeat-tick.telex-admin', onHeartbeatTick );
+
+		return () => {
+			window.jQuery( document ).off( 'heartbeat-send.telex-admin' );
+			window.jQuery( document ).off( 'heartbeat-tick.telex-admin' );
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ updatesCount ] );
 
 	// Derived counts for tab titles.
 	const updatesCount = projects.filter( ( p ) => {
@@ -970,12 +1010,12 @@ function ProjectsApp() {
 				<div className="telex-toolbar-right">
 					<Button
 						variant="secondary"
-						onClick={ () => {
-							setLoading( true );
-							fetchData().finally( () => setLoading( false ) );
-						} }
-						disabled={ loading }
-						aria-label={ __( 'Refresh projects list', 'dispatch' ) }
+					onClick={ () => {
+						setLoading( true );
+						fetchData( true ).finally( () => setLoading( false ) );
+					} }
+					disabled={ loading }
+					aria-label={ __( 'Check for new builds', 'dispatch' ) }
 						__next40pxDefaultSize
 					>
 						{ loading ? <Spinner /> : __( 'Refresh', 'dispatch' ) }
@@ -993,10 +1033,10 @@ function ProjectsApp() {
 				<div
 					className="telex-loading"
 					aria-live="polite"
-					aria-label={ __( 'Loading projects', 'dispatch' ) }
+					aria-label={ __( 'Loading your projects', 'dispatch' ) }
 				>
 					<Spinner />
-					<span>{ __( 'Loading projects…', 'dispatch' ) }</span>
+					<span>{ __( 'Loading your projects…', 'dispatch' ) }</span>
 				</div>
 			) }
 
@@ -1078,13 +1118,13 @@ class TelexErrorBoundary extends Component {
 					style={ { margin: '16px 0' } }
 				>
 					<p>
-						<strong>
-							{ __( 'Something went wrong.', 'dispatch' ) }
-						</strong>{ ' ' }
-						{ __(
-							'Reload the page to try again. If it keeps happening, check the browser console.',
-							'dispatch'
-						) }
+					<strong>
+						{ __( 'Uh oh — something crashed.', 'dispatch' ) }
+					</strong>{ ' ' }
+					{ __(
+						'Try reloading the page. If it keeps happening, check the browser console.',
+						'dispatch'
+					) }
 					</p>
 					{ this.state.message && (
 						<details>
