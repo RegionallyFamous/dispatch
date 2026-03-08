@@ -21,6 +21,15 @@ React UI (src/)  →  REST API (Telex_REST)  →  Service Layer (includes/)  →
 - Service classes never make HTTP requests directly — always through the SDK and `Telex_WP_Http_Client`
 - DTOs (`Telex_Project`, `Telex_Build_File`, `Telex_Api_Credentials`) cross layer boundaries as immutable value objects
 
+## SDK Verification Rule
+
+**Before implementing any feature that calls the Telex SDK, read the actual SDK source in `lib/telex-sdk/` and verify the method, parameter names, and return shape exist.** Never assume an SDK method exists based on naming conventions, documentation, or prior conversation context.
+
+- Read the relevant resource class (e.g. `lib/telex-sdk/src/Resources/ProjectResource.php`) before calling any method on it
+- If the method doesn't exist, do not invent a call to it — raise the gap explicitly
+- If the return type is undocumented, trace the HTTP response parsing to understand the actual shape before writing code that consumes it
+- New features that require SDK capabilities not currently present must be noted as blocked until the SDK is updated — do not stub or mock around a missing SDK method in production code
+
 ## Universal Non-Negotiables
 
 - No `var_dump`, `error_log`, `print_r`, `console.log`, or `debugger` in committed code
