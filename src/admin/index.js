@@ -1437,6 +1437,9 @@ function ProjectCard( {
 				url: `${ restUrl }/projects/${ project.publicId }/favorite`,
 				method: next ? 'POST' : 'DELETE',
 			} );
+			// Refresh so _favorite is set on the project object and the
+			// sort order re-evaluates, floating starred items to the top.
+			onRefresh();
 		} catch {
 			setIsStarred( ! next ); // Revert on error.
 		}
@@ -1783,7 +1786,7 @@ function ProjectCard( {
 				>
 					<Icon
 						icon={ isStarred ? starFilled : starEmpty }
-						size={ 16 }
+						size={ 20 }
 					/>
 				</button>
 			</Tooltip>
@@ -3442,54 +3445,48 @@ function ProjectsApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ updatesCount ] );
 
-	// Sort helper.
+	// Sort helper — starred items always float to the top; the selected
+	// sort order acts as the secondary comparator within each tier.
 	const sortProjects = useCallback(
 		( list ) => {
 			const copy = [ ...list ];
-			switch ( sortOrder ) {
-				case 'name-desc':
-					copy.sort( ( a, b ) =>
-						( b.name || '' ).localeCompare( a.name || '' )
-					);
-					break;
-				case 'installed-newest':
-					copy.sort( ( a, b ) => {
+
+			// Secondary comparator based on user-selected sort order.
+			const secondary = ( a, b ) => {
+				switch ( sortOrder ) {
+					case 'name-desc':
+						return ( b.name || '' ).localeCompare( a.name || '' );
+					case 'installed-newest': {
 						const ta = a._local?.installed_at || '';
 						const tb = b._local?.installed_at || '';
 						return tb.localeCompare( ta );
-					} );
-					break;
-				case 'updated-newest':
-					copy.sort( ( a, b ) => {
+					}
+					case 'updated-newest': {
 						const ta = a.updatedAt || '';
 						const tb = b.updatedAt || '';
 						return tb.localeCompare( ta );
-					} );
-					break;
-				case 'most-used':
-					copy.sort( ( a, b ) => {
+					}
+					case 'most-used': {
 						const ua =
 							analyticsData[ a.publicId ]?.usage_count || 0;
 						const ub =
 							analyticsData[ b.publicId ]?.usage_count || 0;
 						return ub - ua;
-					} );
-					break;
-				case 'starred-first':
-					copy.sort( ( a, b ) => {
-						if ( a._favorite === b._favorite ) {
-							return ( a.name || '' ).localeCompare(
-								b.name || ''
-							);
-						}
-						return a._favorite ? -1 : 1;
-					} );
-					break;
-				default: // 'name-asc'
-					copy.sort( ( a, b ) =>
-						( a.name || '' ).localeCompare( b.name || '' )
-					);
-			}
+					}
+					default: // 'name-asc'
+						return ( a.name || '' ).localeCompare( b.name || '' );
+				}
+			};
+
+			copy.sort( ( a, b ) => {
+				const aStarred = !! a._favorite;
+				const bStarred = !! b._favorite;
+				if ( aStarred !== bStarred ) {
+					return aStarred ? -1 : 1;
+				}
+				return secondary( a, b );
+			} );
+
 			return copy;
 		},
 		[ sortOrder, analyticsData ]
@@ -3901,10 +3898,6 @@ function ProjectsApp() {
 								{
 									value: 'most-used',
 									label: __( 'Most used', 'dispatch' ),
-								},
-								{
-									value: 'starred-first',
-									label: __( 'Starred first', 'dispatch' ),
 								},
 							] }
 							onChange={ changeSortOrder }
