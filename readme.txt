@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -110,6 +110,14 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 == Changelog ==
 
+= 1.3.2 =
+* Fix: Eliminated flash of empty content on both the connected and disconnected screens while React initialises.
+* Fix: Step indicator now distributes evenly across full width with a clean separator between steps.
+* Improved: Disconnected screen — waiting state redesigned with the device code as the hero element, animated pulse indicator, and a cleaner action hierarchy.
+* Improved: Disconnected screen — success state updated with more space and clearer copy.
+* Improved: Disconnect notice type changed to success (green) with friendlier copy.
+* Improved: Telex wordmark logo replaces the generic icon in the connect card.
+
 = 1.3.1 =
 * Fix: Duplicate page header — the Dispatch admin page was rendering its header and all content twice due to a duplicate WordPress hook registration. Resolved by removing the redundant callback from the submenu entry.
 * Fix: Activity and Health tabs now show skeleton loaders instead of a plain spinner while data loads.
@@ -198,6 +206,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.3.2 =
+UI polish release: fixes content flash on page load and redesigns the connection flow screens.
 
 = 1.3.1 =
 Patch release fixing a critical bug that caused the entire admin page to render twice. Update immediately.

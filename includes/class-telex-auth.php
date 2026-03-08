@@ -27,6 +27,18 @@ class Telex_Auth {
 	private const RATE_LIMIT_WINDOW = MINUTE_IN_SECONDS;
 
 	/**
+	 * Per-action overrides for RATE_LIMIT_MAX.
+	 *
+	 * Actions not listed here fall back to RATE_LIMIT_MAX.
+	 * Device-flow polling fires every 5 s by design (RFC 8628 §3.5), so
+	 * 60 s / 5 s = 12 requests minimum. Allow 30 to give headroom if the
+	 * server-sent interval is shorter.
+	 */
+	private const RATE_LIMIT_CAPS = [
+		'device_poll' => 30,
+	];
+
+	/**
 	 * Register action hooks. Called from plugins_loaded.
 	 * AJAX handlers are intentionally omitted — all auth flows use the REST API.
 	 */
@@ -60,6 +72,7 @@ class Telex_Auth {
 	 * @return int Seconds remaining in the current window, or 0 if under the limit.
 	 */
 	public static function check_rate_limit( string $action ): int {
+		$max     = self::RATE_LIMIT_CAPS[ $action ] ?? self::RATE_LIMIT_MAX;
 		$user_id = get_current_user_id();
 		$now     = time();
 		// Salted HMAC — key cannot be predicted/enumerated by an attacker who
@@ -83,7 +96,7 @@ class Telex_Auth {
 
 			// wp_cache_incr is atomic on Redis/Memcached.
 			$count = wp_cache_incr( $cache_key, 1, $group );
-			if ( false === $count || $count <= self::RATE_LIMIT_MAX ) {
+			if ( false === $count || $count <= $max ) {
 				return 0;
 			}
 
@@ -105,7 +118,7 @@ class Telex_Auth {
 		}
 
 		$count = (int) get_transient( $count_key );
-		if ( $count >= self::RATE_LIMIT_MAX ) {
+		if ( $count >= $max ) {
 			return self::RATE_LIMIT_WINDOW - ( $now - $window_start );
 		}
 

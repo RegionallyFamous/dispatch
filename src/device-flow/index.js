@@ -18,7 +18,7 @@ import {
 } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { copy, check, caution, plugins as pluginsIcon } from '@wordpress/icons';
+import { copy, check, caution } from '@wordpress/icons';
 
 const STATUS = {
 	IDLE: 'idle',
@@ -304,7 +304,7 @@ function DeviceFlowApp() {
 
 	if ( status === STATUS.SUCCESS ) {
 		return (
-			<div className="telex-connect-wrap">
+			<div className="telex-connect-wrap telex-connect-wrap--focused">
 				<StepIndicator active={ 3 } />
 				<div
 					className="telex-connect-card telex-connect-card--success"
@@ -313,13 +313,18 @@ function DeviceFlowApp() {
 					<div className="telex-connect-success-icon">
 						<Icon
 							icon={ check }
-							size={ 40 }
+							size={ 28 }
 							aria-hidden={ true }
 							focusable={ false }
 						/>
 					</div>
 					<h2>{ __( "You're in!", 'dispatch' ) }</h2>
-					<p>{ __( 'Taking you to your projects…', 'dispatch' ) }</p>
+					<p>
+						{ __(
+							'Your Telex account is connected. Taking you to your projects…',
+							'dispatch'
+						) }
+					</p>
 					<Spinner aria-hidden={ true } />
 				</div>
 			</div>
@@ -331,7 +336,6 @@ function DeviceFlowApp() {
 			<div className="telex-connect-wrap telex-connect-wrap--landing">
 				{ /* ---- Left: hero ---- */ }
 				<div className="telex-connect-hero">
-					<TelexLogo className="telex-connect-hero__logo" />
 					<h2 className="telex-connect-hero__heading">
 						{ __(
 							'Your Telex projects, live in WordPress.',
@@ -381,14 +385,7 @@ function DeviceFlowApp() {
 				<div className="telex-connect-card-col">
 					<StepIndicator active={ 1 } />
 					<div className="telex-connect-card">
-						<div className="telex-connect-brand">
-							<Icon
-								icon={ pluginsIcon }
-								size={ 32 }
-								aria-hidden={ true }
-								focusable={ false }
-							/>
-						</div>
+						<TelexLogo className="telex-connect-brand__logo" />
 						<h2>{ __( 'Link your account', 'dispatch' ) }</h2>
 						<p>
 							{ __(
@@ -464,13 +461,14 @@ function DeviceFlowApp() {
 
 	if ( status === STATUS.WAITING && deviceData ) {
 		return (
-			<div className="telex-connect-wrap">
+			<div className="telex-connect-wrap telex-connect-wrap--focused">
 				<StepIndicator active={ 2 } />
-				<div className="telex-connect-card">
-					<h2>{ __( "You're almost in", 'dispatch' ) }</h2>
+				<div className="telex-connect-card telex-connect-card--waiting">
+					<TelexLogo className="telex-connect-brand__logo" />
+					<h2>{ __( 'Enter this code in Telex', 'dispatch' ) }</h2>
 					<p>
 						{ __(
-							"Open Telex, enter this code, and you're connected.",
+							'Open Telex in a new tab, paste the code below, and approve the connection.',
 							'dispatch'
 						) }
 					</p>
@@ -494,8 +492,8 @@ function DeviceFlowApp() {
 							</span>
 						</div>
 						<Button
-							variant="tertiary"
-							icon={ copy }
+							variant="secondary"
+							icon={ copied ? check : copy }
 							onClick={ handleCopyCode }
 							aria-label={ __(
 								'Copy code to clipboard',
@@ -535,20 +533,22 @@ function DeviceFlowApp() {
 					) }
 
 					<div className="telex-polling-status">
-						<Spinner aria-hidden={ true } />
+						<span
+							className="telex-polling-dot"
+							aria-hidden={ true }
+						/>
 						<span>
-							{ __( 'Waiting for you to approve…', 'dispatch' ) }
+							{ __( 'Waiting for approval…', 'dispatch' ) }
 						</span>
 					</div>
 
-					<Button
-						variant="tertiary"
-						isDestructive
+					<button
+						type="button"
+						className="telex-cancel-link"
 						onClick={ cancelDeviceFlow }
-						__next40pxDefaultSize
 					>
 						{ __( 'Cancel', 'dispatch' ) }
-					</Button>
+					</button>
 				</div>
 			</div>
 		);

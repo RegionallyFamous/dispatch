@@ -6,6 +6,25 @@
 
 ---
 
+## [1.3.2] — 2026-03-08
+
+### Fixed
+
+- Eliminated flash of empty content on the connected projects screen by initialising the Redux store with `loading: true`.
+- Eliminated flash of blank content on the disconnected screen by injecting a matching server-side skeleton into the React mount point before JavaScript initialises.
+- Removed connecting line from the step indicator; steps now display with even spacing across the full width separated by a subtle `/` divider.
+
+### Changed
+
+- **Connect screen — waiting state**: redesigned around the device code as the hero element; code block now spans full card width with clear border dividers; copy button upgraded to secondary variant with check-icon feedback; WP Spinner replaced with an animated brand-colour pulse dot; Cancel demoted to a small text link.
+- **Connect screen — success state**: extra vertical padding, heading restored to neutral colour with the green icon carrying the success signal, and copy updated to confirm account connection before redirect.
+- **Connect screen — hero**: removed Telex logo from the left-hand hero column; heading leads directly.
+- **Connect screen — card**: Telex wordmark logo replaces the generic plugins icon in the connect card.
+- **Disconnect notice**: changed from `info` (blue) to `success` (green) type; copy updated to "Disconnected from Telex. Connect again whenever you're ready."
+- **Step indicator**: removed inter-step connecting line; steps are evenly distributed across full width with centered content and a `/` separator at each boundary.
+
+---
+
 ## [1.3.1] — 2026-03-08
 
 ### Fixed

@@ -162,7 +162,7 @@ class Telex_Admin {
 			}
 
 			Telex_Auth::disconnect();
-			self::set_notice( 'info', __( 'Disconnected! You can reconnect from this page anytime.', 'dispatch' ) );
+			self::set_notice( 'success', __( 'Disconnected from Telex. Connect again whenever you\'re ready.', 'dispatch' ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=telex' ) );
 			exit;
 		}
@@ -204,9 +204,33 @@ class Telex_Admin {
 		self::render_notices();
 
 		if ( ! Telex_Auth::is_connected() ) {
-			// Device flow UI rendered by React.
+			// Device flow UI rendered by React. The inner skeleton is replaced
+			// the moment React mounts, preventing a blank-content flash.
 			printf(
-				'<div id="telex-device-flow-app" data-rest-url="%s" data-nonce="%s"></div>',
+				'<div id="telex-device-flow-app" data-rest-url="%s" data-nonce="%s">
+					<div class="telex-connect-wrap telex-connect-wrap--landing" aria-hidden="true">
+						<div class="telex-connect-hero">
+							<div class="telex-skeleton telex-skeleton--hero-heading"></div>
+							<div class="telex-skeleton telex-skeleton--hero-body"></div>
+							<div class="telex-skeleton telex-skeleton--hero-body telex-skeleton--hero-body-short"></div>
+							<div class="telex-connect-pillars">
+								<div class="telex-skeleton telex-skeleton--hero-pill"></div>
+								<div class="telex-skeleton telex-skeleton--hero-pill"></div>
+								<div class="telex-skeleton telex-skeleton--hero-pill"></div>
+								<div class="telex-skeleton telex-skeleton--hero-pill"></div>
+							</div>
+						</div>
+						<div class="telex-connect-card-col">
+							<div class="telex-skeleton telex-skeleton--steps"></div>
+							<div class="telex-connect-card">
+								<div class="telex-skeleton telex-skeleton--card-logo"></div>
+								<div class="telex-skeleton telex-skeleton--card-heading"></div>
+								<div class="telex-skeleton telex-skeleton--card-body"></div>
+								<div class="telex-skeleton telex-skeleton--card-btn"></div>
+							</div>
+						</div>
+					</div>
+				</div>',
 				esc_attr( rest_url( 'telex/v1' ) ),
 				esc_attr( wp_create_nonce( 'wp_rest' ) )
 			);

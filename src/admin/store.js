@@ -17,7 +17,7 @@ export const STORE_NAME = 'telex/admin';
 export const DEFAULT_STATE = {
 	projects: /** @type {Array} */ ( [] ),
 	installedProjects: /** @type {Object} */ ( {} ),
-	loading: false,
+	loading: true,
 	error: /** @type {string|null} */ ( null ),
 	authExpired: false,
 	searchQuery: '',
