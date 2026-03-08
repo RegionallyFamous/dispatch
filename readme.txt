@@ -30,7 +30,6 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 * **Clean removals** — uninstall any Telex-managed project and Dispatch handles deactivation, file cleanup, and tracker sync. Nothing gets orphaned.
 * **Stars and favorites** — star any project to pin it to the top of your library and sort by starred first.
 * **Freeform tags** — tag projects your way and filter the entire library to a single tag in one click.
-* **Bulk actions** — select multiple projects and install, update, or remove them all at once.
 * **Config export / import** — export all pins, notes, tags, groups, and auto-update settings to JSON and import on any other site.
 * **Build snapshots** — capture the installed state of every project before a risky change, and restore in one command if anything breaks.
 * **Version pinning** — lock any project at its current build to prevent updates. Pinned projects are excluded from `wp telex update --all`.
@@ -43,13 +42,13 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 
 === Built for Teams and CI/CD ===
 
-* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex rollback <id>`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 * **Multisite** — connect once at the network level; every site on the network gains access to your Telex projects.
 * **Notification channels** — email digests and Slack webhooks for install, update, and removal events. Know what changed and when.
 * **Project groups** — organize your library into named collections. Filter by group in the admin screen or WP-CLI.
 * **Block usage analytics** — see how many posts each installed block appears in. Know which ones are load-bearing before you touch them.
 * **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user ID.
-* **GDPR-ready** — the audit log is registered with WordPress's Privacy Tools. Export or erase a user's history from Tools → Personal Data.
+* **GDPR-ready** — audit log, starred projects, and project groups are all registered with WordPress Privacy Tools. Export or erase a user's full history from Tools → Personal Data.
 * **Site Health integration** — circuit breaker state and project health surface directly in WordPress Site Health.
 * **Circuit breaker** — automatic protection against a degraded Telex API, with graceful fallback and self-healing.
 
@@ -97,7 +96,11 @@ No. Blocks installed by Dispatch are self-contained and live in `wp-content/plug
 
 = Can I use Dispatch in a CI/CD pipeline? =
 
-Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update --all`, etc.) is designed for automated workflows. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update --all`, `wp telex rollback <id>`, etc.) is designed for automated workflows. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+
+= Can I roll back a project to a previous version? =
+
+Yes. Run `wp telex rollback <project-id>` from the command line, or use the rollback option in the Dispatch admin screen. This reinstalls the project and is useful for quickly recovering from a bad update.
 
 = What happens if the Telex API is unavailable? =
 
@@ -123,7 +126,6 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 = 1.4.0 =
 * New: Stars and favorites — star any project from the card; sort by "Starred first" to keep important projects always front and center.
 * New: Freeform tags — tag projects with up to 20 custom labels. Filter the full library by tag in one click.
-* New: Bulk actions — checkboxes on every card plus a sticky action bar for batch install, update, or remove.
 * New: Config export / import — export all pins, notes, tags, groups, and auto-update settings as JSON; import on any site to replicate the setup instantly. Available via REST and WP-CLI.
 * New: Update approval queue — auto-updates in soak mode now surface in a dedicated queue at the top of the Updates tab after the soak window expires.
 * New: Failed install tracking — failed installs are flagged persistently on the card and collected in a "Failed" tab for easy review and retry.
@@ -212,7 +214,6 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * Cards redesigned with accent stripe, larger avatars, and full-width action buttons.
 * Fixed "Connected" badge positioning — now sits inline with the page heading.
 * Fixed badge contrast to meet WCAG AA on all states.
-* Removed bulk-selection UI; projects activate automatically on install.
 
 = 1.0.0 =
 * Initial public release.
@@ -227,6 +228,12 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+Quick fix: starring a project now immediately floats it to the top without a page reload. Update recommended.
+
+= 1.4.0 =
+Major feature release: stars and favorites, freeform tags, config export/import, update approval queue, failed install tracking, and a dashboard widget. No database migrations required.
 
 = 1.3.2 =
 UI polish release: fixes content flash on page load and redesigns the connection flow screens.

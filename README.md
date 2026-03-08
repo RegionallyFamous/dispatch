@@ -74,7 +74,6 @@ Update a block in Telex? The update badge appears in your WordPress admin just l
 | **Native WordPress updates** | Telex updates show up on the standard WordPress Updates screen alongside everything else. Your team's existing workflow doesn't change. |
 | **Stars & favorites** | Star any project to pin it to the top of your library. Sort by "Starred first" so the things you rely on are always front and center. |
 | **Freeform tags** | Tag projects however you like — up to 20 tags per project. Filter the entire library to a single tag in one click. |
-| **Bulk actions** | Select multiple projects with checkboxes and install, update, or remove them all at once. A sticky action bar appears the moment you check the first box. |
 | **Config export / import** | Export all your pins, notes, tags, groups, and auto-update settings as a JSON file. Import on any other site to replicate the full setup instantly. |
 | **Build snapshots** | Before a big change, capture the installed state of every project. If something breaks, restore in one command. Your safety net for risky deploys. |
 | **Version pinning** | Lock any project at a specific build. Pinned projects are immune to updates — including `wp telex update --all` — until you're ready to move. |
@@ -82,11 +81,11 @@ Update a block in Telex? The update badge appears in your WordPress admin just l
 | **Update approval queue** | When a soak period expires, updates move into a visible queue so you can review and approve before anything touches production. |
 | **Failed install tracking** | Failed installs are flagged on the card and collected in a dedicated tab. Nothing falls through the cracks. |
 | **Dashboard widget** | A compact Dispatch summary right on your WordPress dashboard — installed count, pending updates, API status, and last activity at a glance. |
-| **WP-CLI first-class** | `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Full automation. Drop it in your CI/CD pipeline and every environment stays current. |
+| **WP-CLI first-class** | `wp telex install`, `wp telex update --all`, `wp telex rollback <id>`, `wp telex snapshot create`. Full automation. Drop it in your CI/CD pipeline and every environment stays current. |
 | **Multisite** | Connect once at the network level. Every site on the network gets your full project library with no extra setup. |
 | **Notification channels** | Email and Slack notifications for installs, updates, and removals. Know exactly what changed, when, and who triggered it. |
 | **Block usage analytics** | See how many posts each block appears in. Know which ones are load-bearing before you touch them. |
-| **Audit log** | Every action — install, update, remove, connect, disconnect — is logged with a timestamp and acting user. GDPR-ready and registered with WordPress Privacy Tools. |
+| **Audit log** | Every action — install, update, remove, connect, disconnect — is logged with a timestamp and acting user. GDPR-ready: audit log, starred projects, and groups are all registered with WordPress Privacy Tools. |
 | **Circuit breaker** | If Telex has a bad moment, Dispatch backs off gracefully and stops hammering the API. Your installed blocks keep running. Everything self-heals automatically. |
 | **Site Health integration** | Circuit breaker state and project health surface directly in the WordPress Site Health screen alongside your other checks. |
 | **No passwords, ever** | OAuth 2.0 Device Authorization Grant (RFC 8628). One code, one URL, one approval from any device. Nothing stored in plaintext. Nothing to manage. |
@@ -138,6 +137,7 @@ That's it. One-time setup. Everything after that is one click per project.
 wp telex list                  # See everything and its status
 wp telex install <id>          # Install a project
 wp telex update --all          # Update everything non-pinned
+wp telex rollback <id>         # Roll back a project to its previous build
 wp telex snapshot create --name="Before deploy"  # Capture current state
 wp telex snapshot restore <id> # Restore if something breaks
 wp telex pin <id>              # Lock a project at its current build
