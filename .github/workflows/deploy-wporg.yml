@@ -1,9 +1,11 @@
 name: Deploy to WordPress.org
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy (e.g. v1.4.0)'
+        required: true
 
 # Requires three repository secrets:
 #   WPORG_USERNAME  — WordPress.org committer username
@@ -53,7 +55,7 @@ jobs:
         run: npm run build:production
 
       - name: Deploy to WordPress.org
-        uses: 10up/action-wordpress-org-deploy@6e58cc0a8d83a3c06e8a41bc4a5d2f3a7b1c0f9e # v2
+        uses: 10up/action-wordpress-plugin-deploy@99da9f5bd18c69b8f4de9efd8f89f5e2d98a71b4 # v2
         with:
           plugin-slug: ${{ secrets.WPORG_SLUG }}
           svn-username: ${{ secrets.WPORG_USERNAME }}
