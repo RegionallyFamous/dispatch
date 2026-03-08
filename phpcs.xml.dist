@@ -113,4 +113,11 @@
     <rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
         <severity>0</severity>
     </rule>
+
+    <!-- PHPStan @var annotations use array-shape syntax (array{key: type}) that
+         PHPCS's heuristic misidentifies as commented-out PHP code. These are
+         legitimate type narrowing annotations, not dead code. -->
+    <rule ref="Squiz.PHP.CommentedOutCode.Found">
+        <severity>0</severity>
+    </rule>
 </ruleset>

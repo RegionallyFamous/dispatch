@@ -82,14 +82,15 @@ class Telex_Admin {
 		add_action( "load-{$hook}", self::add_screen_options( ... ) );
 
 		// Override the auto-generated first submenu entry so the submenu head
-		// reads "Projects" instead of "Dispatch".
+		// reads "Projects" instead of "Dispatch". No callback is provided here:
+		// WordPress resolves both the menu and this submenu to the same hook
+		// name, so passing a callback would cause render_page() to fire twice.
 		add_submenu_page(
 			'telex',
 			__( 'Projects', 'dispatch' ),
 			__( 'Projects', 'dispatch' ),
 			'manage_options',
-			'telex',
-			self::render_page( ... )
+			'telex'
 		);
 
 		add_submenu_page(

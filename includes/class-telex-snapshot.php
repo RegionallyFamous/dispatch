@@ -34,10 +34,10 @@ class Telex_Snapshot {
 			return [];
 		}
 
-		// Sort newest-first.
+		// Sort newest-first. usort() reindexes to a list so array_values() is redundant.
 		usort( $raw, static fn( $a, $b ) => strcmp( (string) ( $b['created_at'] ?? '' ), (string) ( $a['created_at'] ?? '' ) ) );
 
-		return array_values( $raw );
+		return $raw;
 	}
 
 	/**
@@ -75,9 +75,9 @@ class Telex_Snapshot {
 			'created_at' => gmdate( 'c' ),
 			'projects'   => array_map(
 				static fn( array $p ) => [
-					'publicId' => sanitize_text_field( (string) ( $p['publicId'] ?? '' ) ),
-					'version'  => (int) ( $p['version'] ?? 0 ),
-					'slug'     => sanitize_text_field( (string) ( $p['slug'] ?? '' ) ),
+					'publicId' => sanitize_text_field( (string) $p['publicId'] ),
+					'version'  => (int) $p['version'],
+					'slug'     => sanitize_text_field( (string) $p['slug'] ),
 				],
 				$projects
 			),

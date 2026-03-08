@@ -453,6 +453,86 @@ function SkeletonCard() {
 	);
 }
 
+function ActivityTableSkeleton() {
+	return (
+		<table
+			className="wp-list-table widefat fixed striped telex-activity-table"
+			aria-hidden="true"
+		>
+			<thead>
+				<tr>
+					<th>{ __( 'Action', 'dispatch' ) }</th>
+					<th>{ __( 'Project', 'dispatch' ) }</th>
+					<th>{ __( 'User', 'dispatch' ) }</th>
+					<th>{ __( 'Date', 'dispatch' ) }</th>
+				</tr>
+			</thead>
+			<tbody>
+				{ Array.from( { length: 8 } ).map( ( _, i ) => (
+					<tr key={ i } className="telex-skeleton-table-row">
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-badge" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-id" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-user" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-date" />
+						</td>
+					</tr>
+				) ) }
+			</tbody>
+		</table>
+	);
+}
+
+function HealthTableSkeleton() {
+	return (
+		<table
+			className="wp-list-table widefat fixed striped telex-health-table"
+			aria-hidden="true"
+		>
+			<thead>
+				<tr>
+					<th>{ __( 'Project', 'dispatch' ) }</th>
+					<th>{ __( 'Active', 'dispatch' ) }</th>
+					<th>{ __( 'PHP Compat', 'dispatch' ) }</th>
+					<th>{ __( 'Block Registered', 'dispatch' ) }</th>
+					<th>{ __( 'Error Log', 'dispatch' ) }</th>
+					<th>{ __( 'Status', 'dispatch' ) }</th>
+				</tr>
+			</thead>
+			<tbody>
+				{ Array.from( { length: 6 } ).map( ( _, i ) => (
+					<tr key={ i } className="telex-skeleton-table-row">
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-id" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-indicator" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-indicator" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-indicator" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-indicator" />
+						</td>
+						<td>
+							<div className="telex-skeleton telex-skeleton--cell-badge" />
+						</td>
+					</tr>
+				) ) }
+			</tbody>
+		</table>
+	);
+}
+
 function EmptyState( { tab, searchQuery } ) {
 	if ( searchQuery ) {
 		return (
@@ -4018,7 +4098,7 @@ function ProjectsApp() {
 									</a>
 								</div>
 								{ activityLoading ? (
-									<Spinner />
+									<ActivityTableSkeleton />
 								) : (
 									<table className="wp-list-table widefat fixed striped telex-activity-table">
 										<thead>
@@ -4138,158 +4218,166 @@ function ProjectsApp() {
 											: __( 'Scan now', 'dispatch' ) }
 									</Button>
 								</div>
-								{ healthLoading && <Spinner /> }
-								{ ! healthLoading && healthData && (
-									<>
-										<p className="description">
-											{ sprintf(
-												/* translators: %s: scan timestamp */
-												__(
-													'Last checked: %s',
-													'dispatch'
-												),
-												healthData.checked_at || '—'
-											) }
-										</p>
-										<table className="wp-list-table widefat fixed striped telex-health-table">
-											<thead>
-												<tr>
-													<th>
-														{ __(
-															'Project',
-															'dispatch'
-														) }
-													</th>
-													<th>
-														{ __(
-															'Active',
-															'dispatch'
-														) }
-													</th>
-													<th>
-														{ __(
-															'PHP Compat',
-															'dispatch'
-														) }
-													</th>
-													<th>
-														{ __(
-															'Block Registered',
-															'dispatch'
-														) }
-													</th>
-													<th>
-														{ __(
-															'Error Log',
-															'dispatch'
-														) }
-													</th>
-													<th>
-														{ __(
-															'Status',
-															'dispatch'
-														) }
-													</th>
-												</tr>
-											</thead>
-											<tbody>
-												{ (
-													healthData.projects || []
-												).map( ( hp ) => (
-													<tr
-														key={ hp.public_id }
-														className={ `telex-health-row telex-health-row--${ hp.status }` }
-													>
-														<td>
-															<code>
-																{ hp.slug ||
-																	hp.public_id }
-															</code>
-														</td>
-														<td>
-															<span
-																className={ `telex-health-indicator telex-health-indicator--${
-																	hp.active
-																		? 'ok'
-																		: 'error'
-																}` }
-															>
-																{ hp.active
-																	? '✓'
-																	: '✗' }
-															</span>
-														</td>
-														<td>
-															<span
-																className={ `telex-health-indicator telex-health-indicator--${
-																	hp.php_compat
-																		? 'ok'
-																		: 'error'
-																}` }
-															>
-																{ hp.php_compat
-																	? '✓'
-																	: '✗' }
-															</span>
-														</td>
-														<td>
-															<span
-																className={ `telex-health-indicator telex-health-indicator--${
-																	hp.block_registered
-																		? 'ok'
-																		: 'warn'
-																}` }
-															>
-																{ hp.block_registered
-																	? '✓'
-																	: '?' }
-															</span>
-														</td>
-														<td>
-															{ hp.in_error_log >
-															0 ? (
-																<span className="telex-health-indicator telex-health-indicator--warn">
-																	{ sprintf(
-																		/* translators: %d: line count */
-																		__(
-																			'%d lines',
-																			'dispatch'
-																		),
-																		hp.in_error_log
-																	) }
-																</span>
-															) : (
-																<span className="telex-health-indicator telex-health-indicator--ok">
-																	{ __(
-																		'Clean',
-																		'dispatch'
-																	) }
-																</span>
-															) }
-														</td>
-														<td>
-															<span
-																className={ `telex-health-status telex-health-status--${ hp.status }` }
-															>
-																{ hp.status }
-															</span>
-														</td>
-													</tr>
-												) ) }
-												{ ( healthData.projects || [] )
-													.length === 0 && (
+								{ healthLoading ? (
+									<HealthTableSkeleton />
+								) : (
+									healthData && (
+										<>
+											<p className="description">
+												{ sprintf(
+													/* translators: %s: scan timestamp */
+													__(
+														'Last checked: %s',
+														'dispatch'
+													),
+													healthData.checked_at || '—'
+												) }
+											</p>
+											<table className="wp-list-table widefat fixed striped telex-health-table">
+												<thead>
 													<tr>
-														<td colSpan={ 6 }>
+														<th>
 															{ __(
-																'No installed projects to check.',
+																'Project',
 																'dispatch'
 															) }
-														</td>
+														</th>
+														<th>
+															{ __(
+																'Active',
+																'dispatch'
+															) }
+														</th>
+														<th>
+															{ __(
+																'PHP Compat',
+																'dispatch'
+															) }
+														</th>
+														<th>
+															{ __(
+																'Block Registered',
+																'dispatch'
+															) }
+														</th>
+														<th>
+															{ __(
+																'Error Log',
+																'dispatch'
+															) }
+														</th>
+														<th>
+															{ __(
+																'Status',
+																'dispatch'
+															) }
+														</th>
 													</tr>
-												) }
-											</tbody>
-										</table>
-									</>
+												</thead>
+												<tbody>
+													{ (
+														healthData.projects ||
+														[]
+													).map( ( hp ) => (
+														<tr
+															key={ hp.public_id }
+															className={ `telex-health-row telex-health-row--${ hp.status }` }
+														>
+															<td>
+																<code>
+																	{ hp.slug ||
+																		hp.public_id }
+																</code>
+															</td>
+															<td>
+																<span
+																	className={ `telex-health-indicator telex-health-indicator--${
+																		hp.active
+																			? 'ok'
+																			: 'error'
+																	}` }
+																>
+																	{ hp.active
+																		? '✓'
+																		: '✗' }
+																</span>
+															</td>
+															<td>
+																<span
+																	className={ `telex-health-indicator telex-health-indicator--${
+																		hp.php_compat
+																			? 'ok'
+																			: 'error'
+																	}` }
+																>
+																	{ hp.php_compat
+																		? '✓'
+																		: '✗' }
+																</span>
+															</td>
+															<td>
+																<span
+																	className={ `telex-health-indicator telex-health-indicator--${
+																		hp.block_registered
+																			? 'ok'
+																			: 'warn'
+																	}` }
+																>
+																	{ hp.block_registered
+																		? '✓'
+																		: '?' }
+																</span>
+															</td>
+															<td>
+																{ hp.in_error_log >
+																0 ? (
+																	<span className="telex-health-indicator telex-health-indicator--warn">
+																		{ sprintf(
+																			/* translators: %d: line count */
+																			__(
+																				'%d lines',
+																				'dispatch'
+																			),
+																			hp.in_error_log
+																		) }
+																	</span>
+																) : (
+																	<span className="telex-health-indicator telex-health-indicator--ok">
+																		{ __(
+																			'Clean',
+																			'dispatch'
+																		) }
+																	</span>
+																) }
+															</td>
+															<td>
+																<span
+																	className={ `telex-health-status telex-health-status--${ hp.status }` }
+																>
+																	{
+																		hp.status
+																	}
+																</span>
+															</td>
+														</tr>
+													) ) }
+													{ (
+														healthData.projects ||
+														[]
+													).length === 0 && (
+														<tr>
+															<td colSpan={ 6 }>
+																{ __(
+																	'No installed projects to check.',
+																	'dispatch'
+																) }
+															</td>
+														</tr>
+													) }
+												</tbody>
+											</table>
+										</>
+									)
 								) }
 								{ ! healthLoading && ! healthData && (
 									<p className="description">

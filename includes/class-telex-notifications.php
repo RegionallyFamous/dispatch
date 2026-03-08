@@ -299,11 +299,13 @@ class Telex_Notifications {
 			],
 		];
 
+		$encoded_body = wp_json_encode( [ 'blocks' => $blocks ] );
+
 		$response = wp_remote_post(
 			$webhook_url,
 			[
 				'headers'     => [ 'Content-Type' => 'application/json' ],
-				'body'        => wp_json_encode( [ 'blocks' => $blocks ] ),
+				'body'        => false !== $encoded_body ? $encoded_body : '{}',
 				'timeout'     => 10,
 				'redirection' => 0,
 			]

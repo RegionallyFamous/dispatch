@@ -42,6 +42,11 @@ class Telex_Health {
 	public static function check_all(): array {
 		$cached = get_transient( self::TRANSIENT_KEY );
 		if ( is_array( $cached ) ) {
+			/**
+			 * Narrowed transient type.
+			 *
+			 * @phpstan-var array{checked_at: string, projects: list<array{public_id: string, active: bool, php_compat: bool, block_registered: bool, in_error_log: int, status: string}>} $cached
+			 */
 			return $cached;
 		}
 

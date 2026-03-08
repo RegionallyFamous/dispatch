@@ -33,6 +33,11 @@ class Telex_Analytics {
 		$cached = get_transient( self::TRANSIENT_KEY );
 
 		if ( is_array( $cached ) ) {
+			/**
+			 * Narrowed transient type.
+			 *
+			 * @phpstan-var array{scanned_at: string|null, usage: array<string, array{usage_count: int, post_ids: int[]}>} $cached
+			 */
 			return $cached;
 		}
 
@@ -138,7 +143,7 @@ class Telex_Analytics {
 	/**
 	 * Recursively collects all block names from a parsed block tree.
 	 *
-	 * @param array<int, mixed> $blocks Parsed block array from parse_blocks().
+	 * @param array<array-key, mixed> $blocks Parsed block array from parse_blocks().
 	 * @return string[]
 	 */
 	private static function collect_block_names( array $blocks ): array {

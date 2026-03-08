@@ -1727,6 +1727,48 @@
 	color: var(--telex-muted);
 }
 
+/* ---------------------------------------------------------------------------
+ * Skeleton table rows — activity & health tabs
+ * Rows sit inside a standard WP_List_Table so they inherit WP's td padding.
+ * The stagger is applied via :nth-child so every row shimmers sequentially.
+ * Must precede .telex-health-panel .telex-health-table td (higher specificity).
+ * ------------------------------------------------------------------------- */
+
+/* Give skeleton cells a minimum height that matches real content rows */
+.telex-skeleton-table-row td {
+	padding-top: 10px;
+	padding-bottom: 10px;
+	vertical-align: middle;
+}
+
+.telex-skeleton-table-row:nth-child(2) .telex-skeleton {
+	animation-delay: 0.06s;
+}
+
+.telex-skeleton-table-row:nth-child(3) .telex-skeleton {
+	animation-delay: 0.12s;
+}
+
+.telex-skeleton-table-row:nth-child(4) .telex-skeleton {
+	animation-delay: 0.18s;
+}
+
+.telex-skeleton-table-row:nth-child(5) .telex-skeleton {
+	animation-delay: 0.24s;
+}
+
+.telex-skeleton-table-row:nth-child(6) .telex-skeleton {
+	animation-delay: 0.3s;
+}
+
+.telex-skeleton-table-row:nth-child(7) .telex-skeleton {
+	animation-delay: 0.36s;
+}
+
+.telex-skeleton-table-row:nth-child(8) .telex-skeleton {
+	animation-delay: 0.42s;
+}
+
 /* Health table cell alignment — must precede audit-log thead rules */
 .telex-health-panel .telex-health-table th,
 .telex-health-panel .telex-health-table td {
@@ -1941,6 +1983,13 @@
 .telex-skeleton--cell-user {
 	height: 13px;
 	width: 65%;
+}
+
+/* Small circle for ✓/✗ indicators in the health check table */
+.telex-skeleton--cell-indicator {
+	height: 16px;
+	width: 16px;
+	border-radius: 50%;
 }
 
 /* ---------------------------------------------------------------------------
