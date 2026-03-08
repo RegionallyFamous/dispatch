@@ -29,6 +29,12 @@ parameters:
     # this prevents false-positive "always true/false" narrowing errors.
     treatPhpDocTypesAsCertain: false
 
+    # Disable parallel analysis to avoid forked-worker OOM on CI runners.
+    # A single process with the full memory allocation is more reliable
+    # than splitting work across parallel workers that each compete for it.
+    parallel:
+        maximumNumberOfProcesses: 1
+
     ignoreErrors:
         # WP_CLI\NoOp uses __call() magic for tick()/finish(). PHPStan cannot
         # statically resolve dynamic methods via __call on a union type.
