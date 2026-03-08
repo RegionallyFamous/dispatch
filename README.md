@@ -132,7 +132,7 @@ That's it. One-time setup. Everything after that is one click per project.
 wp telex list                  # See everything and its status
 wp telex install <id>          # Install a project
 wp telex update --all          # Update everything non-pinned
-wp telex snapshot create       # Capture current state before a risky deploy
+wp telex snapshot create --name="Before deploy"  # Capture current state
 wp telex snapshot restore <id> # Restore if something breaks
 wp telex pin <id>              # Lock a project at its current build
 ```
