@@ -20,7 +20,7 @@ describe( 'DEFAULT_STATE', () => {
 		expect( DEFAULT_STATE ).toMatchObject( {
 			projects: [],
 			installedProjects: {},
-			loading: false,
+			loading: true,
 			error: null,
 			authExpired: false,
 			searchQuery: '',
