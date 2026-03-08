@@ -5,7 +5,7 @@
 **Build a block in Telex. Click Install. It's live on your site.**
 
 [![CI](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml/badge.svg)](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.2.0-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
 [![WordPress](https://img.shields.io/badge/WordPress-6.7%2B-0073aa?logo=wordpress&logoColor=white&labelColor=1e293b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-7c3aed?logo=php&logoColor=white&labelColor=1e293b)](https://php.net)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-22c55e?labelColor=1e293b)](https://www.gnu.org/licenses/gpl-2.0.html)
@@ -50,14 +50,20 @@ Seven steps. Per block. Per revision. The generation took two minutes. The deplo
 
 | | |
 |---|---|
-| **Browse your library** | Every block and theme you've built in Telex lives in a searchable grid inside WordPress admin — filterable by type, sorted by what needs attention. |
+| **Browse your library** | Every block and theme you've built in Telex lives in a searchable grid inside WordPress admin — filterable by type, grouped by collection, sorted by what needs attention. |
 | **One-click install** | Dispatch fetches the latest build, verifies every file with a SHA-256 checksum, runs it through WordPress' native upgrader, and activates it. The whole thing takes a few seconds. |
 | **Native updates** | Updates appear on the WordPress **Updates** screen right next to your plugins and themes — because that's where your team already looks. No separate dashboard to remember. |
 | **Clean removals** | Dispatch deactivates before deleting, handles filesystem cleanup, and keeps its tracker in sync. Nothing gets orphaned. |
+| **Build snapshots** | Capture the exact build version of every installed project, then restore the whole set in one command if something breaks. Your escape hatch for risky deploys. |
+| **Version pinning** | Lock any project at its current build. Pinned projects are excluded from updates — including `wp telex update --all` — until you're ready to move forward. |
+| **Auto-update** | Set projects to update automatically whenever a new build lands. Per-project control so you can auto-update utilities while keeping your flagship blocks pinned. |
+| **Notification channels** | Email digests and Slack webhooks for install, update, and removal events. Know what changed, when it changed, and who triggered it. |
+| **Project health** | A dedicated tab showing active state, file integrity, version freshness, and compatibility warnings for every installed project. |
+| **Block analytics** | See how many posts each installed block is embedded in. Know which ones are load-bearing before you touch them. |
 | **Auto-deploy webhook** | Push a new build in Telex → your site updates automatically. Set it and forget it. |
-| **WP-CLI** | `wp telex update --all` in your deployment script. Every environment stays current on every deploy. |
+| **WP-CLI** | `wp telex update --all`, `wp telex snapshot create`, `wp telex pin`. Automate everything. Drop Dispatch commands into your deployment pipeline. |
 | **Multisite** | Connect once at the network level. Every site on the network gets access to your full project library. |
-| **Audit log** | Every install, update, removal, and connection event is recorded with a timestamp and acting user. You'll always know what changed and who did it. |
+| **Audit log** | Every install, update, removal, and connection event is recorded with a timestamp and acting user. GDPR-ready — registered with WordPress Privacy Tools. |
 | **Circuit breaker** | If the Telex API goes down, Dispatch backs off gracefully. Your installed blocks keep running — they're just files on disk. |
 
 ---
@@ -255,7 +261,8 @@ For everything else, [open an issue](https://github.com/RegionallyFamous/dispatc
 Extended docs live in the [`docs/`](docs/) folder and the [GitHub Wiki](https://github.com/RegionallyFamous/dispatch/wiki):
 
 - [Getting Started](docs/getting-started.md)
-- [WP-CLI Reference](docs/wp-cli.md)
+- [Managing Projects](docs/managing-projects.md) — install, update, remove, snapshots, version pinning, auto-update
+- [WP-CLI Reference](docs/wp-cli.md) — full command reference with examples
 - [Webhook & Auto-deploy](docs/webhook.md)
 - [Security Model](docs/security.md)
 - [Multisite Setup](docs/multisite.md)

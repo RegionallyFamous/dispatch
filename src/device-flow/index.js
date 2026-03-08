@@ -263,10 +263,8 @@ function DeviceFlowApp() {
 				method: 'DELETE',
 			} );
 		} catch ( err ) {
-			// Log but don't surface — the user explicitly cancelled, so resetting
+			// Swallow silently — the user explicitly cancelled, so resetting
 			// the UI is always the right outcome even if the server call fails.
-			// eslint-disable-next-line no-console
-			console.warn( 'Dispatch: cancel device flow failed', err );
 		}
 		setStatus( STATUS.IDLE );
 		setDeviceData( null );

@@ -26,6 +26,7 @@
 	--telex-surface-alt: #f6f7f7;
 
 	/* Radii, shadow, motion */
+	--telex-radius-sm: 0;
 	--telex-radius: 0;
 	--telex-radius-lg: 0;
 	--telex-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
@@ -38,7 +39,7 @@
  * ------------------------------------------------------------------------- */
 
 .telex-app {
-	max-width: 1200px;
+	width: 100%;
 }
 
 /* ---------------------------------------------------------------------------
@@ -209,6 +210,37 @@
 	flex-shrink: 0;
 }
 
+/* Sort SelectControl — @wordpress/components SelectControl carries a default
+   margin-bottom: 8px on its inner .components-base-control. Reset it so the
+   control sits centred in the 48px bar, matching SearchControl treatment. */
+.telex-sort-control {
+	margin-bottom: 0;
+}
+
+.telex-sort-control .components-base-control {
+	margin-bottom: 0;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Update-All progress bar
+ * Rendered above the project list during a bulk update operation.
+ * Uses the amber update palette so it's visually linked to the Updates tab.
+ * ------------------------------------------------------------------------- */
+
+.telex-update-all-progress {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 16px;
+	margin: 0 0 20px;
+	background: var(--telex-update-bg);
+	border: 1px solid var(--telex-update-border);
+	border-left: 3px solid var(--telex-update);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--telex-update);
+}
 
 /* ---------------------------------------------------------------------------
  * Tab panel content
@@ -251,6 +283,7 @@
 
 .telex-project-row:hover {
 	background: var(--telex-surface-alt);
+	box-shadow: var(--telex-shadow-hover);
 }
 
 /* Type-specific left accent stripe */
@@ -312,6 +345,10 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: 150px;
+}
+
+.telex-project-row--pinned .telex-row-title-btn {
+	color: #1d4ed8;
 }
 
 .wp-admin .telex-row-title-btn:hover {
@@ -454,6 +491,20 @@
 	opacity: 0.75;
 }
 
+/* Busy state — applied during install, update, and removal.
+   Shifts the left accent to brand so the row is visually distinct from idle.
+   Secondary icon buttons are muted and non-interactive so the user doesn't
+   trigger a second action mid-operation; the row body stays fully readable
+   for the InstallProgress step list inside the meta zone. */
+.telex-project-row--busy {
+	border-left-color: var(--telex-brand);
+}
+
+.telex-project-row--busy .telex-row-secondary {
+	opacity: 0.3;
+	pointer-events: none;
+}
+
 .telex-row-secondary:focus-within,
 .telex-project-row:hover .telex-row-secondary,
 .telex-project-row--installed:hover .telex-row-secondary,
@@ -491,7 +542,7 @@
 .telex-modal-actions {
 	display: flex;
 	gap: 8px;
-	margin-top: 20px;
+	margin-top: 16px;
 	padding-top: 16px;
 	border-top: 1px solid var(--telex-border);
 }
@@ -550,49 +601,45 @@
 }
 
 .telex-skeleton--avatar {
-	width: 36px;
-	height: 36px;
-	border-radius: var(--telex-radius-sm);
+	width: 40px;
+	height: 40px;
+	border-radius: 6px;
 	flex-shrink: 0;
 }
 
-.telex-skeleton-row__name {
-	flex: 0 0 160px;
+.telex-skeleton-row__identity {
+	flex: 0 0 180px;
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
+	gap: 6px;
 }
 
 .telex-skeleton--title {
 	height: 13px;
-	width: 80%;
+	width: 75%;
 }
 
 .telex-skeleton--badge {
 	height: 10px;
-	width: 45%;
-	border-radius: 2px;
+	width: 40%;
+	border-radius: 10px;
 }
 
-.telex-skeleton-row__meta {
+/* Pushes actions to the right, matching the live row flex layout */
+.telex-skeleton-row__spacer {
 	flex: 1;
-	display: flex;
-	gap: 10px;
 }
 
-.telex-skeleton--line {
-	height: 11px;
-	width: 90px;
-	border-radius: 3px;
-}
-
-.telex-skeleton--line-short {
-	width: 60px;
+.telex-skeleton--icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 4px;
+	flex-shrink: 0;
 }
 
 .telex-skeleton--button {
-	height: 32px;
-	width: 76px;
+	height: 36px;
+	width: 88px;
 	border-radius: 4px;
 	flex-shrink: 0;
 }
@@ -624,6 +671,65 @@
 		animation: none;
 		background: var(--telex-border);
 	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Panel-level skeleton containers (settings page panels)
+ * .telex-panel-skeleton wraps shaped shimmer bars shown while async data
+ * loads. Each skeleton modifier matches the visual footprint of the real
+ * content it replaces so there is no layout shift when content arrives.
+ * ------------------------------------------------------------------------- */
+
+.telex-panel-skeleton {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 0;
+}
+
+/* Checkbox row — matches height + typical label width of a CheckboxControl */
+.telex-skeleton--checkbox-row {
+	height: 20px;
+	width: 55%;
+}
+
+/* Input group — matches a 40px TextControl */
+.telex-skeleton--input-group {
+	height: 40px;
+}
+
+/* Table row — matches a snapshot table row */
+.telex-skeleton--table-row {
+	height: 38px;
+}
+
+/* Webhook secret row skeleton — inline flex to match the real field row */
+.telex-webhook-field--skeleton {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.telex-skeleton--webhook-label {
+	height: 14px;
+	width: 50px;
+	flex-shrink: 0;
+}
+
+.telex-skeleton--webhook-value {
+	flex: 1;
+	height: 36px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Notification checkbox group — gap between stacked CheckboxControls
+ * ------------------------------------------------------------------------- */
+
+.telex-notification-checkboxes {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-bottom: 4px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1090,6 +1196,52 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Activity tab — action badges (React audit log table)
+ * Each audit event type gets a colour-coded pill so installs, updates,
+ * removals, and connections are immediately distinguishable at a glance.
+ * ------------------------------------------------------------------------- */
+
+.telex-action-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.telex-action-badge--install {
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
+}
+
+.telex-action-badge--update {
+	background: var(--telex-update-bg);
+	color: var(--telex-update);
+}
+
+.telex-action-badge--remove {
+	background: var(--telex-error-bg);
+	color: var(--telex-error);
+}
+
+.telex-action-badge--connect {
+	background: #e8f0fe;
+	color: #1d4289;
+}
+
+.telex-action-badge--disconnect {
+	background: #f0f0f1;
+	color: var(--telex-muted);
+}
+
+.telex-action-badge--webhook_deploy {
+	background: #f3e8fd;
+	color: #6b21a8;
+}
+
+/* ---------------------------------------------------------------------------
  * Accessibility
  * ------------------------------------------------------------------------- */
 
@@ -1099,6 +1251,10 @@
 	.telex-user-code,
 	.telex-step__dot {
 		transition: none;
+	}
+
+	.telex-project-row:hover {
+		box-shadow: none;
 	}
 
 	.components-spinner {
@@ -1182,6 +1338,13 @@
 		display: none;
 	}
 
+	/* Keep install progress and status badges visible on mobile.
+	   Only the static meta (version, type badge) hides. */
+	.telex-row-meta .telex-status-badge,
+	.telex-row-meta .telex-install-progress {
+		display: flex;
+	}
+
 	.wp-admin .telex-row-title-btn {
 		max-width: 120px;
 	}
@@ -1250,6 +1413,10 @@
 	border-left-color: var(--telex-brand);
 }
 
+.telex-toast--rate_limited {
+	border-left-color: var(--telex-update);
+}
+
 .telex-toast__body {
 	flex: 1;
 	min-width: 0;
@@ -1305,6 +1472,10 @@
 
 .telex-toast--info    .telex-toast__progress {
 	background: var(--telex-brand);
+}
+
+.telex-toast--rate_limited .telex-toast__progress {
+	background: var(--telex-update);
 }
 
 @keyframes telex-toast-in {
@@ -1428,6 +1599,17 @@
 	border-top: 1px solid var(--telex-border);
 }
 
+/* Plugin slug chip — rendered inside .telex-detail-meta as a <code> element.
+   Matches the .telex-webhook-value pattern for inline monospace values. */
+.telex-slug {
+	font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+	font-size: 12px;
+	background: var(--telex-surface-alt);
+	border: 1px solid var(--telex-border);
+	padding: 1px 6px;
+	color: inherit;
+}
+
 /* ---------------------------------------------------------------------------
  * Changelog confirmation modal
  * ------------------------------------------------------------------------- */
@@ -1458,13 +1640,341 @@
 	padding-top: 12px;
 }
 
+/* Section label — "About this project" heading above the description body.
+   Matches .telex-stat__label and .telex-webhook-label patterns. */
+.telex-changelog-section-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--telex-muted);
+	margin-bottom: 6px;
+}
+
 /* ---------------------------------------------------------------------------
  * Webhook settings panel
  * ------------------------------------------------------------------------- */
 
-.telex-webhook-panel {
+/* ---------------------------------------------------------------------------
+ * Settings page body — constrains the settings content to a readable width
+ * so the webhook panel and audit log don't span the full admin column.
+ * ------------------------------------------------------------------------- */
+
+.telex-settings-body {
+	max-width: 900px;
+}
+
+/* Audit log section header — title + description on the left, action on the
+   right, separated by a bottom border to frame the list table below. */
+.telex-settings-section {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 12px;
+	margin: 32px 0 0;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-settings-section__header h2 {
+	margin: 0 0 4px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.telex-settings-section__header p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--telex-muted);
+}
+
+.telex-settings-section__action {
+	flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Audit log card
+ * ------------------------------------------------------------------------- */
+
+.telex-audit-log-card {
 	margin-top: 24px;
-	padding: 20px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+	overflow: hidden;
+}
+
+.telex-audit-log-card__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 20px 24px;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-audit-log-card__title h3 {
+	margin: 0 0 4px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.telex-audit-log-card__title p {
+	margin: 0;
+	font-size: 13px;
+	color: var(--telex-muted);
+}
+
+/* Health table cell alignment — must precede audit-log thead rules */
+.telex-health-panel .telex-health-table th,
+.telex-health-panel .telex-health-table td {
+	vertical-align: middle;
+}
+
+/* Scope the WP_List_Table inside the card to match the design system */
+.telex-audit-log-card .wp-list-table {
+	border: none;
+	box-shadow: none;
+	margin: 0;
+}
+
+.telex-audit-log-card .widefat td,
+.telex-audit-log-card .widefat th {
+	box-shadow: none;
+}
+
+/* Empty state */
+.telex-audit-log-card .no-items td {
+	padding: 32px 16px;
+	text-align: center;
+	color: var(--telex-muted);
+	font-style: italic;
+}
+
+.telex-audit-log-card .wp-list-table thead th,
+.telex-audit-log-card .wp-list-table thead td {
+	background: var(--telex-surface-alt);
+	border-bottom: 1px solid var(--telex-border);
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--telex-muted);
+	padding: 10px 16px;
+}
+
+.telex-audit-log-card .wp-list-table tbody tr {
+	background: var(--telex-surface);
+}
+
+.telex-audit-log-card .wp-list-table.striped > tbody > :nth-child(odd) {
+	background: var(--telex-surface-alt);
+}
+
+.telex-audit-log-card .wp-list-table tbody td,
+.telex-audit-log-card .wp-list-table tbody th {
+	border-bottom: 1px solid var(--telex-border);
+	padding: 10px 16px;
+	font-size: 13px;
+	vertical-align: middle;
+}
+
+.telex-audit-log-card .wp-list-table tbody tr:last-child td,
+.telex-audit-log-card .wp-list-table tbody tr:last-child th {
+	border-bottom: none;
+}
+
+.telex-audit-log-card .tablenav {
+	padding: 10px 16px;
+	margin: 0;
+	background: var(--telex-surface-alt);
+	border-top: 1px solid var(--telex-border);
+}
+
+.telex-audit-log-card .tablenav.top {
+	border-top: none;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-audit-log-card .tablenav-pages a,
+.telex-audit-log-card .tablenav-pages span {
+	font-size: 13px;
+}
+
+/* Real card starts invisible; JS removes this class once queries are done */
+.telex-audit-log-card--pending {
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* Smooth reveal — only plays when the class was just removed */
+.telex-audit-log-card:not(.telex-audit-log-card--pending) {
+	animation: telex-fade-in 0.18s ease forwards;
+}
+
+@keyframes telex-fade-in {
+
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Audit log skeleton card
+ * Mirrors the audit log card structure so there is zero layout shift when
+ * the real card is swapped in.
+ * ------------------------------------------------------------------------- */
+
+.telex-audit-log-skeleton {
+	margin-top: 24px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+	overflow: hidden;
+}
+
+.telex-audit-log-skeleton__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 20px 24px;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-audit-log-skeleton__title {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: 1;
+}
+
+.telex-audit-log-skeleton__cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr;
+	gap: 12px;
+	padding: 10px 16px;
+	background: var(--telex-surface-alt);
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-audit-log-skeleton__row {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--telex-border);
+	min-height: 41px;
+}
+
+.telex-audit-log-skeleton__row:last-child {
+	border-bottom: none;
+}
+
+/* Stagger animation so rows shimmer in sequence */
+.telex-audit-log-skeleton__row:nth-child(3) .telex-skeleton {
+	animation-delay: 0.08s;
+}
+
+.telex-audit-log-skeleton__row:nth-child(4) .telex-skeleton {
+	animation-delay: 0.16s;
+}
+
+.telex-audit-log-skeleton__row:nth-child(5) .telex-skeleton {
+	animation-delay: 0.24s;
+}
+
+.telex-audit-log-skeleton__row:nth-child(6) .telex-skeleton {
+	animation-delay: 0.32s;
+}
+
+.telex-audit-log-skeleton__row:nth-child(7) .telex-skeleton {
+	animation-delay: 0.4s;
+}
+
+.telex-audit-log-skeleton__row:nth-child(8) .telex-skeleton {
+	animation-delay: 0.48s;
+}
+
+/* Skeleton shape tokens for audit log cells */
+.telex-skeleton--panel-title {
+	height: 14px;
+	width: 120px;
+}
+
+.telex-skeleton--panel-desc {
+	height: 11px;
+	width: 72%;
+}
+
+.telex-skeleton--col-head {
+	height: 10px;
+	width: 55%;
+}
+
+.telex-skeleton--cell-date {
+	height: 13px;
+	width: 80%;
+}
+
+.telex-skeleton--cell-badge {
+	height: 20px;
+	width: 56px;
+	border-radius: 10px;
+}
+
+.telex-skeleton--cell-id {
+	height: 13px;
+	width: 90%;
+}
+
+.telex-skeleton--cell-user {
+	height: 13px;
+	width: 65%;
+}
+
+/* ---------------------------------------------------------------------------
+ * Settings panel skeletons — shown inside #telex-webhook-app while React boots
+ * ------------------------------------------------------------------------- */
+
+.telex-settings-panel-skeleton {
+	margin-bottom: 20px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-lg);
+	box-shadow: var(--telex-shadow);
+	overflow: hidden;
+}
+
+.telex-settings-panel-skeleton:last-child {
+	margin-bottom: 0;
+}
+
+.telex-settings-panel-skeleton__header {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 20px 24px 16px;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-settings-panel-skeleton .telex-panel-skeleton {
+	padding: 16px 24px;
+}
+
+.telex-webhook-panel {
+	margin-top: 0;
+	padding: 20px 24px;
 	background: var(--telex-surface);
 	border: 1px solid var(--telex-border);
 	border-radius: var(--telex-radius-lg);
@@ -1474,10 +1984,11 @@
 .telex-webhook-panel h3 {
 	margin: 0 0 4px;
 	font-size: 14px;
+	font-weight: 600;
 }
 
 .telex-webhook-panel p {
-	margin: 0 0 16px;
+	margin: 0 0 20px;
 	font-size: 13px;
 	color: var(--telex-muted);
 }
@@ -1550,4 +2061,436 @@
 
 .telex-network-status--pending {
 	color: var(--telex-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Multi-select checkboxes
+ * ------------------------------------------------------------------------- */
+
+.telex-row-checkbox {
+	display: flex;
+	align-items: center;
+	padding: 0 8px 0 4px;
+	flex-shrink: 0;
+}
+
+.telex-row-checkbox input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	cursor: pointer;
+}
+
+.telex-project-row--selected {
+	background-color: color-mix(in srgb, var(--wp-admin-theme-color, #3858e9) 8%, transparent);
+}
+
+.telex-batch-bar {
+	position: sticky;
+	bottom: 20px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: var(--telex-surface, #fff);
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+	padding: 10px 16px;
+	margin: 16px 0 0;
+	z-index: 100;
+}
+
+.telex-batch-bar__count {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--telex-muted);
+	margin-right: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * Activation status badge
+ * ------------------------------------------------------------------------- */
+
+.telex-inactive-badge {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 600;
+	background: #f0f0f1;
+	color: #757575;
+	margin-left: 6px;
+	vertical-align: middle;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Per-project notes
+ * ------------------------------------------------------------------------- */
+
+.telex-row-note-preview {
+	display: block;
+	font-size: 12px;
+	color: var(--telex-muted);
+	margin-top: 2px;
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 300px;
+}
+
+.telex-row-note-editor {
+	grid-column: 1 / -1;
+	padding: 12px 16px;
+	background: color-mix(in srgb, var(--telex-border) 30%, transparent);
+	border-top: 1px solid var(--telex-border);
+}
+
+.telex-row-note-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Inline device flow (reconnect modal)
+ * ------------------------------------------------------------------------- */
+
+.telex-inline-flow {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.telex-inline-flow__code-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.telex-inline-flow__code {
+	font-size: 22px;
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	padding: 6px 12px;
+	background: #f6f7f7;
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius);
+	user-select: all;
+}
+
+.telex-inline-flow__waiting {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--telex-muted);
+	font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Circuit-breaker notice modifier
+ * Applied to the WP <Notice> rendered when the API circuit is open/half-open.
+ * A left amber border distinguishes it from generic informational notices and
+ * links it visually to the amber update/warning colour system.
+ * ------------------------------------------------------------------------- */
+
+.telex-circuit-notice.components-notice {
+	border-left: 3px solid var(--telex-update-border);
+}
+
+/* ---------------------------------------------------------------------------
+ * Pin badge
+ * ------------------------------------------------------------------------- */
+
+.telex-pin-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: var(--telex-radius-sm);
+	background: #eff6ff;
+	color: #1d4ed8;
+	border: 1px solid #bfdbfe;
+	white-space: nowrap;
+}
+
+.telex-btn-pinned.components-button {
+	color: #1d4ed8;
+}
+
+/* ---------------------------------------------------------------------------
+ * Usage badge
+ * ------------------------------------------------------------------------- */
+
+.telex-usage-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-size: 11px;
+	color: var(--telex-muted);
+	background: var(--telex-surface-alt);
+	border: 1px solid var(--telex-border);
+	padding: 2px 5px;
+	border-radius: var(--telex-radius-sm);
+	white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Soak period countdown badge
+ * ------------------------------------------------------------------------- */
+
+.telex-soak-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-size: 11px;
+	color: var(--telex-update);
+	background: var(--telex-update-bg);
+	border: 1px solid var(--telex-update-border);
+	padding: 2px 6px;
+	border-radius: var(--telex-radius-sm);
+	white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Auto-update inline SelectControl
+ * ------------------------------------------------------------------------- */
+
+.telex-autoupdate-select {
+	max-width: 140px;
+}
+
+.telex-autoupdate-select .components-base-control__field {
+	margin: 0;
+}
+
+.telex-autoupdate-select select {
+	font-size: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Activity toolbar enhancements
+ * ------------------------------------------------------------------------- */
+
+.telex-activity-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.telex-activity-dates {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+}
+
+.telex-date-label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--telex-muted);
+}
+
+.telex-date-input {
+	height: 36px;
+	padding: 0 8px;
+	border: 1px solid var(--telex-border);
+	border-radius: var(--telex-radius-sm);
+	font-size: 13px;
+	background: var(--telex-surface);
+	color: inherit;
+}
+
+.telex-date-input:focus {
+	outline: 2px solid var(--telex-brand);
+	outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Health dashboard
+ * ------------------------------------------------------------------------- */
+
+.telex-health-panel {
+	padding: 0;
+}
+
+.telex-health-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+
+.telex-health-toolbar h2 {
+	margin: 0;
+	font-size: 1.1em;
+}
+
+.telex-health-indicator {
+	display: inline-block;
+	font-size: 13px;
+	font-weight: 700;
+}
+
+.telex-health-indicator--ok {
+	color: var(--telex-success);
+}
+
+.telex-health-indicator--warn {
+	color: var(--telex-update);
+}
+
+.telex-health-indicator--error {
+	color: var(--telex-error);
+}
+
+.telex-health-status {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 2px 6px;
+	border-radius: var(--telex-radius-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.telex-health-status--ok {
+	background: var(--telex-success-bg);
+	color: var(--telex-success);
+}
+
+.telex-health-status--warn {
+	background: var(--telex-update-bg);
+	color: var(--telex-update);
+}
+
+.telex-health-status--error {
+	background: var(--telex-error-bg);
+	color: var(--telex-error);
+}
+
+/* ---------------------------------------------------------------------------
+ * Notification settings panel
+ * ------------------------------------------------------------------------- */
+
+.telex-notification-panel {
+	margin-top: 24px;
+	padding: 24px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+}
+
+.telex-notification-panel h3 {
+	margin-top: 0;
+}
+
+.telex-notification-section {
+	margin-top: 16px;
+}
+
+.telex-notification-section h4 {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--telex-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.telex-notification-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 20px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Project groups panel (modal)
+ * ------------------------------------------------------------------------- */
+
+.telex-groups-panel h3 {
+	margin-top: 0;
+}
+
+.telex-groups-list {
+	list-style: none;
+	margin: 0 0 16px;
+	padding: 0;
+	border: 1px solid var(--telex-border);
+}
+
+.telex-groups-list__item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--telex-border);
+}
+
+.telex-groups-list__item:last-child {
+	border-bottom: none;
+}
+
+.telex-groups-list__name {
+	flex: 1;
+	font-size: 13px;
+}
+
+.telex-groups-new {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+}
+
+.telex-groups-new .components-base-control {
+	flex: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Build snapshot panel
+ * ------------------------------------------------------------------------- */
+
+.telex-snapshot-panel {
+	margin-top: 24px;
+	padding: 24px;
+	background: var(--telex-surface);
+	border: 1px solid var(--telex-border);
+}
+
+.telex-snapshot-panel h3 {
+	margin-top: 0;
+}
+
+.telex-snapshot-new {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	margin-bottom: 20px;
+}
+
+.telex-snapshot-new .components-base-control {
+	flex: 1;
+}
+
+.telex-snapshot-actions {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Groups modal
+ * ------------------------------------------------------------------------- */
+
+.telex-groups-modal .components-modal__content {
+	min-width: 480px;
 }

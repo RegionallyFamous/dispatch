@@ -2,7 +2,7 @@
 /**
  * Data Transfer Objects for the Telex plugin.
  *
- * Contains Telex_Project, Telex_Build_File, and Telex_Api_Credentials.
+ * Contains Telex_Project and Telex_Build_File.
  *
  * @package Dispatch_For_Telex
  */
@@ -110,23 +110,4 @@ readonly class Telex_Build_File {
 			sha256: (string) ( $data['sha256'] ?? '' ),
 		);
 	}
-}
-
-/**
- * Immutable value object representing a Telex API credential pair.
- */
-readonly class Telex_Api_Credentials {
-
-	/**
-	 * Creates a new Telex_Api_Credentials instance.
-	 *
-	 * @param string $token    The OAuth bearer token.
-	 * @param string $base_url The Telex API base URL.
-	 * @param int    $timeout  Request timeout in seconds.
-	 */
-	public function __construct(
-		public string $token,
-		public string $base_url,
-		public int $timeout = 15,
-	) {}
 }

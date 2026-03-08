@@ -3,7 +3,7 @@
  * Plugin Name:       Dispatch for Telex
  * Plugin URI:        https://telex.automattic.ai
  * Description:       Telex builds the block. Dispatch ships it. Install, update, and remove Telex-generated blocks and themes from wp-admin — no zip files, no upload forms.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 6.7
  * Tested up to:      6.8
  * Requires PHP:      8.2
@@ -26,7 +26,7 @@ if ( defined( 'TELEX_LOADED' ) ) {
 }
 define( 'TELEX_LOADED', true );
 
-define( 'TELEX_PLUGIN_VERSION', '1.2.0' );
+define( 'TELEX_PLUGIN_VERSION', '1.3.0' );
 define( 'TELEX_PLUGIN_FILE', __FILE__ );
 define( 'TELEX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TELEX_PUBLIC_URL', 'https://telex.automattic.ai' );
@@ -161,10 +161,10 @@ if ( ! file_exists( TELEX_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 $telex_required = [
 	'includes/Enums/AuditAction.php',
 	'includes/Enums/AuthStatus.php',
-	'includes/Enums/InstallStatus.php',
 	'includes/Enums/ProjectType.php',
 	'includes/class-telex-activator.php',
 	'includes/class-telex-admin.php',
+	'includes/class-telex-utils.php',
 	'includes/class-telex-audit-log.php',
 	'includes/class-telex-audit-log-table.php',
 	'includes/class-telex-auth.php',
@@ -173,10 +173,18 @@ $telex_required = [
 	'includes/class-telex-dtos.php',
 	'includes/class-telex-fatal-handler.php',
 	'includes/class-telex-installer.php',
+	'includes/class-telex-privacy.php',
 	'includes/class-telex-rest.php',
 	'includes/class-telex-tracker.php',
 	'includes/class-telex-updater.php',
 	'includes/class-telex-wp-http-client.php',
+	'includes/class-telex-version-pin.php',
+	'includes/class-telex-auto-update.php',
+	'includes/class-telex-project-groups.php',
+	'includes/class-telex-snapshot.php',
+	'includes/class-telex-notifications.php',
+	'includes/class-telex-analytics.php',
+	'includes/class-telex-health.php',
 ];
 
 $telex_missing = array_values(
@@ -212,7 +220,6 @@ require_once TELEX_PLUGIN_DIR . 'vendor/autoload.php';
 
 // Enums (loaded before any class that uses them).
 require_once TELEX_PLUGIN_DIR . 'includes/Enums/ProjectType.php';
-require_once TELEX_PLUGIN_DIR . 'includes/Enums/InstallStatus.php';
 require_once TELEX_PLUGIN_DIR . 'includes/Enums/AuthStatus.php';
 require_once TELEX_PLUGIN_DIR . 'includes/Enums/AuditAction.php';
 
@@ -226,16 +233,26 @@ require_once TELEX_PLUGIN_DIR . 'includes/class-telex-auth.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-cache.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-tracker.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-wp-http-client.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-utils.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-installer.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-updater.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-audit-log-table.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-admin.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-privacy.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-rest.php';
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-fatal-handler.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-version-pin.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-auto-update.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-project-groups.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-snapshot.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-notifications.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-analytics.php';
+require_once TELEX_PLUGIN_DIR . 'includes/class-telex-health.php';
 
-// Activation handler.
+// Activation/deactivation handlers.
 require_once TELEX_PLUGIN_DIR . 'includes/class-telex-activator.php';
 register_activation_hook( __FILE__, Telex_Activator::activate( ... ) );
+register_deactivation_hook( __FILE__, Telex_Activator::deactivate( ... ) );
 
 // WP-CLI commands — only load in CLI context and only if the file is present.
 if ( defined( 'WP_CLI' ) && WP_CLI && file_exists( TELEX_PLUGIN_DIR . 'includes/class-telex-cli.php' ) ) {
@@ -255,6 +272,12 @@ add_action(
 			Telex_Auth::init();
 			Telex_Admin::init();
 			Telex_Updater::init();
+
+			// Cron callbacks for new features.
+			add_action( Telex_Auto_Update::CRON_HOOK, Telex_Auto_Update::run( ... ) );
+			add_action( Telex_Analytics::CRON_HOOK, Telex_Analytics::scan( ... ) );
+			// Piggyback on the existing hourly cache-warm cron to evaluate notification triggers.
+			add_action( 'telex_cache_warm', Telex_Notifications::evaluate_cron_triggers( ... ) );
 		} catch ( \Throwable $e ) {
 			add_action(
 				'admin_notices',

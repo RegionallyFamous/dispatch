@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for Telex DTOs — Telex_Project, Telex_Build_File, Telex_Api_Credentials.
+ * Tests for Telex DTOs — Telex_Project and Telex_Build_File.
  *
  * @package Dispatch_For_Telex
  */
@@ -189,54 +189,5 @@ class Test_Telex_DTOs extends WP_UnitTestCase {
 		$this->expectException( \Error::class );
 		// @phpstan-ignore-next-line — deliberate illegal write.
 		$file->path = 'mutated';
-	}
-
-	// -------------------------------------------------------------------------
-	// Telex_Api_Credentials
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Asserts the constructor stores token and base_url correctly.
-	 *
-	 * @return void
-	 */
-	public function test_api_credentials_stores_token_and_base_url(): void {
-		$creds = new Telex_Api_Credentials( 'tok-123', 'https://api.example.com' );
-
-		$this->assertSame( 'tok-123', $creds->token );
-		$this->assertSame( 'https://api.example.com', $creds->base_url );
-	}
-
-	/**
-	 * Asserts the default timeout is 15 seconds.
-	 *
-	 * @return void
-	 */
-	public function test_api_credentials_default_timeout_is_15(): void {
-		$creds = new Telex_Api_Credentials( 'tok', 'https://api.example.com' );
-		$this->assertSame( 15, $creds->timeout );
-	}
-
-	/**
-	 * Asserts a custom timeout can be specified.
-	 *
-	 * @return void
-	 */
-	public function test_api_credentials_accepts_custom_timeout(): void {
-		$creds = new Telex_Api_Credentials( 'tok', 'https://api.example.com', 30 );
-		$this->assertSame( 30, $creds->timeout );
-	}
-
-	/**
-	 * Asserts Telex_Api_Credentials is readonly — writing to a property throws an Error.
-	 *
-	 * @return void
-	 */
-	public function test_api_credentials_is_readonly(): void {
-		$creds = new Telex_Api_Credentials( 'tok', 'https://api.example.com' );
-
-		$this->expectException( \Error::class );
-		// @phpstan-ignore-next-line — deliberate illegal write.
-		$creds->token = 'mutated';
 	}
 }

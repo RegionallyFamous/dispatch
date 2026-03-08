@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -28,15 +28,22 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 * **One-click install** — Dispatch downloads, validates, and activates the latest build. Blocks are live on your site in seconds.
 * **Native WordPress updates** — available updates appear inside the WordPress Updates screen alongside your other plugins and themes. Nothing to remember to check.
 * **Clean removals** — uninstall any Telex-managed project and Dispatch handles deactivation, file cleanup, and tracker sync. Nothing gets orphaned.
+* **Build snapshots** — capture the full set of installed project versions before a risky change, and restore in one click if anything breaks.
+* **Version pinning** — lock any project at its current build to prevent updates. Pinned projects are excluded from `wp telex update --all`.
+* **Auto-update** — set projects to update automatically on every new build, with per-project control so you stay current where it's safe.
 * **Secure auth** — OAuth 2.0 Device Authorization Grant (RFC 8628). No password stored anywhere. Authorize once from any browser, even on a headless server.
 * **AES-256-GCM token encryption** — your OAuth credentials are encrypted at rest using a key derived from your site's secret salts.
 
 === Built for Teams and CI/CD ===
 
-* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex list`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 * **Multisite** — connect once at the network level; every site on the network gains access to your Telex projects.
+* **Notification channels** — email digests and Slack webhooks for install, update, and removal events. Know what changed and when.
+* **Project groups** — organize your library into named collections. Filter by group in the admin screen or WP-CLI.
+* **Block usage analytics** — see how many posts each installed block appears in. Know which ones are load-bearing before you touch them.
 * **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user ID.
-* **Site Health integration** — connection status, circuit breaker state, and API reachability surface directly in WordPress Site Health.
+* **GDPR-ready** — the audit log is registered with WordPress's Privacy Tools. Export or erase a user's history from Tools → Personal Data.
+* **Site Health integration** — connection status, circuit breaker state, and project health surface directly in WordPress Site Health.
 * **Circuit breaker** — automatic protection against a degraded Telex API, with graceful fallback and self-healing.
 
 === Requirements ===
@@ -102,6 +109,20 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.3.0 =
+* New: Build snapshots — capture your entire installed project set and restore it in one click. `wp telex snapshot create/list/restore/delete` in CLI.
+* New: Version pinning — lock any project at its current build to prevent updates. Pinned projects are skipped by `wp telex update --all`.
+* New: Auto-update preferences — set projects to update automatically on every new Telex build, with per-project control.
+* New: Notification channels — email digests and Slack webhook notifications for install, update, and removal events.
+* New: Project health dashboard — a dedicated tab showing active state, file integrity, version freshness, and compatibility status for every installed project.
+* New: Block usage analytics — tracks how many posts each installed block appears in; count shown on the projects screen.
+* New: Project groups — named per-user collections for organizing your Telex library. Filterable in the admin screen and WP-CLI.
+* New: GDPR / Privacy Tools integration — audit log data is now registered with WordPress's personal-data exporter and eraser.
+* Improvement: Settings page rebuilt with full-width layout, consistent page header, and skeleton loaders for each panel while data loads.
+* Improvement: Notification panel checkboxes now have proper spacing.
+* Fix: `wp telex doctor` now uses `wp_is_file_mod_allowed()` instead of reading `DISALLOW_FILE_MODS` directly.
+* Fix: Removed a stale property declaration in the audit log table class.
 
 = 1.2.0 =
 * Performance: the admin page no longer decrypts the API token when all project version data is already cached — cold-cache and warm-cache page loads are now treated differently.
@@ -172,6 +193,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Major feature release: build snapshots, version pinning, auto-update preferences, Slack/email notifications, project groups, block analytics, and a GDPR-ready audit log. No database migrations required beyond the auto-created tables.
 
 = 1.0.2 =
 Bug-fix update. Resolves update progress animation restart, incorrect post-update version tracking, and a race condition that could show a spurious "build isn't ready" error. No database changes required.

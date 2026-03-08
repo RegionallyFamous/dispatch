@@ -16,7 +16,7 @@
             "step": "installPlugin",
             "pluginData": {
                 "resource": "url",
-                "url": "https://github-proxy.com/proxy/?repo=regionallyfamous/dispatch&release=latest"
+                "url": "https://github.com/RegionallyFamous/dispatch/releases/latest/download/dispatch-for-telex.zip"
             },
             "options": {
                 "activate": true

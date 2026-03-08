@@ -30,12 +30,18 @@ class Telex_Updater {
 		add_filter( 'plugins_api', self::plugins_api_info( ... ), 10, 3 );
 		add_filter( 'upgrader_pre_download', self::intercept_telex_upgrade( ... ), 10, 4 );
 
+		// WordPress 6.5+ per-host update filter — fires for any plugin whose
+		// Update URI header matches telex.automattic.ai. This supplements the
+		// pre_set_site_transient_update_plugins hook and enables native
+		// `wp plugin update --all` to pick up Telex-managed blocks.
+		add_filter( 'update_plugins_telex.automattic.ai', self::handle_host_update_check( ... ), 10, 4 );
+
 		// Register after_plugin_row_* notices for each tracked block.
 		foreach ( Telex_Tracker::get_all() as $public_id => $info ) {
 			if ( ProjectType::from( $info['type'] ) !== ProjectType::Block ) {
 				continue;
 			}
-			$plugin_file = self::find_plugin_file( $info['slug'] );
+			$plugin_file = Telex_Utils::find_plugin_file( $info['slug'] );
 			if ( $plugin_file ) {
 				add_action(
 					'after_plugin_row_' . $plugin_file,
@@ -54,6 +60,8 @@ class Telex_Updater {
 	/**
 	 * Injects Telex block updates into the WordPress plugin update transient.
 	 *
+	 * Delegates to inject_updates() which primes caches once for all project types.
+	 *
 	 * @param object $transient The site transient object for plugin updates.
 	 * @return object
 	 */
@@ -63,6 +71,38 @@ class Telex_Updater {
 		 *
 		 * @phpstan-var object{response: array<string, mixed>, checked?: array<string, string>} $transient
 		 */
+		return self::inject_updates( $transient, ProjectType::Block );
+	}
+
+	/**
+	 * Injects Telex theme updates into the WordPress theme update transient.
+	 *
+	 * Delegates to inject_updates() which primes caches once for all project types.
+	 *
+	 * @param object $transient The site transient object for theme updates.
+	 * @return object
+	 */
+	public static function inject_theme_updates( object $transient ): object {
+		/**
+		 * WordPress always initialises `response` on this transient before calling the filter.
+		 *
+		 * @phpstan-var object{response: array<string, mixed>} $transient
+		 */
+		return self::inject_updates( $transient, ProjectType::Theme );
+	}
+
+	/**
+	 * Core update injection logic used by both plugin and theme filters.
+	 *
+	 * Primes per-project caches exactly once, then fans out by type. This avoids
+	 * calling prime_project_caches() twice (once per transient filter) when both
+	 * plugin and theme updates fire in the same request.
+	 *
+	 * @param object      $transient The site transient object to inject into.
+	 * @param ProjectType $type      Which project type to inject (Block or Theme).
+	 * @return object
+	 */
+	private static function inject_updates( object $transient, ProjectType $type ): object {
 		if ( ! Telex_Auth::is_connected() ) {
 			return $transient;
 		}
@@ -77,11 +117,15 @@ class Telex_Updater {
 			return $transient;
 		}
 
-		// Pre-seed per-project caches from the bulk list to avoid N+1 API calls.
-		self::prime_project_caches( $installed );
+		// Prime per-project caches from the bulk list once per request.
+		// A static flag prevents double-priming when both transient filters fire.
+		if ( ! self::$caches_primed ) {
+			self::prime_project_caches( $installed );
+			self::$caches_primed = true;
+		}
 
 		foreach ( $installed as $public_id => $info ) {
-			if ( ProjectType::from( $info['type'] ) !== ProjectType::Block ) {
+			if ( ProjectType::from( $info['type'] ) !== $type ) {
 				continue;
 			}
 
@@ -97,21 +141,30 @@ class Telex_Updater {
 					continue;
 				}
 
-				$plugin_file = self::find_plugin_file( $info['slug'] );
-				if ( ! $plugin_file ) {
-					continue;
+				if ( ProjectType::Block === $type ) {
+					$plugin_file = Telex_Utils::find_plugin_file( $info['slug'] );
+					if ( ! $plugin_file ) {
+						continue;
+					}
+					// Inject a pseudo-update package pointing to our REST install endpoint.
+					// @phpstan-ignore property.notFound
+					$transient->response[ $plugin_file ] = (object) [
+						'id'          => 'telex/' . $public_id,
+						'slug'        => $info['slug'],
+						'plugin'      => $plugin_file,
+						'new_version' => 'v' . $remote_version,
+						'url'         => TELEX_PUBLIC_URL,
+						'package'     => '', // Empty — Telex_Updater handles the actual install via WP_Upgrader.
+					];
+				} else {
+					// @phpstan-ignore property.notFound
+					$transient->response[ $info['slug'] ] = [
+						'theme'       => $info['slug'],
+						'new_version' => 'v' . $remote_version,
+						'url'         => TELEX_PUBLIC_URL,
+						'package'     => '',
+					];
 				}
-
-				// Inject a pseudo-update package pointing to our REST install endpoint.
-				// @phpstan-ignore assign.propertyReadOnly
-				$transient->response[ $plugin_file ] = (object) [
-					'id'          => 'telex/' . $public_id,
-					'slug'        => $info['slug'],
-					'plugin'      => $plugin_file,
-					'new_version' => 'v' . $remote_version,
-					'url'         => TELEX_PUBLIC_URL,
-					'package'     => '', // Empty — Telex_Updater handles the actual install via WP_Upgrader.
-				];
 			} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project failures are silenced so remaining update checks proceed normally.
 				// Don't disrupt the update check for one bad project.
 			}
@@ -121,62 +174,11 @@ class Telex_Updater {
 	}
 
 	/**
-	 * Injects Telex theme updates into the WordPress theme update transient.
+	 * Prevents double-priming of project caches within a single request.
 	 *
-	 * @param object $transient The site transient object for theme updates.
-	 * @return object
+	 * @var bool
 	 */
-	public static function inject_theme_updates( object $transient ): object {
-		/**
-		 * WordPress always initialises `response` on this transient before calling the filter.
-		 *
-		 * @phpstan-var object{response: array<string, mixed>} $transient
-		 */
-		if ( ! Telex_Auth::is_connected() ) {
-			return $transient;
-		}
-
-		$installed = Telex_Tracker::get_all();
-		$client    = Telex_Auth::get_client();
-
-		if ( empty( $installed ) || ! $client ) {
-			return $transient;
-		}
-
-		// Pre-seed per-project caches from the bulk list to avoid N+1 API calls.
-		self::prime_project_caches( $installed );
-
-		foreach ( $installed as $public_id => $info ) {
-			if ( ProjectType::from( $info['type'] ) !== ProjectType::Theme ) {
-				continue;
-			}
-
-			try {
-				$remote = Telex_Cache::get_project( $public_id );
-				if ( null === $remote ) {
-					$remote = $client->projects->get( $public_id );
-					Telex_Cache::set_project( $public_id, $remote );
-				}
-
-				$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
-				if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
-					continue;
-				}
-
-				// @phpstan-ignore assign.propertyReadOnly
-				$transient->response[ $info['slug'] ] = [
-					'theme'       => $info['slug'],
-					'new_version' => 'v' . $remote_version,
-					'url'         => TELEX_PUBLIC_URL,
-					'package'     => '',
-				];
-			} catch ( \Exception ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- Per-project failures are silenced so remaining update checks proceed normally.
-				// Don't disrupt the update check for one bad project.
-			}
-		}
-
-		return $transient;
-	}
+	private static bool $caches_primed = false;
 
 	// -------------------------------------------------------------------------
 	// plugins_api filter — "View version details" modal
@@ -276,11 +278,13 @@ class Telex_Updater {
 			return;
 		}
 
-		// The plugins list table always has 3 visible columns (checkbox, name, description+actions).
-		$cols = 3;
+		// Derive the column count from the current screen to match whatever columns
+		// the user has toggled on/off via Screen Options. Falls back to 3 if unavailable.
+		$screen       = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$column_count = $screen ? count( get_column_headers( $screen ) ) : 3;
 
 		echo '<tr class="plugin-update-tr active">';
-		printf( '<td colspan="%d" class="plugin-update colspanchange">', (int) $cols );
+		printf( '<td colspan="%d" class="plugin-update colspanchange">', (int) $column_count );
 		echo '<div class="update-message notice inline notice-warning notice-alt"><p>';
 		printf(
 			/* translators: 1: version number, 2: update URL */
@@ -344,6 +348,79 @@ class Telex_Updater {
 	}
 
 	// -------------------------------------------------------------------------
+	// WP 6.5+ per-host update filter
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Handles the WordPress 6.5+ per-host update filter for telex.automattic.ai.
+	 *
+	 * Fires for any plugin whose `Update URI` header resolves to telex.automattic.ai.
+	 * Returns an array describing the available update, or false if none.
+	 *
+	 * @param false|array<string, mixed> $update      Existing update data, or false.
+	 * @param array<string, mixed>       $plugin_data Plugin header data.
+	 * @param string                     $plugin_file Plugin file path (relative to plugins dir).
+	 * @param string[]                   $locales     Requested locale strings.
+	 * @return false|array<string, mixed>
+	 */
+	public static function handle_host_update_check( false|array $update, array $plugin_data, string $plugin_file, array $locales ): false|array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		if ( ! Telex_Auth::is_connected() ) {
+			return $update;
+		}
+
+		// Derive slug from the plugin file path (directory name).
+		$parts = explode( '/', $plugin_file );
+		$slug  = $parts[0];
+
+		// Find the public_id for this slug. get_all() is keyed by public_id.
+		$public_id = null;
+		foreach ( Telex_Tracker::get_all() as $pid => $info ) {
+			if ( ( $info['slug'] ?? '' ) === $slug ) {
+				$public_id = $pid;
+				break;
+			}
+		}
+
+		if ( null === $public_id ) {
+			return $update;
+		}
+
+		$remote = Telex_Cache::get_project( $public_id );
+		if ( null === $remote ) {
+			$client = Telex_Auth::get_client();
+			if ( ! $client ) {
+				return $update;
+			}
+			try {
+				$remote = $client->projects->get( $public_id );
+				Telex_Cache::set_project( $public_id, $remote );
+			} catch ( \Exception ) {
+				return $update;
+			}
+		}
+
+		$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
+		if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
+			return $update;
+		}
+
+		return [
+			'id'          => 'telex/' . $public_id,
+			'slug'        => $slug,
+			'plugin'      => $plugin_file,
+			'version'     => 'v' . $remote_version,
+			'new_version' => 'v' . $remote_version,
+			'url'         => TELEX_PUBLIC_URL,
+			// Empty package URL — Telex_Updater intercepts and redirects to Dispatch.
+			'package'     => '',
+			'icons'       => [],
+			'banners'     => [],
+			'banners_rtl' => [],
+			'requires'    => '',
+		];
+	}
+
+	// -------------------------------------------------------------------------
 	// Helper
 	// -------------------------------------------------------------------------
 
@@ -365,23 +442,5 @@ class Telex_Updater {
 				Telex_Cache::set_project( $id, $project );
 			}
 		}
-	}
-
-	/**
-	 * Returns the plugin file path (e.g. 'my-plugin/my-plugin.php') for a given slug.
-	 *
-	 * @param string $slug The WordPress plugin directory slug.
-	 * @return string Plugin file path, or empty string if not found.
-	 */
-	private static function find_plugin_file( string $slug ): string {
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		foreach ( get_plugins() as $file => $data ) {
-			if ( str_starts_with( $file, $slug . '/' ) ) {
-				return $file;
-			}
-		}
-		return '';
 	}
 }

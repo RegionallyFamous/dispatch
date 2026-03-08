@@ -60,16 +60,25 @@ wp telex install abc123 --activate
 
 ## `wp telex update`
 
-Update an installed Telex project to the latest available build.
+Update an installed Telex project to the latest available build. Pass `--all`
+to update every installed project in one shot (skips pinned projects).
 
 ```bash
 wp telex update <id>
+wp telex update --all
 ```
+
+**Options**
+
+| Option | Default | Description |
+|---|---|---|
+| `--all` | false | Update every installed project that is not pinned |
 
 **Example**
 
 ```bash
 wp telex update abc123
+wp telex update --all
 ```
 
 ---
@@ -165,6 +174,92 @@ wp telex cache warm
 | `status` | Show cache age and whether a stale copy is available |
 | `clear` | Delete the cached project list |
 | `warm` | Fetch and cache the project list immediately |
+
+---
+
+## `wp telex snapshot`
+
+Capture and restore the full set of installed project versions.
+
+```bash
+wp telex snapshot create <name>
+wp telex snapshot list [--format=<format>]
+wp telex snapshot restore <id>
+wp telex snapshot delete <id>
+```
+
+**Subcommands**
+
+| Subcommand | Description |
+|---|---|
+| `create <name>` | Save the current installed versions as a named snapshot |
+| `list` | Show all stored snapshots (ID, name, project count, date) |
+| `restore <id>` | Re-install every project at the versions captured in the snapshot |
+| `delete <id>` | Remove a stored snapshot |
+
+**Example**
+
+```bash
+wp telex snapshot create "Before homepage redesign"
+# Success: Snapshot "Before homepage redesign" created (ID: a1b2c3d4).
+
+wp telex snapshot list
+# +----------+----------------------------+----------+----------------------------+
+# | ID       | Name                       | Projects | Created                    |
+# | a1b2c3d4 | Before homepage redesign   | 7        | 2026-03-08T14:23:00+00:00  |
+
+wp telex snapshot restore a1b2c3d4
+# Restoring 7 projects from "Before homepage redesign"...
+# Success: Snapshot restored.
+```
+
+---
+
+## `wp telex pin` / `wp telex unpin`
+
+Lock a project at its current build version to prevent it from being updated.
+
+```bash
+wp telex pin <id>
+wp telex unpin <id>
+```
+
+**Example**
+
+```bash
+wp telex pin abc123
+# Success: Project abc123 is now pinned at v14.
+
+wp telex unpin abc123
+# Success: Project abc123 is unpinned.
+```
+
+Pinned projects are skipped by `wp telex update --all`.
+
+---
+
+## `wp telex doctor`
+
+Run a quick health check on your Dispatch setup: API connectivity, token
+validity, circuit breaker state, cache freshness, and file-modification
+permissions.
+
+```bash
+wp telex doctor
+```
+
+**Example output**
+
+```
++---------------------+--------+
+| Check               | Status |
++---------------------+--------+
+| Connection          | OK     |
+| Circuit Breaker     | Closed |
+| Project Cache       | 12 projects cached |
+| File Modifications  | Enabled |
++---------------------+--------+
+```
 
 ---
 

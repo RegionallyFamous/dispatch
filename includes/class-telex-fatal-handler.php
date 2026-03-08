@@ -65,6 +65,24 @@ class Telex_Fatal_Handler {
 			$error['line']
 		);
 
+		// Rotate the log when it reaches 1 MB. Keep up to 3 rotated files.
+		// All operations use @ suppression — this runs in a shutdown context where
+		// raising errors would produce output that corrupts HTTP responses.
+		// phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_filesize,WordPress.WP.AlternativeFunctions.rename_rename
+		if ( @filesize( $telex_log_file ) >= 1024 * 1024 ) {
+			// Shift existing rotated files: .2 → .3, .1 → .2.
+			for ( $i = 2; $i >= 1; --$i ) {
+				$src = $telex_log_file . '.' . $i;
+				$dst = $telex_log_file . '.' . ( $i + 1 );
+				if ( file_exists( $src ) ) {
+					@rename( $src, $dst );
+				}
+			}
+			// Rotate current log to .1.
+			@rename( $telex_log_file, $telex_log_file . '.1' );
+		}
+		// phpcs:enable WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_filesize,WordPress.WP.AlternativeFunctions.rename_rename
+
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		@file_put_contents( $telex_log_file, $message, FILE_APPEND | LOCK_EX );
 	}

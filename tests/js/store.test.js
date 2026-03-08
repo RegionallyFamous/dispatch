@@ -25,7 +25,6 @@ describe( 'DEFAULT_STATE', () => {
 			authExpired: false,
 			searchQuery: '',
 			installing: {},
-			notice: null,
 			confirmRemove: null,
 			currentPage: 1,
 			perPage: 24,
@@ -88,21 +87,6 @@ describe( 'actions', () => {
 			type: 'SET_INSTALL_STATUS',
 			publicId: 'p1',
 			status: 'installing',
-		} );
-	} );
-
-	it( 'setNotice returns correct action', () => {
-		const notice = { type: 'success', message: 'Done' };
-		expect( actions.setNotice( notice ) ).toEqual( {
-			type: 'SET_NOTICE',
-			notice,
-		} );
-	} );
-
-	it( 'clearNotice sets notice to null', () => {
-		expect( actions.clearNotice() ).toEqual( {
-			type: 'SET_NOTICE',
-			notice: null,
 		} );
 	} );
 
@@ -214,21 +198,6 @@ describe( 'reducer', () => {
 		} );
 	} );
 
-	it( 'SET_NOTICE updates notice', () => {
-		const notice = { type: 'error', message: 'failed' };
-		const next = reducer( DEFAULT_STATE, { type: 'SET_NOTICE', notice } );
-		expect( next.notice ).toEqual( notice );
-	} );
-
-	it( 'SET_NOTICE with null clears notice', () => {
-		const state = {
-			...DEFAULT_STATE,
-			notice: { type: 'success', message: 'ok' },
-		};
-		const next = reducer( state, { type: 'SET_NOTICE', notice: null } );
-		expect( next.notice ).toBeNull();
-	} );
-
 	it( 'SET_CONFIRM_REMOVE updates confirmRemove', () => {
 		const next = reducer( DEFAULT_STATE, {
 			type: 'SET_CONFIRM_REMOVE',
@@ -278,7 +247,6 @@ describe( 'selectors', () => {
 		authExpired: true,
 		searchQuery: 'foo',
 		installing: { p1: 'installing' },
-		notice: { type: 'success' },
 		confirmRemove: 'p1',
 		currentPage: 4,
 		perPage: 12,
@@ -317,10 +285,6 @@ describe( 'selectors', () => {
 
 	it( 'getInstallStatus returns "idle" for an unknown publicId', () => {
 		expect( selectors.getInstallStatus( base, 'unknown' ) ).toBe( 'idle' );
-	} );
-
-	it( 'getNotice returns notice', () => {
-		expect( selectors.getNotice( base ) ).toEqual( { type: 'success' } );
 	} );
 
 	it( 'getConfirmRemove returns confirmRemove', () => {

@@ -62,8 +62,82 @@ Example output:
 +------------+-------+---------+----------+
 ```
 
+## Version Pinning
+
+Lock any project at its current build to prevent it from being updated — even
+by `wp telex update --all`. Useful for keeping a known-good version of a
+mission-critical block stable while you test newer builds in a staging
+environment.
+
+To pin a project, click the pin icon on its card in the Dispatch screen. To
+unpin, click again. Pinned projects show a lock badge.
+
+> **Via WP-CLI:** `wp telex pin <project-id>` / `wp telex unpin <project-id>`
+
+## Auto-Update
+
+Set any project to update automatically whenever a new build is published in
+Telex. Dispatch runs a daily scheduled check and updates any project with
+auto-update enabled. The audit log records every automatic update so there are
+no surprises.
+
+Configure auto-update per project from the project card's settings menu. You
+can also control it from the command line:
+
+> **Via WP-CLI:** `wp telex update <project-id> --auto-update=on`
+
+## Build Snapshots
+
+Snapshots capture the full set of installed project versions at a point in
+time. Take a snapshot before a risky deploy, then restore it in one command
+if anything goes wrong.
+
+**Taking a snapshot:**
+
+```bash
+wp telex snapshot create "Before v2 launch"
+```
+
+**Listing snapshots:**
+
+```bash
+wp telex snapshot list
+```
+
+**Restoring a snapshot:**
+
+```bash
+wp telex snapshot restore <snapshot-id>
+```
+
+Snapshots are also accessible from the **Settings → Build Snapshots** tab in
+the WordPress admin.
+
+## Project Groups
+
+Organize your library into named collections. Groups are per-user — each team
+member can arrange projects however makes sense for their workflow.
+
+Create and manage groups from the projects screen. Use the group filter in the
+search bar to show only projects in a specific group. Groups are also
+filterable in WP-CLI:
+
+> **Via WP-CLI:** `wp telex list --group="My Group"`
+
+## Block Usage Analytics
+
+Dispatch tracks how many posts each installed block appears in. The usage
+count is shown on each project card — a quick signal for which blocks are
+embedded widely and which ones were tried once and forgotten.
+
+This data is collected locally from your `post_content` — nothing is sent to
+Telex.
+
 ## Disconnecting
 
-To disconnect your site from Telex, go to the Dispatch screen and click **Disconnect**. This removes the stored OAuth token. Already-installed projects remain installed and continue to work — only the Telex connection is removed.
+To disconnect your site from Telex, go to the Dispatch screen and click
+**Disconnect**. This removes the stored OAuth token. Already-installed
+projects remain installed and continue to work — only the Telex connection
+is removed.
 
 > **Via WP-CLI:** `wp telex disconnect`

@@ -41,6 +41,9 @@ class Telex_Admin {
 		add_action( 'admin_init', self::maybe_export_csv( ... ) );
 		add_filter( 'set-screen-option', self::save_screen_option( ... ), 10, 3 );
 
+		// Admin bar update badge.
+		add_action( 'admin_bar_menu', self::add_admin_bar_badge( ... ), 999 );
+
 		// Site Health integration.
 		add_filter( 'debug_information', self::site_health_info( ... ) );
 		add_filter( 'site_status_tests', self::site_health_tests( ... ) );
@@ -48,6 +51,12 @@ class Telex_Admin {
 		// Heartbeat API — piggyback on WP's existing polling for auth status.
 		add_filter( 'heartbeat_received', self::heartbeat_received( ... ), 10, 2 );
 		add_filter( 'heartbeat_nopriv_received', self::heartbeat_nopriv_deny( ... ), 10, 2 );
+
+		// Command Palette — enqueue the global "Open Dispatch" command on all admin pages.
+		add_action( 'admin_enqueue_scripts', self::enqueue_commands_script( ... ) );
+
+		// GDPR / privacy framework.
+		Telex_Privacy::init();
 	}
 
 	// -------------------------------------------------------------------------
@@ -61,7 +70,7 @@ class Telex_Admin {
 	 */
 	public static function register_menu(): void {
 		$hook = add_menu_page(
-			__( 'Dispatch', 'dispatch' ),
+			__( 'Projects', 'dispatch' ),
 			__( 'Dispatch', 'dispatch' ),
 			'manage_options',
 			'telex',
@@ -72,12 +81,23 @@ class Telex_Admin {
 
 		add_action( "load-{$hook}", self::add_screen_options( ... ) );
 
+		// Override the auto-generated first submenu entry so the submenu head
+		// reads "Projects" instead of "Dispatch".
+		add_submenu_page(
+			'telex',
+			__( 'Projects', 'dispatch' ),
+			__( 'Projects', 'dispatch' ),
+			'manage_options',
+			'telex',
+			self::render_page( ... )
+		);
+
 		add_submenu_page(
 			'telex',
 			__( 'Settings', 'dispatch' ),
 			__( 'Settings', 'dispatch' ),
 			'manage_options',
-			'telex-audit-log',
+			'telex-settings',
 			[ self::class, 'render_audit_log_page' ]
 		);
 	}
@@ -227,10 +247,53 @@ class Telex_Admin {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'dispatch' ) );
 		}
 
-		// Enqueue the admin JS bundle so the React WebhookPanel can mount.
+		// Enqueue the admin JS bundle so the React panels can mount.
 		self::enqueue_assets();
 
 		require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+
+		// ---------------------------------------------------------------------------
+		// Phase 1 — render everything that doesn't need DB data, then flush to the
+		// browser so users see the skeleton immediately while queries run below.
+		// ---------------------------------------------------------------------------
+
+		echo '<div class="wrap">';
+		echo '<div class="telex-page-header">';
+		echo '<h1>' . esc_html__( 'Settings', 'dispatch' ) . '</h1>';
+		echo '</div>';
+
+		echo '<div class="telex-settings-body">';
+
+		// Webhook / auto-deploy panel — skeleton lives inside the mount point so
+		// React replaces it without a layout shift when the bundle boots.
+		if ( Telex_Auth::is_connected() ) {
+			printf(
+				'<div id="telex-webhook-app" data-rest-url="%s" data-nonce="%s" data-webhook-url="%s">%s</div>',
+				esc_attr( rest_url( 'telex/v1' ) ),
+				esc_attr( wp_create_nonce( 'wp_rest' ) ),
+				esc_attr( rest_url( 'telex/v1/deploy' ) ),
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hardcoded static HTML with no user input.
+				self::render_settings_panel_skeletons()
+			);
+		}
+
+		// Audit log skeleton — shown while the DB queries run below.
+		echo '<div class="telex-audit-log-skeleton" id="telex-audit-log-skeleton" aria-hidden="true">';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hardcoded static HTML with no user input.
+		echo self::render_audit_log_skeleton();
+		echo '</div>';
+
+		// Flush skeleton HTML to the browser before hitting the DB.
+		// ob_flush() pushes the current buffer; flush() tells PHP to send it.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		if ( ob_get_level() > 0 ) {
+			ob_flush();
+		}
+		flush();
+
+		// ---------------------------------------------------------------------------
+		// Phase 2 — run DB queries now that the skeleton is already on-screen.
+		// ---------------------------------------------------------------------------
 
 		$table = new Telex_Audit_Log_Table();
 		$table->prepare_items();
@@ -238,7 +301,7 @@ class Telex_Admin {
 		$export_url = wp_nonce_url(
 			add_query_arg(
 				[
-					'page'   => 'telex-audit-log',
+					'page'   => 'telex-settings',
 					'action' => 'telex_export_csv',
 				],
 				admin_url( 'admin.php' )
@@ -246,31 +309,120 @@ class Telex_Admin {
 			'telex_export_csv'
 		);
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Settings', 'dispatch' ) . '</h1>';
-
-		// Webhook / auto-deploy panel (React-mounted).
-		if ( Telex_Auth::is_connected() ) {
-			printf(
-				'<div id="telex-webhook-app" data-rest-url="%s" data-nonce="%s" data-webhook-url="%s"></div>',
-				esc_attr( rest_url( 'telex/v1' ) ),
-				esc_attr( wp_create_nonce( 'wp_rest' ) ),
-				esc_attr( rest_url( 'telex/v1/deploy' ) )
-			);
-		}
-
-		echo '<h2>' . esc_html__( 'Audit Log', 'dispatch' ) . '</h2>';
+		// Real card — starts invisible; the inline script below reveals it.
+		echo '<div class="telex-audit-log-card telex-audit-log-card--pending" id="telex-audit-log-card" aria-hidden="true">';
+		echo '<div class="telex-audit-log-card__header">';
+		echo '<div class="telex-audit-log-card__title">';
+		echo '<h3>' . esc_html__( 'Audit Log', 'dispatch' ) . '</h3>';
 		printf(
-			'<p class="description">%s <a href="%s" class="button button-secondary">%s</a></p>',
-			esc_html__( 'A full history of installs, updates, removals, and account changes.', 'dispatch' ),
+			'<p>%s</p>',
+			esc_html__( 'A full history of installs, updates, removals, and account changes.', 'dispatch' )
+		);
+		echo '</div>';
+		printf(
+			'<a href="%s" class="button button-secondary">%s</a>',
 			esc_url( $export_url ),
 			esc_html__( 'Export CSV', 'dispatch' )
 		);
+		echo '</div>';
+
 		echo '<form method="get">';
-		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-audit-log' ) );
+		printf( '<input type="hidden" name="page" value="%s" />', esc_attr( 'telex-settings' ) );
 		$table->display();
 		echo '</form>';
-		echo '</div>';
+
+		echo '</div>'; // .telex-audit-log-card
+
+		// Swap skeleton → real card. Runs as soon as this <script> is parsed,
+		// which is after the table HTML is fully in the DOM.
+		echo '<script>(function(){';
+		echo 'var s=document.getElementById("telex-audit-log-skeleton");';
+		echo 'var c=document.getElementById("telex-audit-log-card");';
+		echo 'if(s)s.remove();';
+		echo 'if(c){c.removeAttribute("aria-hidden");c.classList.remove("telex-audit-log-card--pending");}';
+		echo '})();</script>';
+
+		echo '</div>'; // .telex-settings-body
+		echo '</div>'; // .wrap
+	}
+
+	/**
+	 * Returns skeleton HTML for the three React panels that mount inside
+	 * #telex-webhook-app (Webhook, Notifications, Snapshots). React's render()
+	 * replaces this markup when the bundle boots.
+	 *
+	 * @return string
+	 */
+	private static function render_settings_panel_skeletons(): string {
+		$panel = static function ( string $title, string $body ): string {
+			return sprintf(
+				'<div class="telex-settings-panel-skeleton" aria-hidden="true">
+					<div class="telex-settings-panel-skeleton__header">
+						<div class="telex-skeleton telex-skeleton--panel-title"></div>
+						<div class="telex-skeleton telex-skeleton--panel-desc"></div>
+					</div>
+					<div class="telex-panel-skeleton">%s</div>
+				</div>',
+				$body
+			);
+		};
+
+		$webhook_body =
+			'<div class="telex-skeleton telex-skeleton--input-group"></div>' .
+			'<div class="telex-skeleton telex-skeleton--input-group"></div>';
+
+		$notifications_body =
+			'<div class="telex-skeleton telex-skeleton--checkbox-row"></div>' .
+			'<div class="telex-skeleton telex-skeleton--checkbox-row"></div>' .
+			'<div class="telex-skeleton telex-skeleton--checkbox-row"></div>' .
+			'<div class="telex-skeleton telex-skeleton--input-group"></div>';
+
+		$snapshots_body =
+			'<div class="telex-skeleton telex-skeleton--input-group"></div>' .
+			'<div class="telex-skeleton telex-skeleton--table-row"></div>' .
+			'<div class="telex-skeleton telex-skeleton--table-row"></div>' .
+			'<div class="telex-skeleton telex-skeleton--table-row"></div>';
+
+		return $panel( '', $webhook_body ) .
+			$panel( '', $notifications_body ) .
+			$panel( '', $snapshots_body );
+	}
+
+	/**
+	 * Returns skeleton HTML for the audit log card shown while DB queries run.
+	 *
+	 * @return string
+	 */
+	private static function render_audit_log_skeleton(): string {
+		$header_row =
+			'<div class="telex-audit-log-skeleton__header">' .
+				'<div class="telex-audit-log-skeleton__title">' .
+					'<div class="telex-skeleton telex-skeleton--panel-title"></div>' .
+					'<div class="telex-skeleton telex-skeleton--panel-desc"></div>' .
+				'</div>' .
+				'<div class="telex-skeleton telex-skeleton--button"></div>' .
+			'</div>';
+
+		$col_headers =
+			'<div class="telex-audit-log-skeleton__cols">' .
+				'<div class="telex-skeleton telex-skeleton--col-head"></div>' .
+				'<div class="telex-skeleton telex-skeleton--col-head"></div>' .
+				'<div class="telex-skeleton telex-skeleton--col-head"></div>' .
+				'<div class="telex-skeleton telex-skeleton--col-head"></div>' .
+			'</div>';
+
+		$rows = '';
+		for ( $i = 0; $i < 6; $i++ ) {
+			$rows .=
+				'<div class="telex-audit-log-skeleton__row">' .
+					'<div class="telex-skeleton telex-skeleton--cell-date"></div>' .
+					'<div class="telex-skeleton telex-skeleton--cell-badge"></div>' .
+					'<div class="telex-skeleton telex-skeleton--cell-id"></div>' .
+					'<div class="telex-skeleton telex-skeleton--cell-user"></div>' .
+				'</div>';
+		}
+
+		return $header_row . $col_headers . $rows;
 	}
 
 	// -------------------------------------------------------------------------
@@ -331,6 +483,54 @@ class Telex_Admin {
 		wp_set_script_translations( $handle, 'dispatch', TELEX_PLUGIN_DIR . 'languages' );
 	}
 
+	/**
+	 * Enqueues the global Command Palette script on all wp-admin pages.
+	 *
+	 * Registers the "Open Dispatch" command so it surfaces in ⌘K / Ctrl+K
+	 * on every admin screen, not just the Dispatch page.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_commands_script(): void {
+		$asset_file  = TELEX_PLUGIN_DIR . 'build/commands.asset.php';
+		$script_file = TELEX_PLUGIN_DIR . 'build/commands.js';
+
+		if ( ! file_exists( $asset_file ) || ! file_exists( $script_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'telex-commands',
+			plugins_url( 'build/commands.js', TELEX_PLUGIN_FILE ),
+			$asset['dependencies'],
+			$asset['version'],
+			[
+				'strategy'  => 'defer',
+				'in_footer' => true,
+			]
+		);
+
+		wp_add_inline_script(
+			'telex-commands',
+			'window.telexCommands = ' . wp_json_encode(
+				[
+					'adminUrl' => esc_url( admin_url() ),
+				]
+			) . ';',
+			'before'
+		);
+
+		// Mount point for the React commands tree (renders nothing visible).
+		add_action(
+			'admin_footer',
+			static function (): void {
+				echo '<div id="telex-commands-root" hidden></div>';
+			}
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Transient-based notices (post-redirect-get)
 	// -------------------------------------------------------------------------
@@ -368,6 +568,20 @@ class Telex_Admin {
 	 * @return void
 	 */
 	private static function render_notices(): void {
+		// Persistent warning when file modifications are disabled at the server level.
+		if ( ! wp_is_file_mod_allowed( 'plugin_updates' ) ) {
+			printf(
+				'<div class="notice notice-warning"><p>%s</p></div>',
+				wp_kses_post(
+					sprintf(
+						/* translators: %s: constant name */
+						__( '<strong>Dispatch for Telex</strong>: The <code>%s</code> constant is set on this server. Installing and removing projects is disabled. Contact your host or remove the constant from <code>wp-config.php</code> to enable file modifications.', 'dispatch' ),
+						'DISALLOW_FILE_MODS'
+					)
+				)
+			);
+		}
+
 		$notice = get_transient( self::notice_key() );
 		if ( ! is_array( $notice ) ) {
 			return;
@@ -421,7 +635,7 @@ class Telex_Admin {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		if (
 			! isset( $_GET['page'], $_GET['action'] ) ||
-			'telex-audit-log' !== $_GET['page'] ||
+			'telex-settings' !== $_GET['page'] ||
 			'telex_export_csv' !== $_GET['action']
 		) {
 			return;
@@ -524,6 +738,13 @@ class Telex_Admin {
 			'is_connected'   => $is_connected,
 			'circuit_status' => Telex_Circuit_Breaker::status(),
 			'update_count'   => 0,
+			// Refresh the REST nonce on every Heartbeat tick so long-lived
+			// admin sessions don't silently fail with 403s after 24 hours.
+			'telex_nonce'    => wp_create_nonce( 'wp_rest' ),
+			// Dirty flag: incremented by REST mutation endpoints so all open
+			// admin tabs silently re-fetch the project list when another user
+			// installs, updates, or removes a project.
+			'data_version'   => (string) ( get_transient( 'telex_data_version' ) ? get_transient( 'telex_data_version' ) : '' ),
 		];
 
 		// Count available updates using the cached project list — no API call.
@@ -556,6 +777,71 @@ class Telex_Admin {
 	public static function heartbeat_nopriv_deny( array $response, array $_data ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		unset( $response['telex'] );
 		return $response;
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin bar update badge
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Adds a Dispatch update-count bubble to the WP admin bar.
+	 *
+	 * Uses only already-cached data — no API call is made here.
+	 * The node only renders when the update count is > 0 and the current user
+	 * has manage_options. Clicking navigates to the Dispatch page.
+	 *
+	 * @param \WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
+	 * @return void
+	 */
+	public static function add_admin_bar_badge( \WP_Admin_Bar $wp_admin_bar ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// Count updates from cache only — never trigger a live API call here.
+		$cached = Telex_Cache::get_projects();
+		if ( ! is_array( $cached ) ) {
+			return;
+		}
+
+		$installed    = Telex_Tracker::get_all();
+		$update_count = 0;
+
+		foreach ( $cached as $project ) {
+			$id    = $project['publicId'] ?? '';
+			$local = $installed[ $id ] ?? null;
+			if ( null !== $local && ( (int) ( $project['currentVersion'] ?? 0 ) ) > (int) $local['version'] ) {
+				++$update_count;
+			}
+		}
+
+		if ( $update_count <= 0 ) {
+			return;
+		}
+
+		$wp_admin_bar->add_node(
+			[
+				'id'    => 'dispatch-updates',
+				'title' => sprintf(
+					'%s <span class="ab-label update-count">%d</span>',
+					esc_html__( 'Dispatch', 'dispatch' ),
+					$update_count
+				),
+				'href'  => esc_url( admin_url( 'admin.php?page=telex#updates' ) ),
+				'meta'  => [
+					'title' => sprintf(
+						/* translators: %d: number of available updates */
+						_n(
+							'%d Dispatch update available',
+							'%d Dispatch updates available',
+							$update_count,
+							'dispatch'
+						),
+						$update_count
+					),
+				],
+			]
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -604,8 +890,6 @@ class Telex_Admin {
 	public static function site_health_tests( array $tests ): array {
 		$tests['async']['telex_api_reachable'] = [
 			'label'             => __( 'Telex API is reachable', 'dispatch' ),
-			'test'              => rest_url( 'telex/v1/site-health/api-reachable' ),
-			'has_rest'          => true,
 			'async_direct_test' => self::run_api_reachability_test( ... ),
 		];
 		return $tests;
@@ -617,6 +901,13 @@ class Telex_Admin {
 	 * @return array<string, mixed>
 	 */
 	public static function run_api_reachability_test(): array {
+		$cache_key = 'telex_api_reachability';
+		$cached    = get_transient( $cache_key );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
 		$client = new Telex_WP_Http_Client( timeout: 10 );
 		// Test the API endpoint, not the marketing homepage, so outages are accurately detected.
 		$request = new \Nyholm\Psr7\Request( 'GET', TELEX_API_BASE_URL . '/v1/health' );
@@ -631,7 +922,7 @@ class Telex_Admin {
 		}
 
 		if ( ! $reachable ) {
-			return [
+			$result = [
 				'label'       => __( 'Telex API is unreachable', 'dispatch' ),
 				'status'      => 'critical',
 				'badge'       => [
@@ -641,17 +932,21 @@ class Telex_Admin {
 				'description' => '<p>' . esc_html( $error_detail ) . '</p>',
 				'test'        => 'telex_api_reachable',
 			];
+		} else {
+			$result = [
+				'label'       => __( 'Telex API is reachable', 'dispatch' ),
+				'status'      => 'good',
+				'badge'       => [
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'blue',
+				],
+				'description' => '<p>' . esc_html__( 'Your site can talk to the Telex API. All good!', 'dispatch' ) . '</p>',
+				'test'        => 'telex_api_reachable',
+			];
 		}
 
-		return [
-			'label'       => __( 'Telex API is reachable', 'dispatch' ),
-			'status'      => 'good',
-			'badge'       => [
-				'label' => __( 'Dispatch', 'dispatch' ),
-				'color' => 'blue',
-			],
-			'description' => '<p>' . esc_html__( 'Your site can talk to the Telex API. All good!', 'dispatch' ) . '</p>',
-			'test'        => 'telex_api_reachable',
-		];
+		set_transient( $cache_key, $result, 5 * MINUTE_IN_SECONDS );
+
+		return $result;
 	}
 }

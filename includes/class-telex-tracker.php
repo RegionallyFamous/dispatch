@@ -197,7 +197,8 @@ class Telex_Tracker {
 	 * @return void
 	 */
 	private static function save( array $data ): void {
-		update_option( self::OPTION_KEY, wp_json_encode( $data ), false );
+		$encoded = wp_json_encode( $data );
+		update_option( self::OPTION_KEY, false !== $encoded ? $encoded : '{}', false );
 		wp_cache_delete( self::CACHE_KEY, self::CACHE_GROUP );
 	}
 }

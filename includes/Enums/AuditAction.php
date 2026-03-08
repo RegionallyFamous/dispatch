@@ -15,4 +15,6 @@ enum AuditAction: string {
 	case Connect    = 'connect';
 	case Disconnect = 'disconnect';
 	case Update     = 'update';
+	case Activate   = 'activate';
+	case Deactivate = 'deactivate';
 }

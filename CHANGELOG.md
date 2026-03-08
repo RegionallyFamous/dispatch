@@ -6,6 +6,94 @@
 
 ---
 
+## [1.3.0] — 2026-03-08
+
+This is the biggest Dispatch release yet. We went from a deployment tool to a
+full project management platform — without losing any of the simplicity that
+made the original useful. Everything you had before still works exactly as it
+did. You just have a lot more to work with now.
+
+### Build snapshots — roll back in one click
+
+If you've ever pushed a Telex update that broke something, you know the
+feeling. Now you can take a snapshot of your entire installed project set
+before a big change, and restore it if anything goes sideways. Snapshots
+capture the exact build version of every installed project. Restoring brings
+every project back to where it was — no manual reinstalls, no digging through
+version history.
+
+The CLI gets it too: `wp telex snapshot create "Before launch"` and
+`wp telex snapshot restore <id>`.
+
+### Version pinning — freeze what's working
+
+Lock any project at its current build. Pinned projects are excluded from
+update checks and batch update operations — the `wp telex update --all`
+command skips them automatically. Unpin when you're ready to upgrade.
+
+### Auto-update — stay current automatically
+
+Set any project to update automatically whenever a new build is available.
+Per-project control means you can auto-update low-risk utility blocks while
+keeping your main theme pinned. The scheduled runner fires daily and reports
+what it updated, so there are no surprises.
+
+### Notification channels — know when things happen
+
+Configure email digests and Slack webhooks for install, update, and removal
+events. The digest batches events so you're not getting pinged for every
+single background update. Slack notifications include the project name, the
+action taken, and who triggered it.
+
+### Project health dashboard
+
+A new tab shows the health status of every installed project: whether it's
+active, whether its files are intact, whether its version is current, and
+whether there are any known compatibility warnings. Aimed at site owners who
+want a single-glance view of what's actually running.
+
+### Block usage analytics
+
+Dispatch now tracks how many times each installed block has actually been used
+across your post content. The projects screen shows a live usage count next to
+each block — so you can see which ones are embedded in dozens of posts and
+which ones were tried once and forgotten.
+
+### Project groups — organize your library
+
+Named groups let you organize your Telex projects however makes sense for your
+workflow. Tag a project to multiple groups, filter by group in the search bar,
+and use group names in WP-CLI filters. Stored per-user, so each team member
+can have their own organization.
+
+### GDPR / Privacy framework integration
+
+The audit log is now registered with WordPress's built-in privacy tools.
+Site administrators can use **Tools → Erase Personal Data** to remove a
+user's audit history, and **Tools → Export Personal Data** to include it in
+data export requests. This is the correct way to handle this in WordPress,
+and it means Dispatch now participates in any privacy workflow your site
+already has in place.
+
+### Settings page redesigned
+
+The settings page has been rebuilt from the ground up. It now fills the full
+available width, has a consistent page header matching the main Dispatch
+screen, and loads skeleton placeholders while each panel fetches its data —
+so there's no layout shift and no blank panels while things load. The webhook
+secret section, notification settings, and build snapshot table each have
+their own shaped skeleton that matches the real content.
+
+### WP-CLI gets smarter
+
+The `wp telex doctor` command now checks file-modification permissions using
+`wp_is_file_mod_allowed()` — the WordPress-native API — rather than reading
+the `DISALLOW_FILE_MODS` constant directly. The snapshot subcommand gains
+`create`, `list`, `restore`, and `delete` subcommands. Version pinning and
+auto-update preferences are configurable from the command line.
+
+---
+
 ## [1.2.0] — 2026-03-08
 
 This release is a focused performance and reliability pass. No new features —

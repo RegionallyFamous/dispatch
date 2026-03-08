@@ -5,5 +5,6 @@ module.exports = {
 	entry: {
 		admin: './src/admin/index.js',
 		'device-flow': './src/device-flow/index.js',
+		commands: './src/admin/commands.js',
 	},
 };

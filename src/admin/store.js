@@ -22,7 +22,6 @@ export const DEFAULT_STATE = {
 	authExpired: false,
 	searchQuery: '',
 	installing: /** @type {Object} */ ( {} ),
-	notice: /** @type {Object|null} */ ( null ),
 	confirmRemove: /** @type {string|null} */ ( null ),
 	currentPage: 1,
 	perPage: 24,
@@ -76,15 +75,6 @@ export const actions = {
 		publicId,
 		status,
 	} ),
-	/**
-	 * @param {Object|null} notice Notice object, or null to dismiss.
-	 * @return {Object} Redux action.
-	 */
-	setNotice: ( notice ) => ( { type: 'SET_NOTICE', notice } ),
-	/**
-	 * @return {Object} Redux action that clears the active notice.
-	 */
-	clearNotice: () => ( { type: 'SET_NOTICE', notice: null } ),
 	/**
 	 * @param {string} publicId Project public ID to confirm for removal.
 	 * @return {Object} Redux action.
@@ -151,8 +141,6 @@ export function reducer( state = DEFAULT_STATE, action ) {
 					[ action.publicId ]: action.status,
 				},
 			};
-		case 'SET_NOTICE':
-			return { ...state, notice: action.notice };
 		case 'SET_CONFIRM_REMOVE':
 			return { ...state, confirmRemove: action.publicId };
 		case 'SET_PAGE':
@@ -216,11 +204,6 @@ export const selectors = {
 	 */
 	getInstallStatus: ( state, publicId ) =>
 		state.installing[ publicId ] || 'idle',
-	/**
-	 * @param {Object} state Current store state.
-	 * @return {Object|null} The active notice object, or null.
-	 */
-	getNotice: ( state ) => state.notice,
 	/**
 	 * @param {Object} state Current store state.
 	 * @return {string|null} Public ID of the project awaiting removal confirmation.

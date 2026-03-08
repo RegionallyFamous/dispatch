@@ -17,6 +17,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)         (single project detail)
  *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/build   (build readiness)
  *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/install
+ *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/activate
+ *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/deactivate
+ *   GET    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/note
+ *   PUT    /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/note
  *   POST   /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)/deploy-network  (multisite)
  *   DELETE /telex/v1/projects/(?P<id>[a-zA-Z0-9_-]+)
  *   POST   /telex/v1/auth/device    (start device flow)
@@ -24,6 +28,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   DELETE /telex/v1/auth/device    (cancel device flow)
  *   DELETE /telex/v1/auth           (disconnect)
  *   GET    /telex/v1/auth/status    (connection status)
+ *   POST   /telex/v1/circuit/reset  (circuit breaker reset)
+ *   GET    /telex/v1/audit-log      (paginated audit log)
+ *   GET    /telex/v1/sites          (multisite site list)
  *   POST   /telex/v1/deploy         (webhook auto-deploy, HMAC-signed)
  *   POST   /telex/v1/settings/deploy-secret  (regenerate deploy secret)
  */
@@ -34,6 +41,26 @@ class Telex_REST {
 	private const DEPLOY_REPLAY_SECS     = 300; // 5-minute replay window for past timestamps.
 	private const DEPLOY_CLOCK_SKEW_SECS = 30;  // Max future clock skew accepted.
 	private const WEBHOOK_MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB hard cap before HMAC.
+
+	/**
+	 * Build a 429 WP_Error with the Retry-After value encoded in both the
+	 * HTTP header and the JSON body so JavaScript clients can read it without
+	 * accessing raw response headers.
+	 *
+	 * @param int $retry_after Seconds until the client may retry.
+	 * @return \WP_Error
+	 */
+	private static function rate_limit_error( int $retry_after ): \WP_Error {
+		return new \WP_Error(
+			'telex_rate_limit',
+			__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
+			[
+				'status'     => 429,
+				'retryAfter' => $retry_after,
+				'headers'    => [ 'Retry-After' => (string) $retry_after ],
+			]
+		);
+	}
 
 	/**
 	 * Registers all telex/v1 REST routes.
@@ -253,6 +280,532 @@ class Telex_REST {
 				],
 			]
 		);
+
+		// Circuit breaker reset.
+		register_rest_route(
+			self::NAMESPACE,
+			'/circuit/reset',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'reset_circuit' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Audit log — paginated read for Activity tab.
+		register_rest_route(
+			self::NAMESPACE,
+			'/audit-log',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_audit_log' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'per_page'   => [
+							'type'    => 'integer',
+							'default' => 25,
+							'minimum' => 1,
+							'maximum' => 100,
+						],
+						'page'       => [
+							'type'    => 'integer',
+							'default' => 1,
+							'minimum' => 1,
+						],
+						'action'     => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'project_id' => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'search'     => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'date_from'  => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'date_to'    => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'user_id'    => [
+							'type'    => 'integer',
+							'default' => 0,
+							'minimum' => 0,
+						],
+					],
+				],
+			]
+		);
+
+		// Activate / deactivate installed projects.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/activate',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'activate_project' ],
+					'permission_callback' => [ self::class, 'require_install_cap' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/deactivate',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'deactivate_project' ],
+					'permission_callback' => [ self::class, 'require_install_cap' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Per-project notes (stored in wp_options, no API call).
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/note',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_project_note' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+				[
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => [ self::class, 'update_project_note' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'   => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'note' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_textarea_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Multisite sites list (for network deploy selector).
+		if ( is_multisite() ) {
+			register_rest_route(
+				self::NAMESPACE,
+				'/sites',
+				[
+					[
+						'methods'             => \WP_REST_Server::READABLE,
+						'callback'            => [ self::class, 'get_sites_list' ],
+						'permission_callback' => [ self::class, 'require_network_admin' ],
+						'args'                => [
+							'per_page' => [
+								'type'    => 'integer',
+								'default' => 25,
+								'minimum' => 1,
+								'maximum' => 100,
+							],
+							'page'     => [
+								'type'    => 'integer',
+								'default' => 1,
+								'minimum' => 1,
+							],
+							'search'   => [
+								'type'              => 'string',
+								'default'           => '',
+								'sanitize_callback' => 'sanitize_text_field',
+							],
+						],
+					],
+				]
+			);
+		}
+
+		// Users list — for the Activity tab user-filter dropdown.
+		register_rest_route(
+			self::NAMESPACE,
+			'/users',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_users_list' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Version pinning — lock a project at its current version.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/pin',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'pin_project' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'     => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'reason' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'unpin_project' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Auto-update setting per project.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/auto-update',
+			[
+				[
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => [ self::class, 'set_auto_update' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'   => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'mode' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+							'enum'              => [ 'off', 'immediate', 'delayed_24h' ],
+						],
+					],
+				],
+			]
+		);
+
+		// Project groups (user-scoped collections).
+		register_rest_route(
+			self::NAMESPACE,
+			'/groups',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_groups' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'create_group' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'name' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/groups/(?P<id>[a-zA-Z0-9_\-]+)',
+			[
+				[
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => [ self::class, 'update_group' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'   => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'name' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'delete_group' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/groups/(?P<id>[a-zA-Z0-9_\-]+)/projects',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'add_project_to_group' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'         => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'project_id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/groups/(?P<id>[a-zA-Z0-9_\-]+)/projects/(?P<project_id>[a-zA-Z0-9_\-]+)',
+			[
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'remove_project_from_group' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'         => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'project_id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Build snapshots.
+		register_rest_route(
+			self::NAMESPACE,
+			'/snapshots',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_snapshots' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'create_snapshot' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'name' => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/snapshots/(?P<id>[a-zA-Z0-9_\-]+)',
+			[
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'delete_snapshot' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/snapshots/(?P<id>[a-zA-Z0-9_\-]+)/restore',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'restore_snapshot' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Notification channel settings.
+		register_rest_route(
+			self::NAMESPACE,
+			'/settings/notifications',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_notification_settings' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+				[
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => [ self::class, 'update_notification_settings' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'email_enabled'  => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
+						'email_address'  => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_email',
+						],
+						'slack_enabled'  => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
+						'slack_webhook'  => [
+							'type'              => 'string',
+							'default'           => '',
+							'sanitize_callback' => 'sanitize_url',
+						],
+						'notify_updates' => [
+							'type'    => 'boolean',
+							'default' => true,
+						],
+						'notify_circuit' => [
+							'type'    => 'boolean',
+							'default' => true,
+						],
+						'notify_install' => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/settings/notifications/test',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'test_notification' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Block usage analytics.
+		register_rest_route(
+			self::NAMESPACE,
+			'/analytics',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_analytics' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'force_scan' => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
+					],
+				],
+			]
+		);
+
+		// Installed project health checks.
+		register_rest_route(
+			self::NAMESPACE,
+			'/health/installed',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_health' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'force_scan' => [
+							'type'    => 'boolean',
+							'default' => false,
+						],
+					],
+				],
+			]
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -268,14 +821,7 @@ class Telex_REST {
 	public static function get_projects( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$_rl_retry = Telex_Auth::check_rate_limit( 'get_projects' );
 		if ( $_rl_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
-				]
-			);
+			return self::rate_limit_error( $_rl_retry );
 		}
 
 		// Prune tracker entries whose plugin/theme directory no longer exists on disk.
@@ -317,7 +863,7 @@ class Telex_REST {
 				return new \WP_Error( 'telex_token_expired', __( 'Your session expired — head to Dispatch to reconnect.', 'dispatch' ), [ 'status' => 401 ] );
 			} catch ( \Exception $e ) {
 				Telex_Circuit_Breaker::record_failure();
-				error_log( 'Dispatch: projects list failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				wp_trigger_error( __CLASS__, 'Dispatch: projects list failed — ' . $e->getMessage(), E_USER_WARNING );
 				return new \WP_Error( 'telex_api', __( 'Could not fetch projects. Please try again.', 'dispatch' ), [ 'status' => 500 ] );
 			}
 		}
@@ -375,9 +921,22 @@ class Telex_REST {
 			}
 		}
 
+		// Pre-load get_plugins() once for all projects to avoid N calls inside the map.
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$all_plugins    = get_plugins();
+		$active_plugins = (array) get_option( 'active_plugins', [] );
+
 		// Decorate each project with local install status.
 		$projects = array_map(
-			static function ( array $project ) use ( $installed, $remote_versions ): array {
+			/**
+			 * Decorates a project record with local install and activation state.
+			 *
+			 * @param array<string, mixed> $project Raw project from the Telex API.
+			 * @return array<string, mixed>
+			 */
+			static function ( array $project ) use ( $installed, $remote_versions, $all_plugins, $active_plugins ): array {
 				$id             = $project['publicId'] ?? '';
 				$remote_version = $remote_versions[ $id ] ?? (int) ( $project['currentVersion'] ?? 0 );
 				$local          = $installed[ $id ] ?? null;
@@ -390,6 +949,31 @@ class Telex_REST {
 				$project['_installed']    = null !== $local;
 				$project['_needs_update'] = null !== $local && $remote_version > (int) $local['version'];
 				$project['_local']        = $local;
+
+				// Determine activation state for installed projects.
+				$is_active = false;
+				if ( null !== $local ) {
+					$slug = $local['slug'] ?? '';
+					$type = $local['type'] ?? 'block';
+
+					if ( 'theme' === $type ) {
+						$is_active = ( get_stylesheet() === $slug );
+					} else {
+						// Find the plugin file for this slug.
+						foreach ( $all_plugins as $plugin_file => $_data ) {
+							if ( str_starts_with( $plugin_file, $slug . '/' ) ) {
+								$is_active = in_array( $plugin_file, $active_plugins, true );
+								break;
+							}
+						}
+					}
+				}
+
+				$project['_is_active']   = $is_active;
+				$pin                     = Telex_Version_Pin::get( $id );
+				$project['_pin']         = $pin;
+				$project['_auto_update'] = Telex_Auto_Update::get_mode( $id );
+				$project['_group_ids']   = Telex_Project_Groups::get_group_ids_for_project( $id );
 
 				return $project;
 			},
@@ -448,14 +1032,7 @@ class Telex_REST {
 	public static function install_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$_rl_retry = Telex_Auth::check_rate_limit( 'install' );
 		if ( $_rl_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
-				]
-			);
+			return self::rate_limit_error( $_rl_retry );
 		}
 
 		$public_id = $request->get_param( 'id' );
@@ -471,7 +1048,7 @@ class Telex_REST {
 		try {
 			$build = $client->projects->getBuild( $public_id );
 		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
-			error_log( 'Dispatch: getBuild failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			wp_trigger_error( __CLASS__, 'Dispatch: getBuild failed — ' . $e->getMessage(), E_USER_WARNING );
 			return new \WP_Error( 'telex_api', __( 'Could not retrieve build information. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
@@ -488,6 +1065,62 @@ class Telex_REST {
 					'poll_interval' => 5,
 				]
 			);
+		}
+
+		// --- Conflict detection -----------------------------------------------
+		// Check whether a plugin or theme with the same slug is already present
+		// but was NOT installed via Dispatch. Silently overwriting an unmanaged
+		// plugin could break the site or introduce a security regression.
+		try {
+			$project_data = $client->projects->get( $public_id );
+			$slug         = $project_data['slug'] ?? '';
+			$type         = $project_data['projectType'] ?? 'block';
+		} catch ( \Exception $e ) {
+			wp_trigger_error( __CLASS__, 'Dispatch: project get for conflict check failed — ' . $e->getMessage(), E_USER_WARNING );
+			$slug = '';
+			$type = 'block';
+		}
+
+		if ( '' !== $slug && ! Telex_Tracker::is_installed( $public_id ) ) {
+			$conflict      = null;
+			$conflict_type = null;
+
+			if ( 'theme' === $type ) {
+				$theme = wp_get_theme( $slug );
+				if ( $theme->exists() ) {
+					$conflict      = $theme->get( 'Name' );
+					$conflict_type = 'theme';
+				}
+			} else {
+				if ( ! function_exists( 'get_plugins' ) ) {
+					require_once ABSPATH . 'wp-admin/includes/plugin.php';
+				}
+				foreach ( get_plugins() as $plugin_file => $plugin_data ) {
+					if ( str_starts_with( $plugin_file, $slug . '/' ) ) {
+						$conflict      = $plugin_data['Name'] ?? $plugin_file;
+						$conflict_type = 'plugin';
+						break;
+					}
+				}
+			}
+
+			if ( null !== $conflict ) {
+				return new \WP_Error(
+					'slug_conflict',
+					sprintf(
+						/* translators: 1: project slug, 2: existing plugin/theme name */
+						__( 'A %1$s named "%2$s" with the same slug is already installed from another source. Remove it first to avoid conflicts.', 'dispatch' ),
+						$conflict_type,
+						$conflict
+					),
+					[
+						'status'        => 409,
+						'conflict_name' => $conflict,
+						'conflict_type' => $conflict_type,
+						'conflict_slug' => $slug,
+					]
+				);
+			}
 		}
 
 		// Pass the already-fetched build data to the installer to avoid a second
@@ -532,7 +1165,7 @@ class Telex_REST {
 		try {
 			$build = $client->projects->getBuild( $public_id );
 		} catch ( \Telex\Sdk\Exceptions\TelexException $e ) {
-			error_log( 'Dispatch: getBuild status failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			wp_trigger_error( __CLASS__, 'Dispatch: getBuild status failed — ' . $e->getMessage(), E_USER_WARNING );
 			return new \WP_Error( 'telex_api', __( 'Could not retrieve build status. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
@@ -556,14 +1189,7 @@ class Telex_REST {
 	public static function remove_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$_rl_retry = Telex_Auth::check_rate_limit( 'remove' );
 		if ( $_rl_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
-				]
-			);
+			return self::rate_limit_error( $_rl_retry );
 		}
 
 		$public_id = $request->get_param( 'id' );
@@ -576,6 +1202,8 @@ class Telex_REST {
 				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
 			);
 		}
+
+		self::bump_data_version();
 
 		return rest_ensure_response( [ 'success' => true ] );
 	}
@@ -593,14 +1221,7 @@ class Telex_REST {
 	public static function start_device_flow( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 		$_rl_retry = Telex_Auth::check_rate_limit( 'device_start' );
 		if ( $_rl_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
-				]
-			);
+			return self::rate_limit_error( $_rl_retry );
 		}
 
 		$result = Telex_Auth::start_device_flow();
@@ -624,14 +1245,7 @@ class Telex_REST {
 	public static function poll_device_flow( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 		$_rl_retry = Telex_Auth::check_rate_limit( 'device_poll' );
 		if ( $_rl_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				__( 'Slow down! Give it a moment and try again.', 'dispatch' ),
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_rl_retry ],
-				]
-			);
+			return self::rate_limit_error( $_rl_retry );
 		}
 
 		$device_code = get_transient( Telex_Auth::TRANSIENT_DEVICE );
@@ -691,10 +1305,402 @@ class Telex_REST {
 	 * @return \WP_REST_Response
 	 */
 	public static function get_auth_status( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		$circuit_status   = Telex_Circuit_Breaker::status();
+		$circuit_reset_at = null;
+
+		// Surface the circuit reset timestamp when the breaker is open so the UI
+		// can display a countdown without requiring the client to guess the window.
+		if ( 'open' === $circuit_status ) {
+			$reset_transient  = get_transient( 'telex_cb_reset_at' );
+			$circuit_reset_at = false !== $reset_transient ? (int) $reset_transient : null;
+		}
+
 		return rest_ensure_response(
 			[
-				'status'       => Telex_Auth::get_status()->value,
-				'is_connected' => Telex_Auth::is_connected(),
+				'status'           => Telex_Auth::get_status()->value,
+				'is_connected'     => Telex_Auth::is_connected(),
+				'circuit_status'   => $circuit_status,
+				'circuit_reset_at' => $circuit_reset_at,
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Circuit breaker
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /telex/v1/circuit/reset — manually resets the circuit breaker.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function reset_circuit( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		Telex_Circuit_Breaker::reset();
+		return rest_ensure_response(
+			[
+				'success'        => true,
+				'circuit_status' => Telex_Circuit_Breaker::status(),
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Audit log
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/audit-log — returns paginated audit log entries with user names resolved.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_audit_log( \WP_REST_Request $request ): \WP_REST_Response {
+		global $wpdb;
+
+		$per_page   = (int) $request->get_param( 'per_page' );
+		$page       = (int) $request->get_param( 'page' );
+		$action     = (string) $request->get_param( 'action' );
+		$project_id = (string) $request->get_param( 'project_id' );
+		$search     = (string) $request->get_param( 'search' );
+		$date_from  = (string) $request->get_param( 'date_from' );
+		$date_to    = (string) $request->get_param( 'date_to' );
+		$user_id    = (int) $request->get_param( 'user_id' );
+		$offset     = ( $page - 1 ) * $per_page;
+		$table      = Telex_Audit_Log::table_name();
+
+		// Build optional WHERE clauses (using an allowlist — never raw user input in SQL).
+		$valid_actions = [ 'install', 'update', 'remove', 'connect', 'disconnect', 'activate', 'deactivate', 'auto_update' ];
+		$where_parts   = [];
+		$where_values  = [];
+
+		if ( '' !== $action && in_array( strtolower( $action ), $valid_actions, true ) ) {
+			$where_parts[]  = 'action = %s';
+			$where_values[] = strtolower( $action );
+		}
+
+		if ( '' !== $project_id ) {
+			$where_parts[]  = 'public_id = %s';
+			$where_values[] = $project_id;
+		}
+
+		if ( '' !== $search ) {
+			$where_parts[]  = '(public_id LIKE %s OR context LIKE %s)';
+			$like           = '%' . $wpdb->esc_like( $search ) . '%';
+			$where_values[] = $like;
+			$where_values[] = $like;
+		}
+
+		if ( '' !== $date_from ) {
+			$ts = strtotime( $date_from );
+			if ( false !== $ts ) {
+				$where_parts[]  = 'created_at >= %s';
+				$where_values[] = gmdate( 'Y-m-d 00:00:00', $ts );
+			}
+		}
+
+		if ( '' !== $date_to ) {
+			$ts = strtotime( $date_to );
+			if ( false !== $ts ) {
+				$where_parts[]  = 'created_at <= %s';
+				$where_values[] = gmdate( 'Y-m-d 23:59:59', $ts );
+			}
+		}
+
+		if ( $user_id > 0 ) {
+			$where_parts[]  = 'user_id = %d';
+			$where_values[] = $user_id;
+		}
+
+		$where_sql = '';
+		if ( ! empty( $where_parts ) ) {
+			$where_sql = 'WHERE ' . implode( ' AND ', $where_parts );
+		}
+
+		// $table is derived from $wpdb->prefix, which is trusted. $where_sql is
+		// built exclusively from an allowlist of column names and %s/%d placeholders
+		// (never from user input), so interpolation here is safe.
+		//
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		if ( '' !== $where_sql ) {
+			$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where_sql}", ...$where_values ) );
+		} else {
+			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		}
+
+		// Fetch page of rows.
+		$limit_values = array_merge( $where_values, [ $per_page, $offset ] );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", ...$limit_values ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+		$rows = is_array( $rows ) ? $rows : [];
+
+		// Batch-resolve user display names to avoid N+1 get_userdata() calls.
+		$user_ids  = array_unique(
+			array_filter( array_column( $rows, 'user_id' ), static fn( $id ) => (int) $id > 0 )
+		);
+		$users_map = [];
+		if ( ! empty( $user_ids ) ) {
+			$user_objects = get_users(
+				[
+					'include' => array_map( 'intval', $user_ids ),
+					'fields'  => [ 'ID', 'display_name' ],
+				]
+			);
+			foreach ( $user_objects as $u ) {
+				$users_map[ (int) $u->ID ] = $u->display_name;
+			}
+		}
+
+		// Annotate each row with the resolved display name.
+		$rows = array_map(
+			static function ( array $row ) use ( $users_map ): array {
+				$uid               = (int) ( $row['user_id'] ?? 0 );
+				$row['_user_name'] = $uid > 0
+					? ( $users_map[ $uid ] ?? sprintf( '#%d', $uid ) )
+					: __( '(system)', 'dispatch' );
+				return $row;
+			},
+			$rows
+		);
+
+		$response = rest_ensure_response(
+			[
+				'items'       => $rows,
+				'total'       => $total,
+				'total_pages' => (int) ceil( $total / $per_page ),
+				'page'        => $page,
+				'per_page'    => $per_page,
+			]
+		);
+
+		return $response;
+	}
+
+	// -------------------------------------------------------------------------
+	// Activation / deactivation
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /telex/v1/projects/{id}/activate — activates an installed plugin/theme.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function activate_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$tracked   = Telex_Tracker::get( $public_id );
+
+		if ( ! $tracked ) {
+			return new \WP_Error( 'telex_not_installed', __( "This project isn't installed on your site.", 'dispatch' ), [ 'status' => 404 ] );
+		}
+
+		$type = $tracked['type'] ?? 'block';
+		$slug = $tracked['slug'] ?? '';
+
+		if ( 'theme' === $type ) {
+			switch_theme( $slug );
+			Telex_Audit_Log::log(
+				AuditAction::Activate,
+				$public_id,
+				[
+					'slug' => $slug,
+					'type' => 'theme',
+				]
+			);
+			return rest_ensure_response( [ 'activated' => true ] );
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$plugin_file = '';
+		foreach ( get_plugins() as $file => $_data ) {
+			if ( str_starts_with( $file, $slug . '/' ) ) {
+				$plugin_file = $file;
+				break;
+			}
+		}
+
+		if ( ! $plugin_file ) {
+			return new \WP_Error( 'telex_not_installed', __( 'Plugin file not found on disk.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+
+		$result = activate_plugin( $plugin_file );
+		if ( is_wp_error( $result ) ) {
+			return new \WP_Error( 'telex_activate', $result->get_error_message(), [ 'status' => 500 ] );
+		}
+
+		Telex_Audit_Log::log(
+			AuditAction::Activate,
+			$public_id,
+			[
+				'slug' => $slug,
+				'type' => 'block',
+			]
+		);
+		return rest_ensure_response( [ 'activated' => true ] );
+	}
+
+	/**
+	 * POST /telex/v1/projects/{id}/deactivate — deactivates an installed plugin.
+	 *
+	 * Themes cannot be deactivated without switching to another theme; this
+	 * endpoint intentionally returns a 400 for theme-type projects.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function deactivate_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$tracked   = Telex_Tracker::get( $public_id );
+
+		if ( ! $tracked ) {
+			return new \WP_Error( 'telex_not_installed', __( "This project isn't installed on your site.", 'dispatch' ), [ 'status' => 404 ] );
+		}
+
+		$type = $tracked['type'] ?? 'block';
+		$slug = $tracked['slug'] ?? '';
+
+		if ( 'theme' === $type ) {
+			return new \WP_Error(
+				'telex_theme_deactivate',
+				__( "Themes can't be deactivated — switch to a different theme instead.", 'dispatch' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$plugin_file = '';
+		foreach ( get_plugins() as $file => $_data ) {
+			if ( str_starts_with( $file, $slug . '/' ) ) {
+				$plugin_file = $file;
+				break;
+			}
+		}
+
+		if ( $plugin_file ) {
+			deactivate_plugins( $plugin_file );
+		}
+
+		Telex_Audit_Log::log(
+			AuditAction::Deactivate,
+			$public_id,
+			[
+				'slug' => $slug,
+				'type' => 'block',
+			]
+		);
+		return rest_ensure_response( [ 'deactivated' => true ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Project notes
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/projects/{id}/note — returns the stored note for a project.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_project_note( \WP_REST_Request $request ): \WP_REST_Response {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$notes     = (array) get_option( 'telex_project_notes', [] );
+		$note      = (string) ( $notes[ $public_id ] ?? '' );
+
+		return rest_ensure_response( [ 'note' => $note ] );
+	}
+
+	/**
+	 * PUT /telex/v1/projects/{id}/note — saves or clears a per-project note.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function update_project_note( \WP_REST_Request $request ): \WP_REST_Response {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$note      = sanitize_textarea_field( (string) $request->get_param( 'note' ) );
+
+		$notes               = (array) get_option( 'telex_project_notes', [] );
+		$notes[ $public_id ] = $note;
+
+		if ( '' === $note ) {
+			unset( $notes[ $public_id ] );
+		}
+
+		update_option( 'telex_project_notes', $notes, false );
+
+		return rest_ensure_response( [ 'note' => $note ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Sites list (multisite)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/sites — returns a paginated list of subsites for the network deploy selector.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_sites_list( \WP_REST_Request $request ): \WP_REST_Response {
+		$per_page = (int) $request->get_param( 'per_page' );
+		$page     = (int) $request->get_param( 'page' );
+		$search   = (string) $request->get_param( 'search' );
+		$offset   = ( $page - 1 ) * $per_page;
+
+		$query_args = [
+			'number'   => $per_page,
+			'offset'   => $offset,
+			'deleted'  => 0,
+			'spam'     => 0,
+			'archived' => 0,
+		];
+
+		if ( '' !== $search ) {
+			$query_args['search'] = '*' . $search . '*';
+		}
+
+		$sites = get_sites( $query_args );
+		$total = (int) get_sites( array_merge( $query_args, [ 'count' => true ] ) );
+
+		$items = array_map(
+			static function ( $site ): array {
+				return [
+					'id'       => (int) $site->blog_id,
+					'domain'   => $site->domain,
+					'path'     => $site->path,
+					'blogname' => get_blog_option( (int) $site->blog_id, 'blogname' ),
+				];
+			},
+			is_array( $sites ) ? $sites : []
+		);
+
+		return rest_ensure_response(
+			[
+				'items'       => $items,
+				'total'       => $total,
+				'total_pages' => (int) ceil( $total / $per_page ),
+				'page'        => $page,
+				'per_page'    => $per_page,
 			]
 		);
 	}
@@ -735,7 +1741,7 @@ class Telex_REST {
 		try {
 			$project = $client->projects->get( $public_id );
 		} catch ( \Exception $e ) {
-			error_log( 'Dispatch: project get failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			wp_trigger_error( __CLASS__, 'Dispatch: project get failed — ' . $e->getMessage(), E_USER_WARNING );
 			return new \WP_Error( 'telex_api', __( 'Could not retrieve project details. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
@@ -778,7 +1784,7 @@ class Telex_REST {
 		try {
 			$pre_fetched_build = $client->projects->getBuild( $public_id );
 		} catch ( \Exception $e ) {
-			error_log( 'Dispatch: network deploy getBuild failed — ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			wp_trigger_error( __CLASS__, 'Dispatch: network deploy getBuild failed — ' . $e->getMessage(), E_USER_WARNING );
 			return new \WP_Error( 'telex_api', __( 'Could not retrieve build information. Please try again.', 'dispatch' ), [ 'status' => 502 ] );
 		}
 
@@ -979,6 +1985,8 @@ class Telex_REST {
 			);
 		}
 
+		self::bump_data_version();
+
 		return rest_ensure_response(
 			[
 				'success'    => true,
@@ -1051,8 +2059,14 @@ class Telex_REST {
 			'telex_caps'           => 403,
 			'telex_forbidden'      => 403,
 			'telex_not_installed'  => 404,
-			'telex_active_theme'   => 409,
+			'telex_active_theme',
+			'slug_conflict',
+			'install_in_progress',
+			'remove_in_progress'   => 409,
 			'telex_not_ready'      => 503,
+			'disallow_file_mods'   => 403,
+			'telex_checksum',
+			'telex_integrity',
 			'telex_no_files',
 			'telex_path',
 			'telex_ext',
@@ -1121,5 +2135,423 @@ class Telex_REST {
 		return current_user_can( 'manage_network_plugins' )
 			? true
 			: new \WP_Error( 'telex_forbidden', __( "You don't have permission to do that.", 'dispatch' ), [ 'status' => 403 ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Users list
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/users — list WP users for the Activity tab user-filter dropdown.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_users_list(): \WP_REST_Response {
+		$users = get_users(
+			[
+				'fields'  => [ 'ID', 'display_name' ],
+				'orderby' => 'display_name',
+				'order'   => 'ASC',
+				'number'  => 200,
+			]
+		);
+
+		$data = array_map(
+			static fn( \WP_User $u ) => [
+				'id'   => (int) $u->ID,
+				'name' => (string) $u->display_name,
+			],
+			$users
+		);
+
+		return rest_ensure_response( $data );
+	}
+
+	// -------------------------------------------------------------------------
+	// Version pinning
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /telex/v1/projects/{id}/pin — pin a project at its currently installed version.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function pin_project( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$reason    = sanitize_text_field( (string) $request->get_param( 'reason' ) );
+
+		if ( '' === $reason ) {
+			return new \WP_Error( 'telex_missing_reason', __( 'A reason is required when pinning a project.', 'dispatch' ), [ 'status' => 400 ] );
+		}
+
+		$installed = Telex_Tracker::get( $public_id );
+		if ( null === $installed ) {
+			return new \WP_Error( 'telex_not_installed', __( 'That project is not installed.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+
+		$version = (int) $installed['version'];
+		Telex_Version_Pin::pin( $public_id, $version, $reason );
+
+		// A pinned project cannot also be set to auto-update.
+		Telex_Auto_Update::set_mode( $public_id, 'off' );
+
+		self::bump_data_version();
+
+		return rest_ensure_response(
+			[
+				'pinned'    => true,
+				'public_id' => $public_id,
+				'version'   => $version,
+				'reason'    => $reason,
+			]
+		);
+	}
+
+	/**
+	 * DELETE /telex/v1/projects/{id}/pin — unpin a project to re-enable updates.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function unpin_project( \WP_REST_Request $request ): \WP_REST_Response {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+
+		Telex_Version_Pin::unpin( $public_id );
+		self::bump_data_version();
+
+		return rest_ensure_response(
+			[
+				'pinned'    => false,
+				'public_id' => $public_id,
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Auto-update setting
+	// -------------------------------------------------------------------------
+
+	/**
+	 * PUT /telex/v1/projects/{id}/auto-update — set per-project auto-update mode.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function set_auto_update( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$public_id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$mode      = sanitize_text_field( (string) $request->get_param( 'mode' ) );
+
+		// Cannot enable auto-update on a pinned project.
+		if ( 'off' !== $mode && Telex_Version_Pin::is_pinned( $public_id ) ) {
+			return new \WP_Error(
+				'telex_pinned',
+				__( 'Unpin this project before enabling auto-updates.', 'dispatch' ),
+				[ 'status' => 409 ]
+			);
+		}
+
+		Telex_Auto_Update::set_mode( $public_id, $mode );
+		self::bump_data_version();
+
+		return rest_ensure_response(
+			[
+				'public_id' => $public_id,
+				'mode'      => $mode,
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Project groups
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/groups — list the current user's project groups.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_groups(): \WP_REST_Response {
+		return rest_ensure_response( Telex_Project_Groups::get_for_user() );
+	}
+
+	/**
+	 * POST /telex/v1/groups — create a new project group.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function create_group( \WP_REST_Request $request ): \WP_REST_Response {
+		$name  = sanitize_text_field( (string) $request->get_param( 'name' ) );
+		$group = Telex_Project_Groups::create( $name );
+		return rest_ensure_response( $group );
+	}
+
+	/**
+	 * PUT /telex/v1/groups/{id} — rename a project group.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function update_group( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id   = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$name = sanitize_text_field( (string) $request->get_param( 'name' ) );
+
+		$group = Telex_Project_Groups::update( $id, $name );
+		if ( null === $group ) {
+			return new \WP_Error( 'telex_not_found', __( 'Group not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( $group );
+	}
+
+	/**
+	 * DELETE /telex/v1/groups/{id} — delete a project group.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function delete_group( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+
+		if ( ! Telex_Project_Groups::delete( $id ) ) {
+			return new \WP_Error( 'telex_not_found', __( 'Group not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( [ 'deleted' => true ] );
+	}
+
+	/**
+	 * POST /telex/v1/groups/{id}/projects — add a project to a group.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function add_project_to_group( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id         = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$project_id = sanitize_text_field( (string) $request->get_param( 'project_id' ) );
+
+		$group = Telex_Project_Groups::add_project( $id, $project_id );
+		if ( null === $group ) {
+			return new \WP_Error( 'telex_not_found', __( 'Group not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( $group );
+	}
+
+	/**
+	 * DELETE /telex/v1/groups/{id}/projects/{project_id} — remove a project from a group.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function remove_project_from_group( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id         = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$project_id = sanitize_text_field( (string) $request->get_param( 'project_id' ) );
+
+		$group = Telex_Project_Groups::remove_project( $id, $project_id );
+		if ( null === $group ) {
+			return new \WP_Error( 'telex_not_found', __( 'Group not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( $group );
+	}
+
+	// -------------------------------------------------------------------------
+	// Build snapshots
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/snapshots — list all saved snapshots.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_snapshots(): \WP_REST_Response {
+		return rest_ensure_response( Telex_Snapshot::get_all() );
+	}
+
+	/**
+	 * POST /telex/v1/snapshots — capture a new named snapshot.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function create_snapshot( \WP_REST_Request $request ): \WP_REST_Response {
+		$name      = sanitize_text_field( (string) $request->get_param( 'name' ) );
+		$name      = '' !== $name ? $name : gmdate( 'Y-m-d H:i:s' ) . ' snapshot';
+		$installed = Telex_Tracker::get_all();
+		$projects  = [];
+		foreach ( $installed as $id => $info ) {
+			$projects[] = [
+				'publicId' => $id,
+				'version'  => (int) $info['version'],
+				'slug'     => (string) ( $info['slug'] ?? $id ),
+			];
+		}
+		$snapshot_id = Telex_Snapshot::create( $name, $projects );
+		$snapshot    = Telex_Snapshot::get( $snapshot_id );
+
+		return rest_ensure_response( $snapshot );
+	}
+
+	/**
+	 * DELETE /telex/v1/snapshots/{id} — delete a snapshot.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function delete_snapshot( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+
+		if ( ! Telex_Snapshot::delete( $id ) ) {
+			return new \WP_Error( 'telex_not_found', __( 'Snapshot not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		return rest_ensure_response( [ 'deleted' => true ] );
+	}
+
+	/**
+	 * POST /telex/v1/snapshots/{id}/restore — reinstall all projects to captured versions.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function restore_snapshot( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id       = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$snapshot = Telex_Snapshot::get( $id );
+
+		if ( null === $snapshot ) {
+			return new \WP_Error( 'telex_not_found', __( 'Snapshot not found.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+
+		$projects = $snapshot['projects'] ?? [];
+		$results  = [];
+
+		foreach ( $projects as $p ) {
+			$public_id = sanitize_text_field( (string) $p['publicId'] );
+			$result    = Telex_Installer::install( $public_id );
+			$results[] = [
+				'publicId' => $public_id,
+				'success'  => ! is_wp_error( $result ),
+				'message'  => is_wp_error( $result ) ? $result->get_error_message() : '',
+			];
+		}
+
+		self::bump_data_version();
+
+		return rest_ensure_response(
+			[
+				'snapshot_id' => $id,
+				'results'     => $results,
+				'errors'      => count( array_filter( $results, static fn( $r ) => ! $r['success'] ) ),
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Notification settings
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/settings/notifications — return current notification channel settings.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_notification_settings(): \WP_REST_Response {
+		return rest_ensure_response( Telex_Notifications::get_settings() );
+	}
+
+	/**
+	 * PUT /telex/v1/settings/notifications — save notification channel preferences.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function update_notification_settings( \WP_REST_Request $request ): \WP_REST_Response {
+		$settings = [
+			'email_enabled'  => (bool) $request->get_param( 'email_enabled' ),
+			'email_address'  => sanitize_email( (string) $request->get_param( 'email_address' ) ),
+			'slack_enabled'  => (bool) $request->get_param( 'slack_enabled' ),
+			'slack_webhook'  => sanitize_url( (string) $request->get_param( 'slack_webhook' ) ),
+			'notify_updates' => (bool) $request->get_param( 'notify_updates' ),
+			'notify_circuit' => (bool) $request->get_param( 'notify_circuit' ),
+			'notify_install' => (bool) $request->get_param( 'notify_install' ),
+		];
+
+		Telex_Notifications::save_settings( $settings );
+
+		return rest_ensure_response( Telex_Notifications::get_settings() );
+	}
+
+	/**
+	 * POST /telex/v1/settings/notifications/test — send a test notification.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function test_notification(): \WP_REST_Response {
+		$result = Telex_Notifications::send_test();
+
+		return rest_ensure_response(
+			[
+				'sent'    => $result['sent'],
+				'message' => $result['message'],
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Block usage analytics
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/analytics — return cached block usage data.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_analytics( \WP_REST_Request $request ): \WP_REST_Response {
+		if ( (bool) $request->get_param( 'force_scan' ) ) {
+			Telex_Analytics::scan();
+		}
+
+		$data = Telex_Analytics::get_cached();
+
+		return rest_ensure_response(
+			[
+				'scanned_at' => $data['scanned_at'] ?? null,
+				'usage'      => $data['usage'] ?? [],
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Health checks
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/health/installed — check health of all installed projects.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function get_health( \WP_REST_Request $request ): \WP_REST_Response {
+		if ( (bool) $request->get_param( 'force_scan' ) ) {
+			Telex_Health::bust_cache();
+		}
+
+		$results = Telex_Health::check_all();
+
+		return rest_ensure_response( $results );
+	}
+
+	// -------------------------------------------------------------------------
+	// Heartbeat data version helper
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Increment the telex_data_version transient.
+	 *
+	 * Called after any mutation (install/remove/update/pin/unpin) so that the
+	 * WP Heartbeat handler can signal all open admin tabs that data has changed.
+	 *
+	 * @return void
+	 */
+	public static function bump_data_version(): void {
+		set_transient( 'telex_data_version', wp_generate_uuid4(), 5 * MINUTE_IN_SECONDS );
 	}
 }

@@ -79,17 +79,32 @@ class Telex_Audit_Log_Table extends WP_List_Table {
 		$orderby = in_array( $orderby_raw, [ 'id', 'action', 'created_at' ], true ) ? $orderby_raw : 'id';
 		$order   = 'ASC' === $order_raw ? 'ASC' : 'DESC';
 
-		$all_items = Telex_Audit_Log::get_recent( 500, $orderby, $order );
+		$total_items = Telex_Audit_Log::count();
+		$offset      = ( $current_page - 1 ) * $per_page;
 
 		$this->set_pagination_args(
 			[
-				'total_items' => count( $all_items ),
+				'total_items' => $total_items,
 				'per_page'    => $per_page,
-				'total_pages' => (int) ceil( count( $all_items ) / $per_page ),
+				'total_pages' => (int) ceil( $total_items / $per_page ),
 			]
 		);
 
-		$this->items = array_slice( $all_items, ( $current_page - 1 ) * $per_page, $per_page );
+		$this->items = Telex_Audit_Log::get_recent( $per_page, $offset, $orderby, $order );
+
+		// Prime the WP user cache for all user IDs on this page in one query,
+		// so column_user_id() can call get_userdata() without a per-row DB hit.
+		$user_ids = array_values(
+			array_unique(
+				array_filter(
+					array_map( 'intval', array_column( $this->items, 'user_id' ) ),
+					fn( $id ) => $id > 0
+				)
+			)
+		);
+		if ( $user_ids ) {
+			cache_users( $user_ids );
+		}
 
 		$this->_column_headers = [
 			$this->get_columns(),

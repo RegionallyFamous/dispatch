@@ -71,10 +71,30 @@ class Telex_Installer {
 	 * @return true|\WP_Error
 	 */
 	public static function install( string $public_id, bool $activate = false, ?array $pre_fetched_build = null, ?\Telex\Sdk\TelexClient $client = null ): true|\WP_Error {
+		if ( ! wp_is_file_mod_allowed( 'plugin_updates' ) ) {
+			return new \WP_Error(
+				'disallow_file_mods',
+				__( 'File modifications are disabled on this server (DISALLOW_FILE_MODS is set). Contact your host to enable installing plugins, or remove the constant from wp-config.php.', 'dispatch' )
+			);
+		}
+
 		$client ??= Telex_Auth::get_client();
 		if ( ! $client ) {
 			return new \WP_Error( 'telex_not_connected', __( "You're not connected. Link your account from the Dispatch page.", 'dispatch' ) );
 		}
+
+		// Per-project mutex: prevents two admins from racing the same install
+		// simultaneously, which can corrupt the wp-content/plugins directory.
+		$lock_key = 'telex_install_lock_' . md5( $public_id );
+		if ( ! wp_cache_add( $lock_key, 1, '', 300 ) ) {
+			if ( get_transient( $lock_key ) ) {
+				return new \WP_Error(
+					'install_in_progress',
+					__( 'This project is already being installed. Please wait a moment and try again.', 'dispatch' )
+				);
+			}
+		}
+		set_transient( $lock_key, 1, 300 );
 
 		try {
 			$project = $client->projects->get( $public_id );
@@ -155,7 +175,7 @@ class Telex_Installer {
 
 			// Optional post-install activation.
 			if ( $activate && ProjectType::Block === $type ) {
-				$plugin_file = self::find_plugin_file( $project['slug'] );
+				$plugin_file = Telex_Utils::find_plugin_file( $project['slug'] );
 				if ( $plugin_file ) {
 					$activated = activate_plugin( $plugin_file );
 					if ( is_wp_error( $activated ) ) {
@@ -188,6 +208,10 @@ class Telex_Installer {
 					$e->getMessage()
 				)
 			);
+		} finally {
+			// Always release the per-project lock, even on exception or early return.
+			delete_transient( $lock_key );
+			wp_cache_delete( $lock_key );
 		}
 	}
 
@@ -202,58 +226,83 @@ class Telex_Installer {
 	 * @return true|\WP_Error
 	 */
 	public static function remove( string $public_id ): true|\WP_Error {
-		$tracked = Telex_Tracker::get( $public_id );
-		if ( ! $tracked ) {
-			return new \WP_Error( 'telex_not_installed', __( "This project isn't installed on your site.", 'dispatch' ) );
+		if ( ! wp_is_file_mod_allowed( 'plugin_updates' ) ) {
+			return new \WP_Error(
+				'disallow_file_mods',
+				__( 'File modifications are disabled on this server (DISALLOW_FILE_MODS is set). Contact your host to enable removing plugins, or remove the constant from wp-config.php.', 'dispatch' )
+			);
 		}
 
-		$type = ProjectType::from( $tracked['type'] );
-		$slug = $tracked['slug'];
-
-		if ( ! current_user_can( $type->remove_capability() ) ) {
-			return new \WP_Error( 'telex_caps', __( "You don't have permission to remove this type of project.", 'dispatch' ) );
-		}
-
-		if ( ProjectType::Theme === $type ) {
-			$theme = wp_get_theme( $slug );
-			if ( $theme->exists() ) {
-				if ( wp_get_theme()->get_stylesheet() === $slug ) {
-					return new \WP_Error( 'telex_active_theme', __( "That's your active theme! Switch themes first, then remove this one.", 'dispatch' ) );
-				}
-				$result = delete_theme( $slug );
-				if ( is_wp_error( $result ) ) {
-					return $result;
-				}
-			}
-		} else {
-			$plugin_dir = WP_PLUGIN_DIR . '/' . $slug;
-			if ( is_dir( $plugin_dir ) ) {
-				$plugin_file = self::find_plugin_file( $slug );
-				if ( $plugin_file && is_plugin_active( $plugin_file ) ) {
-					deactivate_plugins( $plugin_file );
-				}
-				require_once ABSPATH . 'wp-admin/includes/plugin.php';
-				require_once ABSPATH . 'wp-admin/includes/file.php';
-				$result = delete_plugins( [ '' !== $plugin_file ? $plugin_file : $slug . '/' . $slug . '.php' ] );
-				if ( is_wp_error( $result ) ) {
-					return $result;
-				}
+		// Per-project mutex to prevent concurrent remove races.
+		$lock_key = 'telex_remove_lock_' . md5( $public_id );
+		if ( ! wp_cache_add( $lock_key, 1, '', 300 ) ) {
+			if ( get_transient( $lock_key ) ) {
+				return new \WP_Error(
+					'remove_in_progress',
+					__( 'This project is already being removed. Please wait a moment and try again.', 'dispatch' )
+				);
 			}
 		}
+		set_transient( $lock_key, 1, 300 );
 
-		Telex_Tracker::untrack( $public_id );
-		Telex_Cache::bust_project( $public_id );
+		try {
+			$tracked = Telex_Tracker::get( $public_id );
+			if ( ! $tracked ) {
+				return new \WP_Error( 'telex_not_installed', __( "This project isn't installed on your site.", 'dispatch' ) );
+			}
 
-		Telex_Audit_Log::log(
-			AuditAction::Remove,
-			$public_id,
-			[
-				'slug' => $slug,
-				'type' => $type->value,
-			]
-		);
+			$type = ProjectType::from( $tracked['type'] );
+			$slug = $tracked['slug'];
 
-		return true;
+			if ( ! current_user_can( $type->remove_capability() ) ) {
+				return new \WP_Error( 'telex_caps', __( "You don't have permission to remove this type of project.", 'dispatch' ) );
+			}
+
+			if ( ProjectType::Theme === $type ) {
+				$theme = wp_get_theme( $slug );
+				if ( $theme->exists() ) {
+					if ( wp_get_theme()->get_stylesheet() === $slug ) {
+						return new \WP_Error( 'telex_active_theme', __( "That's your active theme! Switch themes first, then remove this one.", 'dispatch' ) );
+					}
+					$result = delete_theme( $slug );
+					if ( is_wp_error( $result ) ) {
+						return $result;
+					}
+				}
+			} else {
+				$plugin_dir = WP_PLUGIN_DIR . '/' . $slug;
+				if ( is_dir( $plugin_dir ) ) {
+					$plugin_file = Telex_Utils::find_plugin_file( $slug );
+					if ( $plugin_file && is_plugin_active( $plugin_file ) ) {
+						deactivate_plugins( $plugin_file );
+					}
+					require_once ABSPATH . 'wp-admin/includes/plugin.php';
+					require_once ABSPATH . 'wp-admin/includes/file.php';
+					$result = delete_plugins( [ '' !== $plugin_file ? $plugin_file : $slug . '/' . $slug . '.php' ] );
+					if ( is_wp_error( $result ) ) {
+						return $result;
+					}
+				}
+			}
+
+			Telex_Tracker::untrack( $public_id );
+			Telex_Cache::bust_project( $public_id );
+
+			Telex_Audit_Log::log(
+				AuditAction::Remove,
+				$public_id,
+				[
+					'slug' => $slug,
+					'type' => $type->value,
+				]
+			);
+
+			return true;
+
+		} finally {
+			delete_transient( $lock_key );
+			wp_cache_delete( $lock_key );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -530,24 +579,6 @@ class Telex_Installer {
 		}
 
 		return $source;
-	}
-
-	/**
-	 * Finds the main plugin file path for a given directory slug.
-	 *
-	 * @param string $slug The WordPress plugin directory slug.
-	 * @return string Plugin file path relative to plugins dir, or empty string.
-	 */
-	private static function find_plugin_file( string $slug ): string {
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		foreach ( get_plugins() as $file => $data ) {
-			if ( str_starts_with( $file, $slug . '/' ) ) {
-				return $file;
-			}
-		}
-		return '';
 	}
 
 	/**

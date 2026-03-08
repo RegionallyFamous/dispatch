@@ -56,14 +56,27 @@ class Telex_Audit_Log {
 	private const SORTABLE_COLUMNS = [ 'id', 'action', 'created_at' ];
 
 	/**
-	 * Returns the most recent audit log entries.
+	 * Returns the total number of audit log entries.
+	 *
+	 * @return int
+	 */
+	public static function count(): int {
+		global $wpdb;
+		$table = self::table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+	}
+
+	/**
+	 * Returns a paginated slice of audit log entries using SQL LIMIT/OFFSET.
 	 *
 	 * @param int    $limit   Maximum number of rows to return.
+	 * @param int    $offset  Number of rows to skip (0-based).
 	 * @param string $orderby Column to sort by ('id', 'action', or 'created_at').
 	 * @param string $order   Sort direction ('ASC' or 'DESC').
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function get_recent( int $limit = 50, string $orderby = 'id', string $order = 'DESC' ): array {
+	public static function get_recent( int $limit = 50, int $offset = 0, string $orderby = 'id', string $order = 'DESC' ): array {
 		global $wpdb;
 
 		// Allowlist both parameters so they can be safely interpolated.
@@ -72,7 +85,7 @@ class Telex_Audit_Log {
 
 		$table = self::table_name();
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$orderby/$order are all allowlisted above.
-		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d", $limit );
+		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d", $limit, $offset );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $orderby is validated against SORTABLE_COLUMNS; $order is hardcoded to ASC/DESC.
 		$rows = $wpdb->get_results( $sql, ARRAY_A );

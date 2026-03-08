@@ -21,15 +21,20 @@ import {
 } from '@wordpress/data';
 import {
 	Button,
+	CheckboxControl,
 	ExternalLink,
 	Modal,
 	Notice,
 	SearchControl,
+	SelectControl,
 	Spinner,
+	TextareaControl,
+	TextControl,
 	Tooltip,
 	Icon,
 } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, sprintf, _n } from '@wordpress/i18n';
+import { useCommand } from '@wordpress/commands';
 import apiFetch from '@wordpress/api-fetch';
 import {
 	update as updateIcon,
@@ -43,6 +48,15 @@ import {
 	globe,
 	copy as copyIcon,
 	keyboardReturn,
+	pencil,
+	seen,
+	unseen,
+	lock,
+	lockSmall,
+	timeToRead,
+	people,
+	shield,
+	chartBar,
 } from '@wordpress/icons';
 import { getAvatarGradient, djb2, relativeDate } from './utils';
 import { reducer, actions, selectors, DEFAULT_STATE } from './store';
@@ -374,8 +388,7 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 			</>
 		);
 	} else if ( ! installed ) {
-		variantClass = 'telex-badge--idle';
-		inner = __( 'Not installed', 'dispatch' );
+		return null;
 	} else if ( remoteVersion > installed.version ) {
 		variantClass = 'telex-badge--update';
 		inner = (
@@ -429,14 +442,12 @@ function SkeletonCard() {
 	return (
 		<div className="telex-skeleton-row" aria-hidden="true">
 			<div className="telex-skeleton telex-skeleton--avatar" />
-			<div className="telex-skeleton-row__name">
+			<div className="telex-skeleton-row__identity">
 				<div className="telex-skeleton telex-skeleton--title" />
 				<div className="telex-skeleton telex-skeleton--badge" />
 			</div>
-			<div className="telex-skeleton-row__meta">
-				<div className="telex-skeleton telex-skeleton--line" />
-				<div className="telex-skeleton telex-skeleton--line telex-skeleton--line-short" />
-			</div>
+			<div className="telex-skeleton-row__spacer" />
+			<div className="telex-skeleton telex-skeleton--icon" />
 			<div className="telex-skeleton telex-skeleton--button" />
 		</div>
 	);
@@ -630,6 +641,11 @@ const SHORTCUTS = [
 	{ keys: [ '/' ], label: __( 'Focus search', 'dispatch' ) },
 	{ keys: [ 'Esc' ], label: __( 'Clear search / close modal', 'dispatch' ) },
 	{ keys: [ '?' ], label: __( 'Show this shortcuts list', 'dispatch' ) },
+	{ keys: [ '←', '→' ], label: __( 'Switch tabs', 'dispatch' ) },
+	{
+		keys: [ 'U' ],
+		label: __( 'Update all (when updates available)', 'dispatch' ),
+	},
 ];
 
 /**
@@ -846,6 +862,9 @@ function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
 
 			{ project.description && (
 				<div className="telex-changelog-body">
+					<p className="telex-changelog-section-label">
+						{ __( 'About this project', 'dispatch' ) }
+					</p>
 					{ project.description }
 				</div>
 			) }
@@ -854,7 +873,7 @@ function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
 				<ExternalLink
 					href={ `https://telex.automattic.ai/projects/${ project.publicId }` }
 				>
-					{ __( 'View full changelog in Telex →', 'dispatch' ) }
+					{ __( "See what's new in Telex →", 'dispatch' ) }
 				</ExternalLink>
 			</p>
 
@@ -896,6 +915,7 @@ function WebhookPanel( { webhookUrl, restUrl, onToast } ) {
 	const [ copiedSecret, setCopiedSecret ] = useState( false );
 	const [ regenerating, setRegenerating ] = useState( false );
 	const [ currentSecret, setCurrentSecret ] = useState( '' );
+	const [ secretLoading, setSecretLoading ] = useState( true );
 
 	// Timer refs for copy feedback — cleared on unmount to avoid state updates
 	// after the component is gone.
@@ -906,8 +926,20 @@ function WebhookPanel( { webhookUrl, restUrl, onToast } ) {
 	// The secret is intentionally not embedded in page HTML (see Pass 1).
 	useEffect( () => {
 		apiFetch( { url: `${ restUrl }/settings/deploy-secret` } )
-			.then( ( data ) => setCurrentSecret( data.secret || '' ) )
-			.catch( () => {} );
+			.then( ( data ) => {
+				setCurrentSecret( data.secret || '' );
+				setSecretLoading( false );
+			} )
+			.catch( () => {
+				setSecretLoading( false );
+				onToast?.( {
+					type: 'error',
+					message: __(
+						"Couldn't load your webhook URL — try refreshing.",
+						'dispatch'
+					),
+				} );
+			} );
 
 		// Capture current refs at effect time for the cleanup closure.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -990,7 +1022,18 @@ function WebhookPanel( { webhookUrl, restUrl, onToast } ) {
 				</Button>
 			</div>
 
-			{ currentSecret && (
+			{ secretLoading && (
+				<div
+					className="telex-webhook-field telex-webhook-field--skeleton"
+					aria-hidden="true"
+				>
+					<div className="telex-skeleton telex-skeleton--webhook-label" />
+					<div className="telex-skeleton telex-skeleton--webhook-value" />
+					<div className="telex-skeleton telex-skeleton--button" />
+					<div className="telex-skeleton telex-skeleton--button" />
+				</div>
+			) }
+			{ ! secretLoading && currentSecret && (
 				<div className="telex-webhook-field">
 					<span className="telex-webhook-label">
 						{ __( 'Secret', 'dispatch' ) }
@@ -1285,6 +1328,10 @@ async function installWithPolling(
  * @param {Function} root0.onRefresh
  * @param {Function} root0.onToast        (toast) => void — adds a toast notification.
  * @param {boolean}  root0.isNetworkAdmin Whether rendered in WP network admin.
+ * @param {boolean}  root0.showCheckbox   Whether multi-select checkboxes are visible.
+ * @param {boolean}  root0.isSelected     Whether this row is currently selected.
+ * @param {Function} root0.onToggleSelect Called with publicId when checkbox is toggled.
+ * @param {Object}   root0.analyticsData  Block usage counts keyed by publicId.
  * @return {import('@wordpress/element').WPElement} Rendered element.
  */
 function ProjectCard( {
@@ -1293,6 +1340,10 @@ function ProjectCard( {
 	onRefresh,
 	onToast,
 	isNetworkAdmin,
+	showCheckbox,
+	isSelected,
+	onToggleSelect,
+	analyticsData,
 } ) {
 	const {
 		setInstallStatus,
@@ -1316,6 +1367,166 @@ function ProjectCard( {
 	const [ showDetail, setShowDetail ] = useState( false );
 	const [ showChangelog, setShowChangelog ] = useState( false );
 	const [ showNetworkDeploy, setShowNetworkDeploy ] = useState( false );
+	const [ showNoteEditor, setShowNoteEditor ] = useState( false );
+	const [ noteValue, setNoteValue ] = useState( '' );
+	const [ noteSaved, setNoteSaved ] = useState( false );
+	const [ conflictData, setConflictData ] = useState( null );
+	const [ showPinModal, setShowPinModal ] = useState( false );
+	const [ pinReason, setPinReason ] = useState( '' );
+	const [ pinBusy, setPinBusy ] = useState( false );
+	const [ autoUpdateMode, setAutoUpdateMode ] = useState(
+		project._auto_update || 'off'
+	);
+	const [ autoUpdateBusy, setAutoUpdateBusy ] = useState( false );
+
+	// Load saved note on mount.
+	useEffect( () => {
+		apiFetch( { url: `${ restUrl }/projects/${ project.publicId }/note` } )
+			.then( ( d ) => setNoteValue( d?.note || '' ) )
+			.catch( () => {} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ project.publicId ] );
+
+	const saveNote = useCallback( async () => {
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/note`,
+				method: 'PUT',
+				data: { note: noteValue },
+			} );
+			setNoteSaved( true );
+			setTimeout( () => setNoteSaved( false ), 2000 );
+		} catch {} // eslint-disable-line no-empty
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ noteValue, project.publicId, restUrl ] );
+
+	const isActive =
+		project._is_active !== false && project._is_active !== undefined
+			? project._is_active
+			: null;
+
+	// These must be declared before any useCallback that references them
+	// to avoid a Temporal Dead Zone error during webpack scope hoisting.
+	const installed = installedProjects[ project.publicId ];
+	const needsUpdate = installed && project.currentVersion > installed.version;
+	const isInstalled = !! installed;
+	const isBusy =
+		installStatus === 'installing' ||
+		installStatus === 'removing' ||
+		installStatus === 'building';
+	const typeStr = project.projectType?.toLowerCase() || 'block';
+	const isBlock = typeStr !== 'theme';
+
+	const isPinned = !! project._pin;
+	const pinInfo = project._pin || null;
+
+	// Usage count from block analytics.
+	const usageCount = analyticsData?.[ project.publicId ] ?? null;
+
+	// Soak period countdown for delayed auto-updates.
+	const soakQueuedAt = project._auto_update_queued_at || null;
+	const soakHoursLeft = ( () => {
+		if ( autoUpdateMode !== 'delayed_24h' || ! soakQueuedAt ) {
+			return null;
+		}
+		const elapsed =
+			( Date.now() - new Date( soakQueuedAt ).getTime() ) / 3600000;
+		const remaining = Math.max( 0, 24 - elapsed );
+		return remaining < 1
+			? Math.ceil( remaining * 60 ) + 'm'
+			: Math.ceil( remaining ) + 'h';
+	} )();
+
+	const handlePinSubmit = useCallback( async () => {
+		if ( ! pinReason.trim() ) {
+			return;
+		}
+		setPinBusy( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/pin`,
+				method: 'POST',
+				data: {
+					version: installed?.version,
+					reason: pinReason.trim(),
+				},
+			} );
+			setPinReason( '' );
+			setShowPinModal( false );
+			onRefresh();
+			onToast( {
+				type: 'success',
+				message: sprintf(
+					/* translators: %s: project name */
+					__( '%s pinned.', 'dispatch' ),
+					project.name
+				),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not pin project.', 'dispatch' ),
+			} );
+		} finally {
+			setPinBusy( false );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ pinReason, project.publicId, restUrl, installed ] );
+
+	const handleUnpin = useCallback( async () => {
+		setPinBusy( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/pin`,
+				method: 'DELETE',
+			} );
+			onRefresh();
+			onToast( {
+				type: 'success',
+				message: sprintf(
+					/* translators: %s: project name */
+					__( '%s unpinned.', 'dispatch' ),
+					project.name
+				),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not unpin project.', 'dispatch' ),
+			} );
+		} finally {
+			setPinBusy( false );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ project.publicId, restUrl ] );
+
+	const handleAutoUpdateChange = useCallback(
+		async ( mode ) => {
+			setAutoUpdateMode( mode );
+			setAutoUpdateBusy( true );
+			try {
+				await apiFetch( {
+					url: `${ restUrl }/projects/${ project.publicId }/auto-update`,
+					method: 'PUT',
+					data: { mode },
+				} );
+				onRefresh();
+			} catch ( e ) {
+				onToast( {
+					type: 'error',
+					message:
+						e.message ||
+						__( 'Could not save auto-update setting.', 'dispatch' ),
+				} );
+			} finally {
+				setAutoUpdateBusy( false );
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ project.publicId, restUrl ]
+	);
 
 	// Refs for cleanup on unmount.
 	const cancelSignalRef = useRef( { cancelled: false } );
@@ -1328,16 +1539,6 @@ function ProjectCard( {
 			clearTimeout( step4TimerRef.current );
 		};
 	}, [] );
-
-	const installed = installedProjects[ project.publicId ];
-	const needsUpdate = installed && project.currentVersion > installed.version;
-	const isInstalled = !! installed;
-	const isBusy =
-		installStatus === 'installing' ||
-		installStatus === 'removing' ||
-		installStatus === 'building';
-	const typeStr = project.projectType?.toLowerCase() || 'block';
-	const isBlock = typeStr !== 'theme';
 
 	/**
 	 * Shared install/update handler.
@@ -1374,9 +1575,10 @@ function ProjectCard( {
 				project.publicId,
 				() => {
 					// Build is queued server-side. Cancel the fake-progress timers
-					// so they don't fire during the (potentially long) build wait.
-					// Leave the step indicator wherever it is — no reset.
+					// and reset to step 1 so the indicator shows the accurate state
+					// rather than a false partial-complete while waiting for the build.
 					clearStepTimers();
+					setInstallStep( project.publicId, 1 );
 					setInstallStatus( project.publicId, 'building' );
 				},
 				activate,
@@ -1396,12 +1598,16 @@ function ProjectCard( {
 			clearStepTimers();
 			clearInstallStep( project.publicId );
 			setInstallStatus( project.publicId, 'failed' );
-			onToast( {
-				type: 'error',
-				message:
-					err.message ||
-					__( "That didn't work. Try again?", 'dispatch' ),
-			} );
+			if ( err?.code === 'slug_conflict' && err?.data?.conflict_name ) {
+				setConflictData( err.data );
+			} else {
+				onToast( {
+					type: 'error',
+					message:
+						err.message ||
+						__( "That didn't work. Try again?", 'dispatch' ),
+				} );
+			}
 		}
 	}
 
@@ -1537,10 +1743,42 @@ function ProjectCard( {
 				needsUpdate ? 'telex-project-row--has-update' : '',
 				isInstalled ? 'telex-project-row--installed' : '',
 				isBusy ? 'telex-project-row--busy' : '',
+				isSelected ? 'telex-project-row--selected' : '',
+				isPinned ? 'telex-project-row--pinned' : '',
 			]
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
+			{ /* Optional checkbox for multi-select */ }
+			{ showCheckbox &&
+				( () => {
+					const checkId = `telex-select-${ project.publicId }`;
+					return (
+						<>
+							<label
+								className="telex-row-checkbox"
+								htmlFor={ checkId }
+							>
+								<span className="screen-reader-text">
+									{ sprintf(
+										/* translators: %s: project name */
+										__( 'Select %s', 'dispatch' ),
+										project.name
+									) }
+								</span>
+							</label>
+							<input
+								id={ checkId }
+								type="checkbox"
+								className="telex-row-checkbox-input"
+								checked={ isSelected }
+								onChange={ () =>
+									onToggleSelect( project.publicId )
+								}
+							/>
+						</>
+					);
+				} )() }
 			{ /* Identity — avatar + name + type */ }
 			<div className="telex-row-identity">
 				<ProjectAvatar
@@ -1561,6 +1799,73 @@ function ProjectCard( {
 						{ project.name }
 					</button>
 					<TypeBadge type={ typeStr } />
+					{ isPinned && (
+						<Tooltip
+							text={ sprintf(
+								/* translators: %s: pin reason */
+								__( 'Pinned: %s', 'dispatch' ),
+								pinInfo?.reason || ''
+							) }
+						>
+							<span
+								className="telex-pin-badge"
+								aria-label={ __(
+									'Version pinned',
+									'dispatch'
+								) }
+							>
+								<Icon icon={ lockSmall } size={ 14 } />
+								{ sprintf(
+									/* translators: %s: version number */
+									__( 'v%s', 'dispatch' ),
+									pinInfo?.version || ''
+								) }
+							</span>
+						</Tooltip>
+					) }
+					{ usageCount !== null && usageCount > 0 && (
+						<Tooltip
+							text={ sprintf(
+								/* translators: %d: post count */
+								__( 'Used in %d posts/pages', 'dispatch' ),
+								usageCount
+							) }
+						>
+							<span className="telex-usage-badge">
+								<Icon icon={ chartBar } size={ 12 } />
+								{ usageCount }
+							</span>
+						</Tooltip>
+					) }
+					{ soakHoursLeft !== null && (
+						<Tooltip
+							text={ __(
+								'Auto-update queued, waiting out soak period',
+								'dispatch'
+							) }
+						>
+							<span className="telex-soak-badge">
+								<Icon icon={ timeToRead } size={ 12 } />
+								{ sprintf(
+									/* translators: %s: time remaining */
+									__( '%s left', 'dispatch' ),
+									soakHoursLeft
+								) }
+							</span>
+						</Tooltip>
+					) }
+					{ isInstalled && isActive === false && (
+						<span className="telex-inactive-badge">
+							{ __( 'Inactive', 'dispatch' ) }
+						</span>
+					) }
+					{ noteValue && ! showNoteEditor && (
+						<span className="telex-row-note-preview">
+							{ noteValue.length > 60
+								? noteValue.substring( 0, 60 ) + '…'
+								: noteValue }
+						</span>
+					) }
 				</div>
 			</div>
 
@@ -1580,15 +1885,6 @@ function ProjectCard( {
 					<>
 						{ /* Update available: version-diff badge only */ }
 						{ needsUpdate && (
-							<StatusBadge
-								publicId={ project.publicId }
-								remoteVersion={ project.currentVersion }
-								installed={ installed }
-							/>
-						) }
-
-						{ /* Not installed: idle badge */ }
-						{ ! isInstalled && (
 							<StatusBadge
 								publicId={ project.publicId }
 								remoteVersion={ project.currentVersion }
@@ -1681,6 +1977,182 @@ function ProjectCard( {
 								) }
 							</span>
 						) ) }
+					{ isInstalled && isActive === false && (
+						<Tooltip
+							text={ __( 'Activate on this site', 'dispatch' ) }
+						>
+							<Button
+								variant="secondary"
+								icon={ check }
+								onClick={ async () => {
+									try {
+										await apiFetch( {
+											url: `${ restUrl }/projects/${ project.publicId }/activate`,
+											method: 'POST',
+										} );
+										onRefresh();
+										onToast( {
+											type: 'success',
+											message: sprintf(
+												/* translators: %s: project name */ __(
+													'%s activated.',
+													'dispatch'
+												),
+												project.name
+											),
+										} );
+									} catch ( e ) {
+										onToast( {
+											type: 'error',
+											message:
+												e.message ||
+												__(
+													'Activation failed.',
+													'dispatch'
+												),
+										} );
+									}
+								} }
+								disabled={ isBusy }
+								aria-label={ __(
+									'Activate on this site',
+									'dispatch'
+								) }
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+					) }
+					{ isInstalled &&
+						isActive === true &&
+						project.type !== 'theme' && (
+							<Tooltip
+								text={ __(
+									'Deactivate on this site',
+									'dispatch'
+								) }
+							>
+								<Button
+									variant="tertiary"
+									icon={ unseen }
+									onClick={ async () => {
+										try {
+											await apiFetch( {
+												url: `${ restUrl }/projects/${ project.publicId }/deactivate`,
+												method: 'POST',
+											} );
+											onRefresh();
+											onToast( {
+												type: 'success',
+												message: sprintf(
+													/* translators: %s: project name */ __(
+														'%s deactivated.',
+														'dispatch'
+													),
+													project.name
+												),
+											} );
+										} catch ( e ) {
+											onToast( {
+												type: 'error',
+												message:
+													e.message ||
+													__(
+														'Deactivation failed.',
+														'dispatch'
+													),
+											} );
+										}
+									} }
+									disabled={ isBusy }
+									aria-label={ __(
+										'Deactivate on this site',
+										'dispatch'
+									) }
+									__next40pxDefaultSize
+								/>
+							</Tooltip>
+						) }
+					{ /* eslint-disable no-nested-ternary */ }
+					<Tooltip
+						text={
+							showNoteEditor
+								? __( 'Close note', 'dispatch' )
+								: noteValue
+								? __( 'Edit note', 'dispatch' )
+								: __( 'Add note', 'dispatch' )
+						}
+					>
+						<Button
+							variant="tertiary"
+							icon={ showNoteEditor ? seen : pencil }
+							onClick={ () => setShowNoteEditor( ( v ) => ! v ) }
+							aria-label={
+								showNoteEditor
+									? __( 'Close note', 'dispatch' )
+									: noteValue
+									? __( 'Edit note', 'dispatch' )
+									: __( 'Add note', 'dispatch' )
+							}
+							__next40pxDefaultSize
+						/>
+					</Tooltip>
+					{ /* eslint-enable no-nested-ternary */ }
+					{ isInstalled && (
+						<Tooltip
+							text={
+								isPinned
+									? __( 'Unpin version', 'dispatch' )
+									: __( 'Pin version', 'dispatch' )
+							}
+						>
+							<Button
+								variant="tertiary"
+								icon={ isPinned ? lock : lockSmall }
+								onClick={
+									isPinned
+										? handleUnpin
+										: () => setShowPinModal( true )
+								}
+								disabled={ isBusy || pinBusy }
+								isBusy={ pinBusy }
+								aria-label={
+									isPinned
+										? __( 'Unpin version', 'dispatch' )
+										: __( 'Pin version', 'dispatch' )
+								}
+								className={ isPinned ? 'telex-btn-pinned' : '' }
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+					) }
+					{ isInstalled && ! isPinned && (
+						<Tooltip text={ __( 'Auto-update', 'dispatch' ) }>
+							<SelectControl
+								label={ __( 'Auto-update', 'dispatch' ) }
+								hideLabelFromVision
+								value={ autoUpdateMode }
+								className="telex-autoupdate-select"
+								options={ [
+									{
+										value: 'off',
+										label: __( 'Off', 'dispatch' ),
+									},
+									{
+										value: 'immediate',
+										label: __( 'Immediate', 'dispatch' ),
+									},
+									{
+										value: 'delayed_24h',
+										label: __( 'Delayed 24h', 'dispatch' ),
+									},
+								] }
+								onChange={ handleAutoUpdateChange }
+								disabled={ autoUpdateBusy }
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+					) }
 					<Tooltip
 						text={ sprintf(
 							/* translators: %s: project name */
@@ -1727,7 +2199,97 @@ function ProjectCard( {
 					) }
 				</div>
 			</div>
+			{ /* Inline note editor */ }
+			{ showNoteEditor && (
+				<div className="telex-row-note-editor">
+					<TextareaControl
+						label={ __( 'Note', 'dispatch' ) }
+						value={ noteValue }
+						onChange={ setNoteValue }
+						rows={ 2 }
+						__nextHasNoMarginBottom
+					/>
+					<div className="telex-row-note-actions">
+						<Button
+							variant="primary"
+							size="small"
+							onClick={ saveNote }
+							__next40pxDefaultSize={ false }
+						>
+							{ noteSaved
+								? __( 'Saved!', 'dispatch' )
+								: __( 'Save note', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="tertiary"
+							size="small"
+							onClick={ () => setShowNoteEditor( false ) }
+							__next40pxDefaultSize={ false }
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</div>
+			) }
 
+			{ /* Pin modal */ }
+			{ showPinModal && (
+				<Modal
+					title={ sprintf(
+						/* translators: 1: project name, 2: version number */
+						__( 'Pin "%1$s" at v%2$s', 'dispatch' ),
+						project.name,
+						installed?.version || ''
+					) }
+					onRequestClose={ () => {
+						setShowPinModal( false );
+						setPinReason( '' );
+					} }
+				>
+					<p className="description">
+						{ __(
+							'Pinning prevents this project from being updated by auto-update or "Update All". You can unpin it at any time.',
+							'dispatch'
+						) }
+					</p>
+					<TextareaControl
+						label={ __(
+							'Reason for pinning (required)',
+							'dispatch'
+						) }
+						value={ pinReason }
+						onChange={ setPinReason }
+						rows={ 2 }
+						placeholder={ __(
+							'e.g. Client requested freeze before launch',
+							'dispatch'
+						) }
+						__nextHasNoMarginBottom
+					/>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							onClick={ handlePinSubmit }
+							disabled={ ! pinReason.trim() || pinBusy }
+							isBusy={ pinBusy }
+							icon={ lock }
+							__next40pxDefaultSize
+						>
+							{ __( 'Pin version', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => {
+								setShowPinModal( false );
+								setPinReason( '' );
+							} }
+							__next40pxDefaultSize
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
 			{ /* Modals */ }
 			{ confirmRemove === project.publicId && (
 				<Modal
@@ -1743,7 +2305,7 @@ function ProjectCard( {
 						{ sprintf(
 							/* translators: %s: project name */
 							__(
-								"This will delete %s from your site for good — there's no undo.",
+								'%s will be removed from your site. You can reinstall it any time.',
 								'dispatch'
 							),
 							project.name
@@ -1796,6 +2358,337 @@ function ProjectCard( {
 					onClose={ () => setShowNetworkDeploy( false ) }
 				/>
 			) }
+			{ conflictData && (
+				<Modal
+					title={ __( 'Conflict detected', 'dispatch' ) }
+					onRequestClose={ () => setConflictData( null ) }
+				>
+					<p>
+						{ sprintf(
+							/* translators: 1: Telex project name, 2: existing plugin/theme name */
+							__(
+								'"%1$s" cannot be installed because an existing plugin or theme named "%2$s" is already using the same folder name. Remove the existing one first, or rename the slug in Telex.',
+								'dispatch'
+							),
+							project.name,
+							conflictData.conflict_name
+						) }
+					</p>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							onClick={ () => setConflictData( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'OK', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Inline device flow — embedded reconnect modal state machine
+// ---------------------------------------------------------------------------
+
+const FLOW_STATUS = {
+	IDLE: 'idle',
+	STARTING: 'starting',
+	WAITING: 'waiting',
+	SUCCESS: 'success',
+	EXPIRED: 'expired',
+	ERROR: 'error',
+};
+
+/**
+ * Self-contained device flow component that can be embedded in any modal.
+ * Calls onSuccess() when the user approves, so the parent can reload data
+ * rather than triggering a full-page navigation.
+ *
+ * @param {Object}   props
+ * @param {string}   props.restUrl   Base REST API URL.
+ * @param {Function} props.onSuccess Called when authorization succeeds.
+ * @param {Function} props.onClose   Called when the user dismisses.
+ */
+function InlineDeviceFlow( { restUrl, onSuccess, onClose } ) {
+	const [ status, setStatus ] = useState( FLOW_STATUS.IDLE );
+	const [ deviceData, setDeviceData ] = useState( null );
+	const [ errorMsg, setErrorMsg ] = useState( '' );
+	const [ copied, setCopied ] = useState( false );
+	const pollRef = useRef( null );
+	const copyTimeoutRef = useRef( null );
+	const pollInFlightRef = useRef( false );
+	const statusRef = useRef( status );
+	useEffect( () => {
+		statusRef.current = status;
+	}, [ status ] );
+
+	useEffect( () => {
+		const onHeartbeatTick = ( _event, response ) => {
+			if (
+				response?.telex?.is_connected &&
+				statusRef.current === FLOW_STATUS.WAITING
+			) {
+				stopPolling();
+				setStatus( FLOW_STATUS.SUCCESS );
+				setTimeout( () => onSuccess(), 1200 );
+			}
+		};
+		if ( window.jQuery ) {
+			window
+				.jQuery( document )
+				.on( 'heartbeat-tick.telex-reconnect', onHeartbeatTick );
+			window
+				.jQuery( document )
+				.on( 'heartbeat-send.telex-reconnect', ( _e, data ) => {
+					data.telex_poll = true;
+				} );
+		}
+		return () => {
+			stopPolling();
+			clearTimeout( copyTimeoutRef.current );
+			if ( window.jQuery ) {
+				window
+					.jQuery( document )
+					.off( 'heartbeat-tick.telex-reconnect' );
+				window
+					.jQuery( document )
+					.off( 'heartbeat-send.telex-reconnect' );
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
+
+	function stopPolling() {
+		if ( pollRef.current ) {
+			clearInterval( pollRef.current );
+			pollRef.current = null;
+		}
+	}
+
+	function startPolling( intervalSeconds ) {
+		stopPolling();
+		pollRef.current = setInterval(
+			() => pollForToken(),
+			intervalSeconds * 1000
+		);
+	}
+
+	async function startDeviceFlow() {
+		setStatus( FLOW_STATUS.STARTING );
+		setErrorMsg( '' );
+		try {
+			const data = await apiFetch( {
+				url: `${ restUrl }/auth/device`,
+				method: 'POST',
+			} );
+			setDeviceData( data );
+			setStatus( FLOW_STATUS.WAITING );
+			startPolling( data.interval || 5 );
+		} catch ( err ) {
+			setErrorMsg(
+				err.message ||
+					__(
+						"Couldn't get a code from Telex. Give it another try.",
+						'dispatch'
+					)
+			);
+			setStatus( FLOW_STATUS.ERROR );
+		}
+	}
+
+	async function pollForToken() {
+		if ( pollInFlightRef.current ) {
+			return;
+		}
+		pollInFlightRef.current = true;
+		try {
+			const data = await apiFetch( { url: `${ restUrl }/auth/device` } );
+			if ( data.authorized ) {
+				stopPolling();
+				setStatus( FLOW_STATUS.SUCCESS );
+				setTimeout( () => onSuccess(), 1200 );
+				return;
+			}
+			if ( data.status === 'slow_down' && data.interval ) {
+				stopPolling();
+				startPolling( data.interval );
+			}
+		} catch ( err ) {
+			const errorCode = err?.code || err?.data?.code || '';
+			const isTerminal = [
+				'telex_device_expired_token',
+				'telex_device_access_denied',
+				'telex_no_device_flow',
+			].includes( errorCode );
+			if ( isTerminal ) {
+				stopPolling();
+				setErrorMsg(
+					err.message ||
+						__(
+							'Something went wrong — the code may have expired.',
+							'dispatch'
+						)
+				);
+				setStatus( FLOW_STATUS.EXPIRED );
+			}
+		} finally {
+			pollInFlightRef.current = false;
+		}
+	}
+
+	async function cancelDeviceFlow() {
+		stopPolling();
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/auth/device`,
+				method: 'DELETE',
+			} );
+		} catch {} // eslint-disable-line no-empty
+		setStatus( FLOW_STATUS.IDLE );
+		setDeviceData( null );
+	}
+
+	function handleCopyCode() {
+		if ( ! deviceData?.user_code ) {
+			return;
+		}
+		if ( window.navigator?.clipboard ) {
+			window.navigator.clipboard
+				.writeText( deviceData.user_code )
+				.catch( () => {} );
+		}
+		setCopied( true );
+		clearTimeout( copyTimeoutRef.current );
+		copyTimeoutRef.current = setTimeout( () => setCopied( false ), 2500 );
+	}
+
+	if ( status === FLOW_STATUS.SUCCESS ) {
+		return (
+			<div className="telex-inline-flow">
+				<Spinner aria-hidden={ true } />
+				<p>
+					{ __( 'Connected! Refreshing your projects…', 'dispatch' ) }
+				</p>
+			</div>
+		);
+	}
+
+	if ( status === FLOW_STATUS.STARTING ) {
+		return (
+			<div className="telex-inline-flow">
+				<Spinner aria-hidden={ true } />
+				<p>{ __( 'Getting your code…', 'dispatch' ) }</p>
+			</div>
+		);
+	}
+
+	if ( status === FLOW_STATUS.WAITING && deviceData ) {
+		return (
+			<div className="telex-inline-flow">
+				<p>
+					{ __(
+						'Enter this code at telex.automattic.ai to reconnect:',
+						'dispatch'
+					) }
+				</p>
+				<div className="telex-inline-flow__code-row">
+					<code className="telex-inline-flow__code">
+						{ deviceData.user_code }
+					</code>
+					<Button
+						variant="tertiary"
+						size="small"
+						onClick={ handleCopyCode }
+						__next40pxDefaultSize={ false }
+					>
+						{ copied
+							? __( 'Copied!', 'dispatch' )
+							: __( 'Copy', 'dispatch' ) }
+					</Button>
+				</div>
+				{ /^https:\/\//i.test(
+					deviceData.verification_uri_complete
+				) && (
+					<Button
+						variant="primary"
+						href={ deviceData.verification_uri_complete }
+						target="_blank"
+						rel="noopener noreferrer"
+						__next40pxDefaultSize
+					>
+						{ __( 'Open Telex and approve →', 'dispatch' ) }
+					</Button>
+				) }
+				<div className="telex-inline-flow__waiting">
+					<Spinner aria-hidden={ true } />
+					<span>{ __( 'Waiting for approval…', 'dispatch' ) }</span>
+				</div>
+				<Button
+					variant="tertiary"
+					isDestructive
+					onClick={ cancelDeviceFlow }
+					__next40pxDefaultSize
+				>
+					{ __( 'Cancel', 'dispatch' ) }
+				</Button>
+			</div>
+		);
+	}
+
+	if ( status === FLOW_STATUS.EXPIRED || status === FLOW_STATUS.ERROR ) {
+		return (
+			<div className="telex-inline-flow">
+				<Notice status="error" isDismissible={ false }>
+					{ errorMsg ||
+						__(
+							'That code expired. Hit the button below to start over.',
+							'dispatch'
+						) }
+				</Notice>
+				<Button
+					variant="primary"
+					onClick={ startDeviceFlow }
+					__next40pxDefaultSize
+				>
+					{ __( 'Start over', 'dispatch' ) }
+				</Button>
+				<Button
+					variant="tertiary"
+					onClick={ onClose }
+					__next40pxDefaultSize
+				>
+					{ __( 'Cancel', 'dispatch' ) }
+				</Button>
+			</div>
+		);
+	}
+
+	// IDLE
+	return (
+		<div className="telex-inline-flow">
+			<p>
+				{ __(
+					'Your session has expired. Complete the quick device flow below to reconnect without leaving this page.',
+					'dispatch'
+				) }
+			</p>
+			<Button
+				variant="primary"
+				onClick={ startDeviceFlow }
+				__next40pxDefaultSize
+			>
+				{ __( 'Reconnect to Telex', 'dispatch' ) }
+			</Button>
+			<Button
+				variant="tertiary"
+				onClick={ onClose }
+				__next40pxDefaultSize
+			>
+				{ __( 'Cancel', 'dispatch' ) }
+			</Button>
 		</div>
 	);
 }
@@ -1814,10 +2707,95 @@ function ProjectsApp() {
 	// Toast state lives here (not Redux) so undoFn closures work cleanly.
 	const [ toasts, setToasts ] = useState( [] );
 	const [ showShortcuts, setShowShortcuts ] = useState( false );
-	const [ activeTab, setActiveTab ] = useState( 'all' );
+
+	// Initialize activeTab from URL hash, falling back to localStorage, then 'all'.
+	const [ activeTab, setActiveTab ] = useState( () => {
+		const hash = window.location.hash.replace( '#', '' );
+		const validTabs = [
+			'all',
+			'updates',
+			'blocks',
+			'themes',
+			'activity',
+			'health',
+		];
+		if ( validTabs.includes( hash ) ) {
+			return hash;
+		}
+		try {
+			const stored = window.localStorage.getItem( 'telex_ui_activeTab' );
+			if ( stored && validTabs.includes( stored ) ) {
+				return stored;
+			}
+		} catch {} // eslint-disable-line no-empty
+		return 'all';
+	} );
+
+	// Sort order — persisted to localStorage.
+	const [ sortOrder, setSortOrder ] = useState( () => {
+		try {
+			return (
+				window.localStorage.getItem( 'telex_ui_sortOrder' ) ||
+				'name-asc'
+			);
+		} catch {
+			return 'name-asc';
+		}
+	} );
+
+	// Circuit breaker status.
+	const [ circuitStatus, setCircuitStatus ] = useState( 'closed' );
+	const [ circuitResetAt, setCircuitResetAt ] = useState( null );
+	const [ circuitDismissed, setCircuitDismissed ] = useState( false );
+
+	// Update All queue state.
+	const [ updateAllRunning, setUpdateAllRunning ] = useState( false );
+	const [ updateAllProgress, setUpdateAllProgress ] = useState( null ); // { done, total }
+	const updateAllCancelRef = useRef( false );
+
+	// Multi-select state.
+	const [ selectedIds, setSelectedIds ] = useState( new Set() );
+	const [ showCheckboxes, setShowCheckboxes ] = useState( false );
+
+	// Inline reconnect modal.
+	const [ showReconnectModal, setShowReconnectModal ] = useState( false );
+
+	// Activity tab state.
+	const [ activityItems, setActivityItems ] = useState( [] );
+	const [ activityTotal, setActivityTotal ] = useState( 0 );
+	const [ activityPage, setActivityPage ] = useState( 1 );
+	const [ activityFilter, setActivityFilter ] = useState( '' );
+	const [ activityLoading, setActivityLoading ] = useState( false );
+	const [ activitySearch, setActivitySearch ] = useState( '' );
+	const [ activityDateFrom, setActivityDateFrom ] = useState( '' );
+	const [ activityDateTo, setActivityDateTo ] = useState( '' );
+	const [ activityUserId, setActivityUserId ] = useState( 0 );
+	const [ activityUsers, setActivityUsers ] = useState( [] );
+
+	// Project groups (user-scoped collections).
+	const [ groups, setGroups ] = useState( [] );
+	const [ activeGroupId, setActiveGroupId ] = useState( '' );
+	const [ showGroupsPanel, setShowGroupsPanel ] = useState( false );
+
+	// Health dashboard state.
+	const [ healthData, setHealthData ] = useState( null );
+	const [ healthLoading, setHealthLoading ] = useState( false );
+
+	// Analytics data (block usage counts).
+	const [ analyticsData, setAnalyticsData ] = useState( {} );
+
+	// Heartbeat data version — used to detect mutations by other admin sessions.
+	const dataVersionRef = useRef( '' );
+
 	const searchInputRef = useRef( null );
 	// Guard against stacking concurrent fetches (e.g. rapid keyboard shortcut presses).
 	const fetchInFlightRef = useRef( false );
+	// Debounce timer for the search input — avoids a Redux dispatch + full list
+	// re-render on every keystroke; fires after 150 ms of inactivity.
+	const searchDebounceRef = useRef( null );
+	// Local state for the visible search input value. Updates immediately so
+	// the field feels responsive while the Redux dispatch is debounced.
+	const [ localSearchQuery, setLocalSearchQuery ] = useState( '' );
 
 	function addToast( toast ) {
 		setToasts( ( prev ) => [
@@ -1838,6 +2816,35 @@ function ProjectsApp() {
 		setSearchQuery,
 		setCurrentPage,
 	} = useDispatch( 'telex/admin' );
+
+	// Persist tab + sort to localStorage and update URL hash.
+	const changeTab = useCallback(
+		( tabName ) => {
+			setActiveTab( tabName );
+			setCurrentPage( 1 );
+			try {
+				window.localStorage.setItem( 'telex_ui_activeTab', tabName );
+			} catch {} // eslint-disable-line no-empty
+			window.history.replaceState( null, '', `#${ tabName }` );
+			// Lazy-load health data on first visit to the health tab.
+			if ( tabName === 'health' && ! healthData && ! healthLoading ) {
+				setHealthLoading( true );
+				apiFetch( { url: `${ restUrl }/health/installed` } )
+					.then( ( d ) => setHealthData( d ) )
+					.catch( () => {} )
+					.finally( () => setHealthLoading( false ) );
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ setCurrentPage, healthData, healthLoading, restUrl ]
+	);
+
+	const changeSortOrder = useCallback( ( order ) => {
+		setSortOrder( order );
+		try {
+			window.localStorage.setItem( 'telex_ui_sortOrder', order );
+		} catch {} // eslint-disable-line no-empty
+	}, [] );
 
 	const projects = useSelect( ( select ) =>
 		select( 'telex/admin' ).getProjects()
@@ -1883,6 +2890,30 @@ function ProjectsApp() {
 				if ( err?.code === 'telex_token_expired' ) {
 					setAuthExpired( true );
 				} else if (
+					err?.data?.status === 429 ||
+					err?.code === 'telex_rate_limit'
+				) {
+					// Surface rate-limit with countdown toast instead of a generic error.
+					const retryAfter = parseInt(
+						err?.data?.retryAfter ||
+							err?.data?.headers?.[ 'Retry-After' ] ||
+							30,
+						10
+					);
+					addToast( {
+						type: 'rate_limited',
+						message: sprintf(
+							/* translators: %d: seconds until retry */
+							__(
+								'Rate limit reached. Try again in %ds.',
+								'dispatch'
+							),
+							retryAfter
+						),
+						retryAfter,
+						autoRemoveMs: retryAfter * 1000,
+					} );
+				} else if (
 					! forceRefresh &&
 					fetchInFlightRef.retryDone !== true
 				) {
@@ -1917,13 +2948,220 @@ function ProjectsApp() {
 		// Guard: apiFetch.use() pushes to a global array — register the nonce
 		// middleware at most once per page load even if the component remounts.
 		if ( ! ProjectsApp._nonceRegistered ) {
-			apiFetch.use( apiFetch.createNonceMiddleware( nonce ) );
+			// Use a mutable ref-style variable so the Heartbeat tick can update
+			// it in-place without re-registering the middleware. This prevents
+			// silent 403s when the 24-hour nonce window rolls over on long-lived
+			// admin sessions (e.g. overnight staging sites).
+			let currentNonce = nonce;
+
+			apiFetch.use( ( options, next ) => {
+				return next( {
+					...options,
+					headers: {
+						...( options.headers || {} ),
+						'X-WP-Nonce': currentNonce,
+					},
+				} );
+			} );
+
+			// Refresh nonce from Heartbeat tick — zero extra HTTP requests since
+			// the Heartbeat fires every 60 s on active admin pages anyway.
+			if ( window.jQuery ) {
+				window
+					.jQuery( document )
+					.on( 'heartbeat-tick.telex-nonce', ( _e, data ) => {
+						if ( data?.telex?.telex_nonce ) {
+							currentNonce = data.telex.telex_nonce;
+						}
+					} );
+			}
+
 			ProjectsApp._nonceRegistered = true;
 		}
 		setLoading( true );
 		fetchData().finally( () => setLoading( false ) );
+
+		// Fetch initial circuit breaker / auth status.
+		apiFetch( { url: `${ restUrl }/auth/status` } )
+			.then( ( status ) => {
+				if ( status?.circuit_status ) {
+					setCircuitStatus( status.circuit_status );
+				}
+				if ( status?.circuit_reset_at ) {
+					setCircuitResetAt( status.circuit_reset_at );
+				}
+			} )
+			.catch( () => {} );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
+
+	// Activity log fetch.
+	const fetchActivity = useCallback(
+		async ( page = 1, filter = '', extra = {} ) => {
+			setActivityLoading( true );
+			try {
+				const params = new URLSearchParams( {
+					per_page: 25,
+					page,
+					...( filter ? { action: filter } : {} ),
+					...( extra.search ? { search: extra.search } : {} ),
+					...( extra.date_from
+						? { date_from: extra.date_from }
+						: {} ),
+					...( extra.date_to ? { date_to: extra.date_to } : {} ),
+					...( extra.user_id ? { user_id: extra.user_id } : {} ),
+				} );
+				const data = await apiFetch( {
+					url: `${ restUrl }/audit-log?${ params }`,
+				} );
+				setActivityItems( data.items || [] );
+				setActivityTotal( data.total || 0 );
+				setActivityPage( page );
+				setActivityFilter( filter );
+			} catch {
+			} finally {
+				// eslint-disable-line no-empty
+				setActivityLoading( false );
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ restUrl ]
+	);
+
+	// Load activity data when the Activity tab becomes active; also load user list.
+	useEffect( () => {
+		if ( activeTab === 'activity' ) {
+			fetchActivity( 1, activityFilter, {
+				search: activitySearch,
+				date_from: activityDateFrom,
+				date_to: activityDateTo,
+				user_id: activityUserId,
+			} );
+			// Lazy-load users list for the filter dropdown.
+			if ( activityUsers.length === 0 ) {
+				apiFetch( { url: `${ restUrl }/users` } )
+					.then( ( users ) => setActivityUsers( users || [] ) )
+					.catch( () => {} );
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ activeTab ] );
+
+	// Load groups on mount.
+	useEffect( () => {
+		apiFetch( { url: `${ restUrl }/groups` } )
+			.then( ( data ) => setGroups( data || [] ) )
+			.catch( () => {} );
+		// Load analytics for usage counts.
+		apiFetch( { url: `${ restUrl }/analytics` } )
+			.then( ( data ) => {
+				if ( data?.usage ) {
+					setAnalyticsData( data.usage );
+				}
+			} )
+			.catch( () => {} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
+
+	// Command Palette — register page-specific commands for WP 6.3+ ⌘K / Ctrl+K.
+	useCommand( {
+		name: 'dispatch/refresh',
+		label: __( 'Refresh Dispatch projects', 'dispatch' ),
+		callback: () => fetchData( true ),
+	} );
+
+	// Dynamically register one "Update …" command per project that needs an update.
+	// Uses the lower-level dispatch API so we can register/unregister in a loop
+	// without breaking hook rules.
+	useEffect( () => {
+		const { dispatch: wpDispatch } = window.wp?.data || {};
+		if ( ! wpDispatch ) {
+			return;
+		}
+		const commandsStore = wpDispatch( 'core/commands' );
+		if ( ! commandsStore?.registerCommand ) {
+			return;
+		}
+
+		const updatableProjects = projects.filter( ( p ) => p._needs_update );
+		const registeredNames = updatableProjects.map( ( p ) => {
+			const name = `dispatch/update/${ p.publicId }`;
+			commandsStore.registerCommand( {
+				name,
+				label: sprintf(
+					/* translators: %s: project name */
+					__( 'Update %s via Dispatch', 'dispatch' ),
+					p.name
+				),
+				callback: () => {
+					const el = document.querySelector(
+						`[data-public-id="${ p.publicId }"] .telex-update-btn`
+					);
+					el?.click();
+				},
+			} );
+			return name;
+		} );
+
+		return () => {
+			registeredNames.forEach( ( name ) =>
+				commandsStore.unregisterCommand?.( name )
+			);
+		};
+	}, [ projects ] ); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Update All — sequential install queue.
+	const handleUpdateAll = useCallback(
+		async () => {
+			// Exclude pinned projects from Update All.
+			const toUpdate = projects.filter(
+				( p ) => p._needs_update && ! p._pin
+			);
+			if ( toUpdate.length === 0 ) {
+				return;
+			}
+			updateAllCancelRef.current = false;
+			setUpdateAllRunning( true );
+			setUpdateAllProgress( { done: 0, total: toUpdate.length } );
+			const failed = [];
+			for ( let i = 0; i < toUpdate.length; i++ ) {
+				if ( updateAllCancelRef.current ) {
+					break;
+				}
+				const p = toUpdate[ i ];
+				try {
+					await apiFetch( {
+						url: `${ restUrl }/projects/${ p.publicId }/install`,
+						method: 'POST',
+					} );
+				} catch ( err ) {
+					failed.push( p.name || p.publicId );
+				}
+				setUpdateAllProgress( { done: i + 1, total: toUpdate.length } );
+			}
+			setUpdateAllRunning( false );
+			setUpdateAllProgress( null );
+			updateAllCancelRef.current = false;
+			await fetchData( true );
+			if ( failed.length > 0 ) {
+				addToast( {
+					type: 'error',
+					message: sprintf(
+						/* translators: %s: comma-separated list of project names */
+						__( 'Update failed for: %s', 'dispatch' ),
+						failed.join( ', ' )
+					),
+				} );
+			} else {
+				addToast( {
+					type: 'success',
+					message: __( 'All updates installed!', 'dispatch' ),
+				} );
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ projects, restUrl ]
+	);
 
 	// Keyboard shortcuts.
 	useEffect( () => {
@@ -1945,6 +3183,16 @@ function ProjectsApp() {
 					setLoading( true );
 					fetchData( true ).finally( () => setLoading( false ) );
 					break;
+				case 'u':
+				case 'U':
+					if (
+						! updateAllRunning &&
+						projects.some( ( p ) => p._needs_update )
+					) {
+						e.preventDefault();
+						handleUpdateAll();
+					}
+					break;
 				case '/':
 					e.preventDefault();
 					// Focus the first input inside the SearchControl.
@@ -1954,7 +3202,8 @@ function ProjectsApp() {
 					searchEl?.focus();
 					break;
 				case 'Escape':
-					if ( searchQuery ) {
+					if ( searchQuery || localSearchQuery ) {
+						setLocalSearchQuery( '' );
 						setSearchQuery( '' );
 					}
 					break;
@@ -1969,7 +3218,7 @@ function ProjectsApp() {
 		document.addEventListener( 'keydown', onKeyDown );
 		return () => document.removeEventListener( 'keydown', onKeyDown );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ searchQuery ] );
+	}, [ searchQuery, updateAllRunning, projects ] );
 
 	// Derived counts for tab titles — memoised so filter() only runs when the
 	// project list or installed map changes, not on every unrelated re-render.
@@ -2016,6 +3265,23 @@ function ProjectsApp() {
 				setLoading( true );
 				fetchData( true ).finally( () => setLoading( false ) );
 			}
+			// Update circuit breaker status from Heartbeat.
+			if ( data.telex.circuit_status ) {
+				setCircuitStatus( data.telex.circuit_status );
+			}
+			// Detect mutations by other admin sessions: silently re-fetch when
+			// the data version bumped (install/remove/update by another user).
+			const serverVersion = data.telex.data_version || '';
+			if (
+				serverVersion &&
+				dataVersionRef.current &&
+				serverVersion !== dataVersionRef.current
+			) {
+				fetchData( false );
+			}
+			if ( serverVersion ) {
+				dataVersionRef.current = serverVersion;
+			}
 		};
 
 		window
@@ -2032,32 +3298,85 @@ function ProjectsApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ updatesCount ] );
 
+	// Sort helper.
+	const sortProjects = useCallback(
+		( list ) => {
+			const copy = [ ...list ];
+			switch ( sortOrder ) {
+				case 'name-desc':
+					copy.sort( ( a, b ) =>
+						( b.name || '' ).localeCompare( a.name || '' )
+					);
+					break;
+				case 'installed-newest':
+					copy.sort( ( a, b ) => {
+						const ta = a._local?.installed_at || '';
+						const tb = b._local?.installed_at || '';
+						return tb.localeCompare( ta );
+					} );
+					break;
+				case 'updated-newest':
+					copy.sort( ( a, b ) => {
+						const ta = a.updatedAt || '';
+						const tb = b.updatedAt || '';
+						return tb.localeCompare( ta );
+					} );
+					break;
+				case 'most-used':
+					copy.sort( ( a, b ) => {
+						const ua =
+							analyticsData[ a.publicId ]?.usage_count || 0;
+						const ub =
+							analyticsData[ b.publicId ]?.usage_count || 0;
+						return ub - ua;
+					} );
+					break;
+				default: // 'name-asc'
+					copy.sort( ( a, b ) =>
+						( a.name || '' ).localeCompare( b.name || '' )
+					);
+			}
+			return copy;
+		},
+		[ sortOrder, analyticsData ]
+	);
+
 	// Filter projects for a given tab + search — memoised on the deps that matter.
 	const getTabProjects = useCallback(
 		( tabName ) =>
-			projects
-				.filter( ( p ) => {
-					const t = p.projectType?.toLowerCase() || 'block';
-					const inst = installedProjects[ p.publicId ];
-					if ( tabName === 'updates' ) {
-						return inst && p.currentVersion > inst.version;
-					}
-					if ( tabName === 'blocks' ) {
-						return t !== 'theme';
-					}
-					if ( tabName === 'themes' ) {
-						return t === 'theme';
-					}
-					return true;
-				} )
-				.filter(
-					( p ) =>
-						! searchQuery ||
-						p.name
-							?.toLowerCase()
-							.includes( searchQuery.toLowerCase() )
-				),
-		[ projects, installedProjects, searchQuery ]
+			sortProjects(
+				projects
+					.filter( ( p ) => {
+						const t = p.projectType?.toLowerCase() || 'block';
+						if ( tabName === 'updates' ) {
+							return p._needs_update;
+						}
+						if ( tabName === 'blocks' ) {
+							return t !== 'theme';
+						}
+						if ( tabName === 'themes' ) {
+							return t === 'theme';
+						}
+						return true;
+					} )
+					.filter(
+						( p ) =>
+							! searchQuery ||
+							p.name
+								?.toLowerCase()
+								.includes( searchQuery.toLowerCase() )
+					)
+					.filter( ( p ) => {
+						if ( ! activeGroupId ) {
+							return true;
+						}
+						return (
+							p._group_ids &&
+							p._group_ids.includes( activeGroupId )
+						);
+					} )
+			),
+		[ projects, searchQuery, sortProjects, activeGroupId ] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 
 	const tabs = useMemo(
@@ -2087,9 +3406,74 @@ function ProjectsApp() {
 					? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
 					: __( 'Themes', 'dispatch' ),
 			},
+			{
+				name: 'activity',
+				title: __( 'Activity', 'dispatch' ),
+			},
+			{
+				name: 'health',
+				title: __( 'Health', 'dispatch' ),
+			},
 		],
 		[ projects.length, updatesCount, blocksCount, themesCount ]
 	);
+
+	// Inline reconnect: when auth expires, show modal device flow rather than full reload.
+	const handleReconnect = useCallback( () => {
+		setShowReconnectModal( true );
+	}, [] );
+
+	// Multi-select toggle helpers.
+	const toggleSelect = useCallback( ( id ) => {
+		setSelectedIds( ( prev ) => {
+			const next = new Set( prev );
+			if ( next.has( id ) ) {
+				next.delete( id );
+			} else {
+				next.add( id );
+				setShowCheckboxes( true );
+			}
+			if ( next.size === 0 ) {
+				setShowCheckboxes( false );
+			}
+			return next;
+		} );
+	}, [] );
+
+	const clearSelection = useCallback( () => {
+		setSelectedIds( new Set() );
+		setShowCheckboxes( false );
+	}, [] );
+
+	const handleBatchInstall = useCallback( async () => {
+		for ( const id of selectedIds ) {
+			try {
+				await apiFetch( {
+					url: `${ restUrl }/projects/${ id }/install`,
+					method: 'POST',
+				} );
+			} catch {} // eslint-disable-line no-empty
+		}
+		clearSelection();
+		setLoading( true );
+		fetchData( true ).finally( () => setLoading( false ) );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ selectedIds, restUrl ] );
+
+	const handleBatchRemove = useCallback( async () => {
+		for ( const id of selectedIds ) {
+			try {
+				await apiFetch( {
+					url: `${ restUrl }/projects/${ id }`,
+					method: 'DELETE',
+				} );
+			} catch {} // eslint-disable-line no-empty
+		}
+		clearSelection();
+		setLoading( true );
+		fetchData( true ).finally( () => setLoading( false ) );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ selectedIds, restUrl ] );
 
 	return (
 		<div className="telex-app">
@@ -2100,11 +3484,52 @@ function ProjectsApp() {
 					className="telex-reconnect-notice"
 				>
 					{ __( 'Your Telex connection has expired.', 'dispatch' ) }{ ' ' }
+					<Button variant="link" onClick={ handleReconnect }>
+						{ __( 'Reconnect now', 'dispatch' ) }
+					</Button>
+				</Notice>
+			) }
+
+			{ circuitStatus !== 'closed' && ! circuitDismissed && (
+				<Notice
+					status="warning"
+					isDismissible={ true }
+					onRemove={ () => setCircuitDismissed( true ) }
+					className="telex-circuit-notice"
+				>
+					{ circuitStatus === 'open'
+						? __(
+								'The Telex API is temporarily unavailable. Showing cached data.',
+								'dispatch'
+						  )
+						: __(
+								'The Telex API is recovering. Showing cached data.',
+								'dispatch'
+						  ) }
+					{ circuitResetAt
+						? sprintf(
+								/* translators: %s: reset timestamp */
+								__( 'Auto-reset at %s.', 'dispatch' ),
+								new Date(
+									circuitResetAt * 1000
+								).toLocaleTimeString()
+						  )
+						: '' }{ ' ' }
 					<Button
 						variant="link"
-						onClick={ () => window.location.reload() }
+						onClick={ () =>
+							apiFetch( {
+								url: `${ restUrl }/circuit/reset`,
+								method: 'POST',
+							} )
+								.then( () => {
+									setCircuitStatus( 'closed' );
+									setCircuitDismissed( false );
+								} )
+								.catch( () => {} )
+						}
 					>
-						{ __( 'Reconnect now', 'dispatch' ) }
+						{ __( 'Reset now', 'dispatch' ) }
 					</Button>
 				</Notice>
 			) }
@@ -2114,6 +3539,26 @@ function ProjectsApp() {
 					projects={ projects }
 					installedProjects={ installedProjects }
 				/>
+			) }
+
+			{ updateAllRunning && updateAllProgress && (
+				<div className="telex-update-all-progress">
+					<Spinner aria-hidden />
+					{ sprintf(
+						/* translators: 1: done count, 2: total count */
+						__( 'Updating %1$d of %2$d…', 'dispatch' ),
+						updateAllProgress.done,
+						updateAllProgress.total
+					) }
+					<Button
+						variant="link"
+						onClick={ () => {
+							updateAllCancelRef.current = true;
+						} }
+					>
+						{ __( 'Cancel', 'dispatch' ) }
+					</Button>
+				</div>
 			) }
 
 			<div className="telex-unified-bar">
@@ -2137,18 +3582,14 @@ function ProjectsApp() {
 							]
 								.filter( Boolean )
 								.join( ' ' ) }
-							onClick={ () => {
-								setActiveTab( tab.name );
-								setCurrentPage( 1 );
-							} }
+							onClick={ () => changeTab( tab.name ) }
 							onKeyDown={ ( e ) => {
 								const names = tabs.map( ( t ) => t.name );
 								const idx = names.indexOf( activeTab );
 								if ( e.key === 'ArrowRight' ) {
 									const next =
 										names[ ( idx + 1 ) % names.length ];
-									setActiveTab( next );
-									setCurrentPage( 1 );
+									changeTab( next );
 									document
 										.getElementById( `telex-tab-${ next }` )
 										?.focus();
@@ -2158,8 +3599,7 @@ function ProjectsApp() {
 											( idx - 1 + names.length ) %
 												names.length
 										];
-									setActiveTab( prev );
-									setCurrentPage( 1 );
+									changeTab( prev );
 									document
 										.getElementById( `telex-tab-${ prev }` )
 										?.focus();
@@ -2175,13 +3615,113 @@ function ProjectsApp() {
 					<SearchControl
 						ref={ searchInputRef }
 						label={ __( 'Search projects', 'dispatch' ) }
-						value={ searchQuery }
-						onChange={ setSearchQuery }
+						value={ localSearchQuery }
+						onChange={ ( value ) => {
+							setLocalSearchQuery( value );
+							clearTimeout( searchDebounceRef.current );
+							searchDebounceRef.current = setTimeout(
+								() => setSearchQuery( value ),
+								150
+							);
+						} }
 						__nextHasNoMarginBottom
 					/>
 				</div>
 
 				<div className="telex-unified-bar__actions">
+					{ groups.length > 0 &&
+						activeTab !== 'activity' &&
+						activeTab !== 'health' && (
+							<SelectControl
+								className="telex-group-filter"
+								label={ __( 'Group', 'dispatch' ) }
+								hideLabelFromVision
+								__next40pxDefaultSize
+								value={ activeGroupId }
+								options={ [
+									{
+										value: '',
+										label: __( 'All groups', 'dispatch' ),
+									},
+									...groups.map( ( g ) => ( {
+										value: g.id,
+										label: g.name,
+									} ) ),
+								] }
+								onChange={ ( v ) => setActiveGroupId( v ) }
+								__nextHasNoMarginBottom
+							/>
+						) }
+					{ activeTab !== 'activity' && activeTab !== 'health' && (
+						<Tooltip
+							text={ __( 'Manage project groups', 'dispatch' ) }
+						>
+							<Button
+								variant="tertiary"
+								icon={ people }
+								onClick={ () => setShowGroupsPanel( true ) }
+								aria-label={ __(
+									'Manage project groups',
+									'dispatch'
+								) }
+								__next40pxDefaultSize
+							/>
+						</Tooltip>
+					) }
+					{ activeTab !== 'activity' && activeTab !== 'health' && (
+						<SelectControl
+							className="telex-sort-control"
+							label={ __( 'Sort', 'dispatch' ) }
+							hideLabelFromVision
+							__next40pxDefaultSize
+							value={ sortOrder }
+							options={ [
+								{
+									value: 'name-asc',
+									label: __( 'Name A–Z', 'dispatch' ),
+								},
+								{
+									value: 'name-desc',
+									label: __( 'Name Z–A', 'dispatch' ),
+								},
+								{
+									value: 'updated-newest',
+									label: __( 'Updated (newest)', 'dispatch' ),
+								},
+								{
+									value: 'installed-newest',
+									label: __(
+										'Installed (newest)',
+										'dispatch'
+									),
+								},
+								{
+									value: 'most-used',
+									label: __( 'Most used', 'dispatch' ),
+								},
+							] }
+							onChange={ changeSortOrder }
+							__nextHasNoMarginBottom
+						/>
+					) }
+					{ updatesCount > 0 && ! updateAllRunning && (
+						<Button
+							variant="primary"
+							onClick={ handleUpdateAll }
+							__next40pxDefaultSize
+						>
+							{ sprintf(
+								/* translators: %d: number of updates */
+								_n(
+									'Update %d',
+									'Update %d',
+									updatesCount,
+									'dispatch'
+								),
+								updatesCount
+							) }
+						</Button>
+					) }
 					<Tooltip
 						text={ __( 'Keyboard shortcuts (?)', 'dispatch' ) }
 					>
@@ -2196,6 +3736,38 @@ function ProjectsApp() {
 							__next40pxDefaultSize
 						/>
 					</Tooltip>
+					{ activeTab !== 'activity' && projects.length > 0 && (
+						<Tooltip
+							text={
+								showCheckboxes
+									? __( 'Cancel selection', 'dispatch' )
+									: __( 'Select projects', 'dispatch' )
+							}
+						>
+							<Button
+								variant={
+									showCheckboxes ? 'primary' : 'tertiary'
+								}
+								onClick={ () => {
+									setShowCheckboxes( ( v ) => ! v );
+									if ( showCheckboxes ) {
+										clearSelection();
+									}
+								} }
+								aria-label={
+									showCheckboxes
+										? __( 'Cancel selection', 'dispatch' )
+										: __( 'Select projects', 'dispatch' )
+								}
+								aria-pressed={ showCheckboxes }
+								__next40pxDefaultSize
+							>
+								{ showCheckboxes
+									? __( 'Cancel', 'dispatch' )
+									: __( 'Select', 'dispatch' ) }
+							</Button>
+						</Tooltip>
+					) }
 					<Button
 						variant="secondary"
 						onClick={ () => {
@@ -2247,6 +3819,490 @@ function ProjectsApp() {
 				! error &&
 				! authExpired &&
 				( () => {
+					// Activity tab renders its own panel.
+					if ( activeTab === 'activity' ) {
+						const activityTotalPages = Math.ceil(
+							activityTotal / 25
+						);
+						return (
+							<div
+								id="telex-tabpanel-activity"
+								role="tabpanel"
+								aria-labelledby="telex-tab-activity"
+								className="telex-tab-panel telex-activity-panel"
+							>
+								<div className="telex-activity-toolbar">
+									<SearchControl
+										label={ __(
+											'Search activity',
+											'dispatch'
+										) }
+										value={ activitySearch }
+										onChange={ ( v ) => {
+											setActivitySearch( v );
+											fetchActivity( 1, activityFilter, {
+												search: v,
+												date_from: activityDateFrom,
+												date_to: activityDateTo,
+												user_id: activityUserId,
+											} );
+										} }
+										__nextHasNoMarginBottom
+									/>
+									<SelectControl
+										label={ __(
+											'Filter by action',
+											'dispatch'
+										) }
+										__next40pxDefaultSize
+										value={ activityFilter }
+										options={ [
+											{
+												value: '',
+												label: __(
+													'All actions',
+													'dispatch'
+												),
+											},
+											{
+												value: 'install',
+												label: __(
+													'Install',
+													'dispatch'
+												),
+											},
+											{
+												value: 'update',
+												label: __(
+													'Update',
+													'dispatch'
+												),
+											},
+											{
+												value: 'remove',
+												label: __(
+													'Remove',
+													'dispatch'
+												),
+											},
+											{
+												value: 'connect',
+												label: __(
+													'Connect',
+													'dispatch'
+												),
+											},
+											{
+												value: 'disconnect',
+												label: __(
+													'Disconnect',
+													'dispatch'
+												),
+											},
+										] }
+										onChange={ ( v ) =>
+											fetchActivity( 1, v, {
+												search: activitySearch,
+												date_from: activityDateFrom,
+												date_to: activityDateTo,
+												user_id: activityUserId,
+											} )
+										}
+										__nextHasNoMarginBottom
+									/>
+									{ activityUsers.length > 0 && (
+										<SelectControl
+											label={ __( 'User', 'dispatch' ) }
+											__next40pxDefaultSize
+											value={ String( activityUserId ) }
+											options={ [
+												{
+													value: '0',
+													label: __(
+														'All users',
+														'dispatch'
+													),
+												},
+												...activityUsers.map(
+													( u ) => ( {
+														value: String( u.id ),
+														label: u.name,
+													} )
+												),
+											] }
+											onChange={ ( v ) => {
+												const uid =
+													parseInt( v, 10 ) || 0;
+												setActivityUserId( uid );
+												fetchActivity(
+													1,
+													activityFilter,
+													{
+														search: activitySearch,
+														date_from:
+															activityDateFrom,
+														date_to: activityDateTo,
+														user_id: uid,
+													}
+												);
+											} }
+											__nextHasNoMarginBottom
+										/>
+									) }
+									<div className="telex-activity-dates">
+										<label
+											className="telex-date-label"
+											htmlFor="telex-date-from"
+										>
+											{ __( 'From', 'dispatch' ) }
+											<input
+												id="telex-date-from"
+												type="date"
+												value={ activityDateFrom }
+												className="telex-date-input"
+												onChange={ ( e ) => {
+													const v = e.target.value;
+													setActivityDateFrom( v );
+													fetchActivity(
+														1,
+														activityFilter,
+														{
+															search: activitySearch,
+															date_from: v,
+															date_to:
+																activityDateTo,
+															user_id:
+																activityUserId,
+														}
+													);
+												} }
+											/>
+										</label>
+										<label
+											className="telex-date-label"
+											htmlFor="telex-date-to"
+										>
+											{ __( 'To', 'dispatch' ) }
+											<input
+												id="telex-date-to"
+												type="date"
+												value={ activityDateTo }
+												className="telex-date-input"
+												onChange={ ( e ) => {
+													const v = e.target.value;
+													setActivityDateTo( v );
+													fetchActivity(
+														1,
+														activityFilter,
+														{
+															search: activitySearch,
+															date_from:
+																activityDateFrom,
+															date_to: v,
+															user_id:
+																activityUserId,
+														}
+													);
+												} }
+											/>
+										</label>
+									</div>
+									<a
+										href={ `${ restUrl.replace(
+											'/wp-json/telex/v1',
+											''
+										) }/wp-admin/admin.php?page=telex-settings&action=telex_export_csv` }
+										className="button button-secondary"
+									>
+										{ __( 'Export CSV', 'dispatch' ) }
+									</a>
+								</div>
+								{ activityLoading ? (
+									<Spinner />
+								) : (
+									<table className="wp-list-table widefat fixed striped telex-activity-table">
+										<thead>
+											<tr>
+												<th>
+													{ __(
+														'Action',
+														'dispatch'
+													) }
+												</th>
+												<th>
+													{ __(
+														'Project',
+														'dispatch'
+													) }
+												</th>
+												<th>
+													{ __( 'User', 'dispatch' ) }
+												</th>
+												<th>
+													{ __( 'Date', 'dispatch' ) }
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{ activityItems.length === 0 ? (
+												<tr>
+													<td colSpan={ 4 }>
+														{ __(
+															'No activity yet.',
+															'dispatch'
+														) }
+													</td>
+												</tr>
+											) : (
+												activityItems.map( ( item ) => (
+													<tr key={ item.id }>
+														<td>
+															<span
+																className={ `telex-action-badge telex-action-badge--${ item.action }` }
+															>
+																{ item.action }
+															</span>
+														</td>
+														<td>
+															{ item.public_id ||
+																'—' }
+														</td>
+														<td>
+															{ item._user_name ||
+																'—' }
+														</td>
+														<td>
+															{ item.created_at ||
+																'—' }
+														</td>
+													</tr>
+												) )
+											) }
+										</tbody>
+									</table>
+								) }
+								{ activityTotalPages > 1 && (
+									<PaginationControls
+										currentPage={ activityPage }
+										totalPages={ activityTotalPages }
+										totalItems={ activityTotal }
+										perPage={ 25 }
+										onPageChange={ ( p ) =>
+											fetchActivity( p, activityFilter, {
+												search: activitySearch,
+												date_from: activityDateFrom,
+												date_to: activityDateTo,
+												user_id: activityUserId,
+											} )
+										}
+									/>
+								) }
+							</div>
+						);
+					}
+
+					// Health tab.
+					if ( activeTab === 'health' ) {
+						return (
+							<div
+								id="telex-tabpanel-health"
+								role="tabpanel"
+								aria-labelledby="telex-tab-health"
+								className="telex-tab-panel telex-health-panel"
+							>
+								<div className="telex-health-toolbar">
+									<h2>
+										{ __( 'Project Health', 'dispatch' ) }
+									</h2>
+									<Button
+										variant="secondary"
+										icon={ shield }
+										onClick={ () => {
+											setHealthLoading( true );
+											apiFetch( {
+												url: `${ restUrl }/health/installed?force_scan=1`,
+											} )
+												.then( ( d ) =>
+													setHealthData( d )
+												)
+												.catch( () => {} )
+												.finally( () =>
+													setHealthLoading( false )
+												);
+										} }
+										disabled={ healthLoading }
+										__next40pxDefaultSize
+									>
+										{ healthLoading
+											? __( 'Scanning…', 'dispatch' )
+											: __( 'Scan now', 'dispatch' ) }
+									</Button>
+								</div>
+								{ healthLoading && <Spinner /> }
+								{ ! healthLoading && healthData && (
+									<>
+										<p className="description">
+											{ sprintf(
+												/* translators: %s: scan timestamp */
+												__(
+													'Last checked: %s',
+													'dispatch'
+												),
+												healthData.checked_at || '—'
+											) }
+										</p>
+										<table className="wp-list-table widefat fixed striped telex-health-table">
+											<thead>
+												<tr>
+													<th>
+														{ __(
+															'Project',
+															'dispatch'
+														) }
+													</th>
+													<th>
+														{ __(
+															'Active',
+															'dispatch'
+														) }
+													</th>
+													<th>
+														{ __(
+															'PHP Compat',
+															'dispatch'
+														) }
+													</th>
+													<th>
+														{ __(
+															'Block Registered',
+															'dispatch'
+														) }
+													</th>
+													<th>
+														{ __(
+															'Error Log',
+															'dispatch'
+														) }
+													</th>
+													<th>
+														{ __(
+															'Status',
+															'dispatch'
+														) }
+													</th>
+												</tr>
+											</thead>
+											<tbody>
+												{ (
+													healthData.projects || []
+												).map( ( hp ) => (
+													<tr
+														key={ hp.public_id }
+														className={ `telex-health-row telex-health-row--${ hp.status }` }
+													>
+														<td>
+															<code>
+																{ hp.slug ||
+																	hp.public_id }
+															</code>
+														</td>
+														<td>
+															<span
+																className={ `telex-health-indicator telex-health-indicator--${
+																	hp.active
+																		? 'ok'
+																		: 'error'
+																}` }
+															>
+																{ hp.active
+																	? '✓'
+																	: '✗' }
+															</span>
+														</td>
+														<td>
+															<span
+																className={ `telex-health-indicator telex-health-indicator--${
+																	hp.php_compat
+																		? 'ok'
+																		: 'error'
+																}` }
+															>
+																{ hp.php_compat
+																	? '✓'
+																	: '✗' }
+															</span>
+														</td>
+														<td>
+															<span
+																className={ `telex-health-indicator telex-health-indicator--${
+																	hp.block_registered
+																		? 'ok'
+																		: 'warn'
+																}` }
+															>
+																{ hp.block_registered
+																	? '✓'
+																	: '?' }
+															</span>
+														</td>
+														<td>
+															{ hp.in_error_log >
+															0 ? (
+																<span className="telex-health-indicator telex-health-indicator--warn">
+																	{ sprintf(
+																		/* translators: %d: line count */
+																		__(
+																			'%d lines',
+																			'dispatch'
+																		),
+																		hp.in_error_log
+																	) }
+																</span>
+															) : (
+																<span className="telex-health-indicator telex-health-indicator--ok">
+																	{ __(
+																		'Clean',
+																		'dispatch'
+																	) }
+																</span>
+															) }
+														</td>
+														<td>
+															<span
+																className={ `telex-health-status telex-health-status--${ hp.status }` }
+															>
+																{ hp.status }
+															</span>
+														</td>
+													</tr>
+												) ) }
+												{ ( healthData.projects || [] )
+													.length === 0 && (
+													<tr>
+														<td colSpan={ 6 }>
+															{ __(
+																'No installed projects to check.',
+																'dispatch'
+															) }
+														</td>
+													</tr>
+												) }
+											</tbody>
+										</table>
+									</>
+								) }
+								{ ! healthLoading && ! healthData && (
+									<p className="description">
+										{ __(
+											'Click "Scan now" to check the health of your installed projects.',
+											'dispatch'
+										) }
+									</p>
+								) }
+							</div>
+						);
+					}
+
 					const allVisible = getTabProjects( activeTab );
 					const totalItems = allVisible.length;
 					const totalPages = Math.ceil( totalItems / perPage );
@@ -2286,6 +4342,12 @@ function ProjectsApp() {
 											onRefresh={ fetchData }
 											onToast={ addToast }
 											isNetworkAdmin={ isNetworkAdmin }
+											showCheckbox={ showCheckboxes }
+											isSelected={ selectedIds.has(
+												project.publicId
+											) }
+											onToggleSelect={ toggleSelect }
+											analyticsData={ analyticsData }
 										/>
 									) )
 								) }
@@ -2301,12 +4363,91 @@ function ProjectsApp() {
 					);
 				} )() }
 
+			{ showCheckboxes && selectedIds.size > 0 && (
+				<div
+					className="telex-batch-bar"
+					role="toolbar"
+					aria-label={ __( 'Batch actions', 'dispatch' ) }
+				>
+					<span className="telex-batch-bar__count">
+						{ sprintf(
+							/* translators: %d: number of selected projects */
+							_n(
+								'%d selected',
+								'%d selected',
+								selectedIds.size,
+								'dispatch'
+							),
+							selectedIds.size
+						) }
+					</span>
+					<Button variant="primary" onClick={ handleBatchInstall }>
+						{ __( 'Install selected', 'dispatch' ) }
+					</Button>
+					<Button
+						variant="secondary"
+						isDestructive
+						onClick={ handleBatchRemove }
+					>
+						{ __( 'Remove selected', 'dispatch' ) }
+					</Button>
+					<Button variant="tertiary" onClick={ clearSelection }>
+						{ __( 'Clear', 'dispatch' ) }
+					</Button>
+				</div>
+			) }
+
 			<ToastList toasts={ toasts } onDismiss={ removeToast } />
 
 			{ showShortcuts && (
 				<KeyboardShortcutsModal
 					onClose={ () => setShowShortcuts( false ) }
 				/>
+			) }
+
+			{ showReconnectModal && (
+				<Modal
+					title={ __( 'Reconnect to Telex', 'dispatch' ) }
+					onRequestClose={ () => setShowReconnectModal( false ) }
+					className="telex-reconnect-modal"
+				>
+					<InlineDeviceFlow
+						restUrl={ restUrl }
+						onSuccess={ () => {
+							setShowReconnectModal( false );
+							setAuthExpired( false );
+							setLoading( true );
+							fetchData( true ).finally( () =>
+								setLoading( false )
+							);
+						} }
+						onClose={ () => setShowReconnectModal( false ) }
+					/>
+				</Modal>
+			) }
+			{ showGroupsPanel && (
+				<Modal
+					title={ __( 'Project Groups', 'dispatch' ) }
+					onRequestClose={ () => setShowGroupsPanel( false ) }
+					className="telex-groups-modal"
+				>
+					<GroupsPanel
+						restUrl={ restUrl }
+						groups={ groups }
+						onChange={ ( updated ) => {
+							setGroups( updated );
+							if (
+								activeGroupId &&
+								! updated.find(
+									( g ) => g.id === activeGroupId
+								)
+							) {
+								setActiveGroupId( '' );
+							}
+						} }
+						onToast={ addToast }
+					/>
+				</Modal>
 			) }
 		</div>
 	);
@@ -2371,11 +4512,653 @@ class TelexErrorBoundary extends Component {
 }
 
 // ---------------------------------------------------------------------------
+// Notification settings panel
+// ---------------------------------------------------------------------------
+
+/**
+ * Panel for configuring notification channels (email digest + Slack webhook).
+ *
+ * @param {Object}   props         Component props.
+ * @param {string}   props.restUrl REST API base URL.
+ * @param {Function} props.onToast Toast callback.
+ * @return {import('@wordpress/element').WPElement} Notification panel.
+ */
+function NotificationPanel( { restUrl, onToast } ) {
+	const [ settings, setSettings ] = useState( null );
+	const [ saving, setSaving ] = useState( false );
+	const [ testing, setTesting ] = useState( false );
+
+	useEffect( () => {
+		apiFetch( { url: `${ restUrl }/settings/notifications` } )
+			.then( ( d ) => setSettings( d ) )
+			.catch( () => {} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
+
+	if ( ! settings ) {
+		return (
+			<div className="telex-notification-panel">
+				<h3>{ __( 'Notifications', 'dispatch' ) }</h3>
+				<p className="description">
+					{ __(
+						'Receive alerts when updates are available, circuit breakers open, or installs fail.',
+						'dispatch'
+					) }
+				</p>
+				<div className="telex-panel-skeleton" aria-hidden="true">
+					<div className="telex-skeleton telex-skeleton--checkbox-row" />
+					<div className="telex-skeleton telex-skeleton--checkbox-row" />
+					<div className="telex-skeleton telex-skeleton--checkbox-row" />
+					<div className="telex-skeleton telex-skeleton--input-group" />
+					<div className="telex-skeleton telex-skeleton--input-group" />
+				</div>
+			</div>
+		);
+	}
+
+	async function handleSave() {
+		setSaving( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/settings/notifications`,
+				method: 'POST',
+				data: settings,
+			} );
+			onToast( {
+				type: 'success',
+				message: __( 'Notification settings saved.', 'dispatch' ),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not save settings.', 'dispatch' ),
+			} );
+		} finally {
+			setSaving( false );
+		}
+	}
+
+	async function handleTest() {
+		setTesting( true );
+		try {
+			const result = await apiFetch( {
+				url: `${ restUrl }/settings/notifications/test`,
+				method: 'POST',
+			} );
+			onToast( {
+				type: result.ok ? 'success' : 'error',
+				message: result.message || __( 'Test sent.', 'dispatch' ),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message: e.message || __( 'Test failed.', 'dispatch' ),
+			} );
+		} finally {
+			setTesting( false );
+		}
+	}
+
+	return (
+		<div className="telex-notification-panel">
+			<h3>{ __( 'Notifications', 'dispatch' ) }</h3>
+			<p className="description">
+				{ __(
+					'Receive alerts when updates are available, circuit breakers open, or installs fail.',
+					'dispatch'
+				) }
+			</p>
+			<div className="telex-notification-checkboxes">
+				<CheckboxControl
+					label={ __( 'Notify on updates available', 'dispatch' ) }
+					checked={ !! settings.notify_updates }
+					onChange={ ( v ) =>
+						setSettings( { ...settings, notify_updates: v } )
+					}
+					__nextHasNoMarginBottom
+				/>
+				<CheckboxControl
+					label={ __( 'Notify on circuit breaker open', 'dispatch' ) }
+					checked={ !! settings.notify_circuit }
+					onChange={ ( v ) =>
+						setSettings( { ...settings, notify_circuit: v } )
+					}
+					__nextHasNoMarginBottom
+				/>
+				<CheckboxControl
+					label={ __( 'Notify on install failure', 'dispatch' ) }
+					checked={ !! settings.notify_failures }
+					onChange={ ( v ) =>
+						setSettings( { ...settings, notify_failures: v } )
+					}
+					__nextHasNoMarginBottom
+				/>
+			</div>
+			<div className="telex-notification-section">
+				<h4>{ __( 'Email', 'dispatch' ) }</h4>
+				<TextControl
+					label={ __( 'Email address', 'dispatch' ) }
+					type="email"
+					value={ settings.email || '' }
+					onChange={ ( v ) =>
+						setSettings( { ...settings, email: v } )
+					}
+					placeholder={ __( 'admin@example.com', 'dispatch' ) }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+			</div>
+			<div className="telex-notification-section">
+				<h4>{ __( 'Slack', 'dispatch' ) }</h4>
+				<TextControl
+					label={ __( 'Slack webhook URL', 'dispatch' ) }
+					type="url"
+					value={ settings.slack_webhook || '' }
+					onChange={ ( v ) =>
+						setSettings( { ...settings, slack_webhook: v } )
+					}
+					placeholder="https://hooks.slack.com/services/…"
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+			</div>
+			<div className="telex-notification-actions">
+				<Button
+					variant="primary"
+					onClick={ handleSave }
+					isBusy={ saving }
+					disabled={ saving }
+					__next40pxDefaultSize
+				>
+					{ __( 'Save settings', 'dispatch' ) }
+				</Button>
+				<Button
+					variant="secondary"
+					onClick={ handleTest }
+					isBusy={ testing }
+					disabled={
+						testing ||
+						( ! settings.email && ! settings.slack_webhook )
+					}
+					__next40pxDefaultSize
+				>
+					{ __( 'Send test', 'dispatch' ) }
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Project groups management panel
+// ---------------------------------------------------------------------------
+
+/**
+ * Panel for managing project groups on the main admin page.
+ *
+ * @param {Object}   props          Component props.
+ * @param {string}   props.restUrl  REST API base URL.
+ * @param {Array}    props.groups   Current groups array.
+ * @param {Function} props.onChange Called with new groups array after any change.
+ * @param {Function} props.onToast  Toast callback.
+ * @return {import('@wordpress/element').WPElement} Groups panel.
+ */
+function GroupsPanel( { restUrl, groups, onChange, onToast } ) {
+	const [ newName, setNewName ] = useState( '' );
+	const [ editId, setEditId ] = useState( null );
+	const [ editName, setEditName ] = useState( '' );
+	const [ busy, setBusy ] = useState( false );
+
+	async function handleCreate() {
+		if ( ! newName.trim() ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			const result = await apiFetch( {
+				url: `${ restUrl }/groups`,
+				method: 'POST',
+				data: { name: newName.trim() },
+			} );
+			onChange( [ ...groups, result ] );
+			setNewName( '' );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not create group.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+		}
+	}
+
+	async function handleUpdate( id ) {
+		if ( ! editName.trim() ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			const result = await apiFetch( {
+				url: `${ restUrl }/groups/${ id }`,
+				method: 'PUT',
+				data: { name: editName.trim() },
+			} );
+			onChange( groups.map( ( g ) => ( g.id === id ? result : g ) ) );
+			setEditId( null );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not update group.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+		}
+	}
+
+	async function handleDelete( id ) {
+		setBusy( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/groups/${ id }`,
+				method: 'DELETE',
+			} );
+			onChange( groups.filter( ( g ) => g.id !== id ) );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not delete group.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+		}
+	}
+
+	return (
+		<div className="telex-groups-panel">
+			<h3>{ __( 'Project Groups', 'dispatch' ) }</h3>
+			<p className="description">
+				{ __(
+					'Organise your projects into named groups for faster filtering.',
+					'dispatch'
+				) }
+			</p>
+			{ groups.length > 0 && (
+				<ul className="telex-groups-list">
+					{ groups.map( ( g ) => (
+						<li key={ g.id } className="telex-groups-list__item">
+							{ editId === g.id ? (
+								<>
+									<TextControl
+										label={ __( 'Group name', 'dispatch' ) }
+										hideLabelFromVision
+										value={ editName }
+										onChange={ setEditName }
+										__next40pxDefaultSize
+										__nextHasNoMarginBottom
+									/>
+									<Button
+										variant="primary"
+										size="small"
+										onClick={ () => handleUpdate( g.id ) }
+										disabled={ busy || ! editName.trim() }
+										isBusy={ busy }
+										__next40pxDefaultSize={ false }
+									>
+										{ __( 'Save', 'dispatch' ) }
+									</Button>
+									<Button
+										variant="tertiary"
+										size="small"
+										onClick={ () => setEditId( null ) }
+										__next40pxDefaultSize={ false }
+									>
+										{ __( 'Cancel', 'dispatch' ) }
+									</Button>
+								</>
+							) : (
+								<>
+									<span className="telex-groups-list__name">
+										{ g.name }
+									</span>
+									<Button
+										variant="tertiary"
+										size="small"
+										icon={ pencil }
+										onClick={ () => {
+											setEditId( g.id );
+											setEditName( g.name );
+										} }
+										aria-label={ sprintf(
+											/* translators: %s: group name */
+											__( 'Edit group: %s', 'dispatch' ),
+											g.name
+										) }
+										__next40pxDefaultSize={ false }
+									/>
+									<Button
+										variant="tertiary"
+										size="small"
+										isDestructive
+										icon={ trash }
+										onClick={ () => handleDelete( g.id ) }
+										disabled={ busy }
+										aria-label={ sprintf(
+											/* translators: %s: group name */
+											__(
+												'Delete group: %s',
+												'dispatch'
+											),
+											g.name
+										) }
+										__next40pxDefaultSize={ false }
+									/>
+								</>
+							) }
+						</li>
+					) ) }
+				</ul>
+			) }
+			<div className="telex-groups-new">
+				<TextControl
+					label={ __( 'New group name', 'dispatch' ) }
+					value={ newName }
+					onChange={ setNewName }
+					placeholder={ __(
+						'e.g. Client A, Core Blocks…',
+						'dispatch'
+					) }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+				<Button
+					variant="secondary"
+					onClick={ handleCreate }
+					disabled={ busy || ! newName.trim() }
+					isBusy={ busy }
+					icon={ people }
+					__next40pxDefaultSize
+				>
+					{ __( 'Create group', 'dispatch' ) }
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Build snapshot panel
+// ---------------------------------------------------------------------------
+
+/**
+ * Panel for managing build snapshots.
+ *
+ * @param {Object}   props         Component props.
+ * @param {string}   props.restUrl REST API base URL.
+ * @param {Function} props.onToast Toast callback.
+ * @return {import('@wordpress/element').WPElement} Snapshots panel.
+ */
+function SnapshotPanel( { restUrl, onToast } ) {
+	const [ snapshots, setSnapshots ] = useState( null );
+	const [ newName, setNewName ] = useState( '' );
+	const [ busy, setBusy ] = useState( false );
+	const [ confirmDelete, setConfirmDelete ] = useState( null );
+	const [ confirmRestore, setConfirmRestore ] = useState( null );
+
+	useEffect( () => {
+		apiFetch( { url: `${ restUrl }/snapshots` } )
+			.then( ( d ) => setSnapshots( d ) )
+			.catch( () => setSnapshots( [] ) );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
+
+	async function handleCreate() {
+		if ( ! newName.trim() ) {
+			return;
+		}
+		setBusy( true );
+		try {
+			const result = await apiFetch( {
+				url: `${ restUrl }/snapshots`,
+				method: 'POST',
+				data: { name: newName.trim() },
+			} );
+			setSnapshots( [ result, ...( snapshots || [] ) ] );
+			setNewName( '' );
+			onToast( {
+				type: 'success',
+				message: __( 'Snapshot created.', 'dispatch' ),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not create snapshot.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+		}
+	}
+
+	async function handleDelete( id ) {
+		setBusy( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/snapshots/${ id }`,
+				method: 'DELETE',
+			} );
+			setSnapshots( ( snapshots || [] ).filter( ( s ) => s.id !== id ) );
+			onToast( {
+				type: 'success',
+				message: __( 'Snapshot deleted.', 'dispatch' ),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message:
+					e.message || __( 'Could not delete snapshot.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+			setConfirmDelete( null );
+		}
+	}
+
+	async function handleRestore( id ) {
+		setBusy( true );
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/snapshots/${ id }/restore`,
+				method: 'POST',
+			} );
+			onToast( {
+				type: 'success',
+				message: __(
+					'Snapshot restored. Projects are being reinstalled.',
+					'dispatch'
+				),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message: e.message || __( 'Restore failed.', 'dispatch' ),
+			} );
+		} finally {
+			setBusy( false );
+			setConfirmRestore( null );
+		}
+	}
+
+	return (
+		<div className="telex-snapshot-panel">
+			<h3>{ __( 'Build Snapshots', 'dispatch' ) }</h3>
+			<p className="description">
+				{ __(
+					'Capture the current set of installed projects and their versions. Restore to roll back your entire build.',
+					'dispatch'
+				) }
+			</p>
+			<div className="telex-snapshot-new">
+				<TextControl
+					label={ __( 'Snapshot name', 'dispatch' ) }
+					value={ newName }
+					onChange={ setNewName }
+					placeholder={ __( 'e.g. Before v2 launch', 'dispatch' ) }
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				/>
+				<Button
+					variant="secondary"
+					onClick={ handleCreate }
+					disabled={ busy || ! newName.trim() }
+					isBusy={ busy }
+					__next40pxDefaultSize
+				>
+					{ __( 'Create snapshot', 'dispatch' ) }
+				</Button>
+			</div>
+			{ snapshots === null && (
+				<div className="telex-panel-skeleton" aria-hidden="true">
+					<div className="telex-skeleton telex-skeleton--table-row" />
+					<div className="telex-skeleton telex-skeleton--table-row" />
+					<div className="telex-skeleton telex-skeleton--table-row" />
+				</div>
+			) }
+			{ snapshots !== null && snapshots.length === 0 && (
+				<p className="description">
+					{ __( 'No snapshots yet.', 'dispatch' ) }
+				</p>
+			) }
+			{ snapshots !== null && snapshots.length > 0 && (
+				<table className="wp-list-table widefat fixed striped telex-snapshot-table">
+					<thead>
+						<tr>
+							<th>{ __( 'Name', 'dispatch' ) }</th>
+							<th>{ __( 'Projects', 'dispatch' ) }</th>
+							<th>{ __( 'Created', 'dispatch' ) }</th>
+							<th>{ __( 'Actions', 'dispatch' ) }</th>
+						</tr>
+					</thead>
+					<tbody>
+						{ snapshots.map( ( snap ) => (
+							<tr key={ snap.id }>
+								<td>{ snap.name }</td>
+								<td>{ ( snap.projects || [] ).length }</td>
+								<td>{ snap.created_at || '—' }</td>
+								<td className="telex-snapshot-actions">
+									<Button
+										variant="secondary"
+										size="small"
+										onClick={ () =>
+											setConfirmRestore( snap )
+										}
+										disabled={ busy }
+										__next40pxDefaultSize={ false }
+									>
+										{ __( 'Restore', 'dispatch' ) }
+									</Button>
+									<Button
+										variant="tertiary"
+										size="small"
+										isDestructive
+										icon={ trash }
+										onClick={ () =>
+											setConfirmDelete( snap )
+										}
+										disabled={ busy }
+										aria-label={ sprintf(
+											/* translators: %s: snapshot name */
+											__(
+												'Delete snapshot: %s',
+												'dispatch'
+											),
+											snap.name
+										) }
+										__next40pxDefaultSize={ false }
+									/>
+								</td>
+							</tr>
+						) ) }
+					</tbody>
+				</table>
+			) }
+			{ confirmDelete && (
+				<Modal
+					title={ sprintf(
+						/* translators: %s: snapshot name */
+						__( 'Delete snapshot "%s"?', 'dispatch' ),
+						confirmDelete.name
+					) }
+					onRequestClose={ () => setConfirmDelete( null ) }
+				>
+					<p>{ __( 'This cannot be undone.', 'dispatch' ) }</p>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							isDestructive
+							onClick={ () => handleDelete( confirmDelete.id ) }
+							isBusy={ busy }
+							__next40pxDefaultSize
+						>
+							{ __( 'Delete', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => setConfirmDelete( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
+			{ confirmRestore && (
+				<Modal
+					title={ sprintf(
+						/* translators: %s: snapshot name */
+						__( 'Restore snapshot "%s"?', 'dispatch' ),
+						confirmRestore.name
+					) }
+					onRequestClose={ () => setConfirmRestore( null ) }
+				>
+					<p>
+						{ __(
+							'This will reinstall all projects to the versions captured in this snapshot. The site will remain operational during the restore.',
+							'dispatch'
+						) }
+					</p>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							onClick={ () => handleRestore( confirmRestore.id ) }
+							isBusy={ busy }
+							__next40pxDefaultSize
+						>
+							{ __( 'Restore', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => setConfirmRestore( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
+		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Settings page — webhook-only app
 // ---------------------------------------------------------------------------
 
 /**
- * Minimal app for the Settings page: just the WebhookPanel + its own toasts.
+ * Minimal app for the Settings page: WebhookPanel + Notifications + Snapshots.
  *
  * @return {import('@wordpress/element').WPElement} Settings app element.
  */
@@ -2407,14 +5190,16 @@ function WebhookApp() {
 	}
 
 	return (
-		<div className="telex-app">
+		<>
 			<WebhookPanel
 				webhookUrl={ webhookUrl }
 				restUrl={ restUrl }
 				onToast={ addToast }
 			/>
+			<NotificationPanel restUrl={ restUrl } onToast={ addToast } />
+			<SnapshotPanel restUrl={ restUrl } onToast={ addToast } />
 			<ToastList toasts={ toasts } onDismiss={ removeToast } />
-		</div>
+		</>
 	);
 }
 

@@ -155,16 +155,15 @@ class Test_Telex_Enums extends WP_UnitTestCase {
 	public function test_auth_status_backed_values(): void {
 		$this->assertSame( 'connected', AuthStatus::Connected->value );
 		$this->assertSame( 'disconnected', AuthStatus::Disconnected->value );
-		$this->assertSame( 'polling', AuthStatus::Polling->value );
 	}
 
 	/**
-	 * Asserts AuthStatus cases are exhaustive — exactly 3 cases exist.
+	 * Asserts AuthStatus cases are exhaustive — exactly 2 cases exist.
 	 *
 	 * @return void
 	 */
 	public function test_auth_status_case_count(): void {
-		$this->assertCount( 3, AuthStatus::cases() );
+		$this->assertCount( 2, AuthStatus::cases() );
 	}
 
 	/**
@@ -175,7 +174,6 @@ class Test_Telex_Enums extends WP_UnitTestCase {
 	public function test_auth_status_from_string(): void {
 		$this->assertSame( AuthStatus::Connected, AuthStatus::from( 'connected' ) );
 		$this->assertSame( AuthStatus::Disconnected, AuthStatus::from( 'disconnected' ) );
-		$this->assertSame( AuthStatus::Polling, AuthStatus::from( 'polling' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -196,12 +194,12 @@ class Test_Telex_Enums extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Asserts AuditAction cases are exhaustive — exactly 5 cases exist.
+	 * Asserts AuditAction cases are exhaustive — exactly 7 cases exist.
 	 *
 	 * @return void
 	 */
 	public function test_audit_action_case_count(): void {
-		$this->assertCount( 5, AuditAction::cases() );
+		$this->assertCount( 7, AuditAction::cases() );
 	}
 
 	/**
@@ -212,41 +210,5 @@ class Test_Telex_Enums extends WP_UnitTestCase {
 	public function test_audit_action_from_string(): void {
 		$this->assertSame( AuditAction::Connect, AuditAction::from( 'connect' ) );
 		$this->assertSame( AuditAction::Disconnect, AuditAction::from( 'disconnect' ) );
-	}
-
-	// -------------------------------------------------------------------------
-	// InstallStatus
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Asserts all InstallStatus backed values match their expected strings.
-	 *
-	 * @return void
-	 */
-	public function test_install_status_backed_values(): void {
-		$this->assertSame( 'idle', InstallStatus::Idle->value );
-		$this->assertSame( 'installing', InstallStatus::Installing->value );
-		$this->assertSame( 'installed', InstallStatus::Installed->value );
-		$this->assertSame( 'failed', InstallStatus::Failed->value );
-		$this->assertSame( 'removing', InstallStatus::Removing->value );
-	}
-
-	/**
-	 * Asserts InstallStatus cases are exhaustive — exactly 5 cases exist.
-	 *
-	 * @return void
-	 */
-	public function test_install_status_case_count(): void {
-		$this->assertCount( 5, InstallStatus::cases() );
-	}
-
-	/**
-	 * Asserts InstallStatus can be reconstructed from its string value.
-	 *
-	 * @return void
-	 */
-	public function test_install_status_from_string(): void {
-		$this->assertSame( InstallStatus::Idle, InstallStatus::from( 'idle' ) );
-		$this->assertSame( InstallStatus::Failed, InstallStatus::from( 'failed' ) );
 	}
 }

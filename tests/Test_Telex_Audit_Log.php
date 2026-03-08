@@ -247,7 +247,7 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 		Telex_Audit_Log::log( AuditAction::Connect );
 		Telex_Audit_Log::log( AuditAction::Install, 'proj-1' );
 
-		$rows = Telex_Audit_Log::get_recent( 10, 'action' );
+		$rows = Telex_Audit_Log::get_recent( 10, 0, 'action' );
 
 		$this->assertNotEmpty( $rows );
 		$this->assertArrayHasKey( 'action', $rows[0] );
@@ -261,7 +261,7 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 	public function test_get_recent_with_orderby_created_at_returns_results(): void {
 		Telex_Audit_Log::log( AuditAction::Disconnect );
 
-		$rows = Telex_Audit_Log::get_recent( 10, 'created_at' );
+		$rows = Telex_Audit_Log::get_recent( 10, 0, 'created_at' );
 
 		$this->assertNotEmpty( $rows );
 	}
@@ -278,7 +278,8 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 		Telex_Audit_Log::log( AuditAction::Connect );
 
 		// Should not throw or cause a database error.
-		$rows = Telex_Audit_Log::get_recent( 10, '; DROP TABLE telex_audit_log; --' );
+		// Test SQL injection via the $orderby param (3rd arg); $offset (2nd) is typed int.
+		$rows = Telex_Audit_Log::get_recent( 10, 0, '; DROP TABLE telex_audit_log; --' );
 
 		// If rows are returned the table is still intact; an empty result is also acceptable
 		// as long as no exception or DB error occurred.
@@ -295,7 +296,7 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 		Telex_Audit_Log::log( AuditAction::Install, 'proj-a' );
 		Telex_Audit_Log::log( AuditAction::Update, 'proj-b' );
 
-		$rows = Telex_Audit_Log::get_recent( 10, 'id', 'ASC' );
+		$rows = Telex_Audit_Log::get_recent( 10, 0, 'id', 'ASC' );
 
 		$this->assertGreaterThanOrEqual( 3, count( $rows ) );
 		// First row should have a lower or equal ID than the last (ascending order).
