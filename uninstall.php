@@ -14,7 +14,7 @@ global $wpdb;
 
 // On multisite, clean every subsite before touching network/main options.
 if ( is_multisite() ) {
-	$sites = get_sites(
+	$telex_sites = get_sites(
 		[
 			'number'  => 0, // 0 = no limit.
 			'fields'  => 'ids',
@@ -22,20 +22,21 @@ if ( is_multisite() ) {
 		]
 	);
 
-	$per_site_options = [
+	$telex_per_site_options = [
 		'telex_installed_projects',
 		'telex_installed_at',
 		'telex_version',
 	];
 
-	foreach ( $sites as $telex_blog_id ) {
+	foreach ( $telex_sites as $telex_blog_id ) {
 		switch_to_blog( (int) $telex_blog_id );
 
-		foreach ( $per_site_options as $opt ) {
-			delete_option( $opt );
+		foreach ( $telex_per_site_options as $telex_opt ) {
+			delete_option( $telex_opt );
 		}
 
 		// Remove telex_* transients for this subsite.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->options}
@@ -63,6 +64,7 @@ if ( is_multisite() ) {
 	delete_option( 'dispatch_deploy_secret' );
 
 	// Remove all telex_* transients.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$wpdb->query(
 		$wpdb->prepare(
 			"DELETE FROM {$wpdb->options}
@@ -79,7 +81,8 @@ if ( is_multisite() ) {
 // Drop audit log table (uses main site prefix).
 // Table name is built entirely from $wpdb->prefix — never user input.
 $telex_audit_table = $wpdb->prefix . 'telex_audit_log';
-$wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( $telex_audit_table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.NotPrepared
+$wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( $telex_audit_table ) );
 
 // Remove the fatal error log directory if present.
 $telex_log_dir = WP_CONTENT_DIR . '/telex-logs';

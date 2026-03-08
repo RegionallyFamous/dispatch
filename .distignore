@@ -18,6 +18,7 @@
 node_modules/
 .eslintrc.js
 .stylelintrc.json
+.stylelintignore
 package.json
 package-lock.json
 
@@ -25,7 +26,8 @@ package-lock.json
 # vendor/ is intentionally NOT listed — both bin/build-zip.sh and the CI
 # plugin-check job run `composer install --no-dev` before rsync, so vendor/
 # contains only production runtime dependencies when the dist is assembled.
-composer.json
+# composer.json IS included so the plugin-check missing_composer_json_file
+# check doesn't flag the presence of vendor/ without its manifest.
 composer.lock
 phpcs.xml.dist
 phpunit.xml.dist

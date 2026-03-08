@@ -38,6 +38,7 @@ class Telex_Audit_Log {
 	public static function log( AuditAction $action, string $public_id = '', array $context = [] ): void {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$wpdb->insert(
 			self::table_name(),
 			[
@@ -73,7 +74,8 @@ class Telex_Audit_Log {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$orderby/$order are all allowlisted above.
 		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d", $limit );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $orderby is validated against SORTABLE_COLUMNS; $order is hardcoded to ASC/DESC.
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
 
 		return is_array( $rows ) ? $rows : [];
 	}
@@ -113,6 +115,7 @@ class Telex_Audit_Log {
 	public static function drop_table(): void {
 		global $wpdb;
 		// Table name is built entirely from $wpdb->prefix — never user input.
-		$wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( self::table_name() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . esc_sql( self::table_name() ) );
 	}
 }
