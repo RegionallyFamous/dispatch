@@ -2655,7 +2655,7 @@
 }
 
 .telex-notification-panel h3 {
-	margin-top: 0;
+	margin: 0 0 8px;
 }
 
 .telex-notification-columns {
@@ -2663,7 +2663,6 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 32px;
 	align-items: start;
-	margin-top: 20px;
 }
 
 @media ( max-width: 782px ) {
@@ -2703,9 +2702,7 @@
 .telex-notification-actions {
 	display: flex;
 	gap: 8px;
-	margin-top: 24px;
-	padding-top: 20px;
-	border-top: 1px solid var(--telex-border);
+	margin-top: 20px;
 }
 
 /* ---------------------------------------------------------------------------

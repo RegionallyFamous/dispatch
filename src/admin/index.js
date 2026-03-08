@@ -1437,14 +1437,16 @@ function ProjectCard( {
 				url: `${ restUrl }/projects/${ project.publicId }/favorite`,
 				method: next ? 'POST' : 'DELETE',
 			} );
-			// Refresh so _favorite is set on the project object and the
-			// sort order re-evaluates, floating starred items to the top.
-			onRefresh();
+			// Force-refresh so the new _favorite value is reflected in the
+			// parent projects array, causing the sort to re-evaluate and
+			// move the starred row to the top. forceRefresh=true bypasses
+			// any browser-cached GET response for /projects.
+			await onRefresh( true );
 		} catch {
 			setIsStarred( ! next ); // Revert on error.
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ isStarred, project.publicId, restUrl ] );
+	}, [ isStarred, onRefresh, project.publicId, restUrl ] );
 
 	const persistTags = useCallback(
 		async ( nextTags ) => {
@@ -4945,16 +4947,15 @@ function NotificationPanel( { restUrl, onToast } ) {
 
 	return (
 		<div className="telex-notification-panel">
-			<h3>{ __( 'Notifications', 'dispatch' ) }</h3>
-			<p className="description">
-				{ __(
-					'Receive alerts when updates are available, circuit breakers open, or installs fail.',
-					'dispatch'
-				) }
-			</p>
 			<div className="telex-notification-columns">
 				<div className="telex-notification-col">
-					<h4>{ __( 'Alert conditions', 'dispatch' ) }</h4>
+					<h3>{ __( 'Notifications', 'dispatch' ) }</h3>
+					<p className="description">
+						{ __(
+							'Receive alerts when updates are available, circuit breakers open, or installs fail.',
+							'dispatch'
+						) }
+					</p>
 					<div className="telex-notification-checkboxes">
 						<CheckboxControl
 							label={ __(

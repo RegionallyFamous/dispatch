@@ -6,6 +6,17 @@
 
 ---
 
+## [1.4.1] — 2026-03-08
+
+### Fixed
+
+- Starring a project now immediately re-sorts the list without requiring a
+  full page reload. The star handler now issues a force-refresh request that
+  bypasses any browser-cached response, so the updated `_favorite` flag is
+  reflected instantly and starred rows float to the top on the same click.
+
+---
+
 ## [1.4.0] — 2026-03-08
 
 This release turns Dispatch into a full project management layer on top of
@@ -431,7 +442,9 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/regionallyfamous/dispatch/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/regionallyfamous/dispatch/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/regionallyfamous/dispatch/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/regionallyfamous/dispatch/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/regionallyfamous/dispatch/compare/v1.2.0...v1.3.0

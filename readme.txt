@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -116,6 +116,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.4.1 =
+* Fix: Starring a project now immediately re-sorts the list without requiring a page reload. The star handler issues a force-refresh request to bypass browser-cached responses, so starred rows float to the top on the same click.
 
 = 1.4.0 =
 * New: Stars and favorites — star any project from the card; sort by "Starred first" to keep important projects always front and center.
