@@ -1,8 +1,6 @@
 {
     "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-    "phpVersion": "8.2",
-    "wordPressVersion": "6.8",
-    "preferredVersionsList": {
+    "preferredVersions": {
         "php": "8.2",
         "wp": "6.8"
     },
