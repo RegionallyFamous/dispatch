@@ -36,31 +36,6 @@ const STEPS = [
 	__( "You're in!", 'dispatch' ),
 ];
 
-function TelexAbout() {
-	return (
-		<div className="telex-about">
-			<p>
-				{ __(
-					"Build a block in Telex. Click Install here. It's live on your site — no zip files, no upload forms, no round trips.",
-					'dispatch'
-				) }
-			</p>
-			<p>
-				{ __(
-					"Telex is Automattic AI Labs' natural language WordPress block and theme builder. Connect once and your entire project library is available to install with a single click.",
-					'dispatch'
-				) }
-			</p>
-			<ExternalLink href="https://telex.automattic.ai">
-				{ __(
-					'Create your first block at telex.automattic.ai',
-					'dispatch'
-				) }
-			</ExternalLink>
-		</div>
-	);
-}
-
 function StepIndicator( { active } ) {
 	return (
 		<ol
@@ -333,61 +308,124 @@ function DeviceFlowApp() {
 
 	if ( status === STATUS.IDLE ) {
 		return (
-			<div className="telex-connect-wrap">
-				<TelexAbout />
-				<StepIndicator active={ 1 } />
-				<div className="telex-connect-card">
-					<div className="telex-connect-brand">
+			<div className="telex-connect-wrap telex-connect-wrap--landing">
+				{ /* ---- Left: hero ---- */ }
+				<div className="telex-connect-hero">
+					<div className="telex-connect-hero__icon">
 						<Icon
 							icon={ pluginsIcon }
-							size={ 32 }
+							size={ 20 }
 							aria-hidden={ true }
 							focusable={ false }
 						/>
 					</div>
-					<h2>{ __( 'Link your Telex account', 'dispatch' ) }</h2>
-					<p>
+					<h2 className="telex-connect-hero__heading">
 						{ __(
-							'Your Telex projects, right here in WordPress. Connect once — install anything with a click.',
+							'Your Telex projects, live in WordPress.',
+							'dispatch'
+						) }
+					</h2>
+					<p className="telex-connect-hero__body">
+						{ __(
+							'Build a block or theme in Telex. Deploy it here with one click — no zip files, no FTP, no round trips.',
 							'dispatch'
 						) }
 					</p>
-					<ul className="telex-connect-features">
-						<li className="telex-connect-feature">
-							<Icon
-								icon={ check }
-								size={ 14 }
-								aria-hidden={ true }
-								focusable={ false }
-							/>
-							{ __( "One-time setup — that's it", 'dispatch' ) }
-						</li>
-						<li className="telex-connect-feature">
-							<Icon
-								icon={ check }
-								size={ 14 }
-								aria-hidden={ true }
-								focusable={ false }
-							/>
-							{ __( 'No password to remember', 'dispatch' ) }
-						</li>
-						<li className="telex-connect-feature">
-							<Icon
-								icon={ check }
-								size={ 14 }
-								aria-hidden={ true }
-								focusable={ false }
-							/>
-							{ __( 'Disconnect whenever you like', 'dispatch' ) }
-						</li>
+					<ul className="telex-connect-pillars">
+						{ [
+							__(
+								'Install any project in one click',
+								'dispatch'
+							),
+							__(
+								'Snapshots, rollbacks & version pinning',
+								'dispatch'
+							),
+							__(
+								'Health monitoring & auto-updates',
+								'dispatch'
+							),
+							__( 'WP-CLI and CI/CD ready', 'dispatch' ),
+						].map( ( item ) => (
+							<li key={ item } className="telex-connect-pillar">
+								<span
+									className="telex-connect-pillar__dot"
+									aria-hidden="true"
+								/>
+								{ item }
+							</li>
+						) ) }
 					</ul>
-					<Button
-						variant="primary"
-						onClick={ startDeviceFlow }
-						__next40pxDefaultSize
+					<ExternalLink
+						href="https://telex.automattic.ai"
+						className="telex-connect-hero__link"
 					>
-						{ __( "Let's connect", 'dispatch' ) }
-					</Button>
+						{ __( 'New to Telex? Start building →', 'dispatch' ) }
+					</ExternalLink>
+				</div>
+
+				{ /* ---- Right: card ---- */ }
+				<div className="telex-connect-card-col">
+					<StepIndicator active={ 1 } />
+					<div className="telex-connect-card">
+						<div className="telex-connect-brand">
+							<Icon
+								icon={ pluginsIcon }
+								size={ 32 }
+								aria-hidden={ true }
+								focusable={ false }
+							/>
+						</div>
+						<h2>{ __( 'Link your account', 'dispatch' ) }</h2>
+						<p>
+							{ __(
+								'One-time setup. No passwords. Disconnect whenever you like.',
+								'dispatch'
+							) }
+						</p>
+						<ul className="telex-connect-features">
+							<li className="telex-connect-feature">
+								<Icon
+									icon={ check }
+									size={ 14 }
+									aria-hidden={ true }
+									focusable={ false }
+								/>
+								{ __(
+									"One-time setup — that's it",
+									'dispatch'
+								) }
+							</li>
+							<li className="telex-connect-feature">
+								<Icon
+									icon={ check }
+									size={ 14 }
+									aria-hidden={ true }
+									focusable={ false }
+								/>
+								{ __( 'No password to remember', 'dispatch' ) }
+							</li>
+							<li className="telex-connect-feature">
+								<Icon
+									icon={ check }
+									size={ 14 }
+									aria-hidden={ true }
+									focusable={ false }
+								/>
+								{ __(
+									'Disconnect whenever you like',
+									'dispatch'
+								) }
+							</li>
+						</ul>
+						<Button
+							variant="primary"
+							onClick={ startDeviceFlow }
+							__next40pxDefaultSize
+						>
+							{ __( 'Connect to Telex →', 'dispatch' ) }
+						</Button>
+					</div>
 				</div>
 			</div>
 		);

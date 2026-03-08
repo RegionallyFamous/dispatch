@@ -926,22 +926,92 @@
  * Connect (device flow) wrap + steps
  * ------------------------------------------------------------------------- */
 
-.telex-about {
-	margin-bottom: 24px;
-	padding-bottom: 24px;
-	border-bottom: 1px solid var(--telex-border);
-}
-
-.telex-about p {
-	font-size: 14px;
-	color: #50575e;
-	line-height: 1.7;
-	margin: 0 0 10px;
-}
+/* ---------------------------------------------------------------------------
+ * Connect screen — non-landing states (waiting / success / error)
+ * Single-column, centered, narrow.
+ * ------------------------------------------------------------------------- */
 
 .telex-connect-wrap {
 	max-width: 520px;
-	margin-top: 24px;
+	margin: 40px auto 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Connect screen — landing (IDLE) state
+ * Two-column: hero copy left, step indicator + card right.
+ * ------------------------------------------------------------------------- */
+
+.telex-connect-wrap--landing {
+	display: grid;
+	grid-template-columns: 1fr 400px;
+	gap: 56px;
+	align-items: start;
+	max-width: 920px;
+	margin: 48px auto 0;
+}
+
+.telex-connect-hero {
+	padding-top: 6px;
+}
+
+.telex-connect-hero__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	background: var(--telex-brand);
+	color: #fff;
+	margin-bottom: 20px;
+}
+
+.telex-connect-hero__heading {
+	font-size: 30px;
+	font-weight: 800;
+	line-height: 1.25;
+	color: #1d2327;
+	margin: 0 0 14px;
+	letter-spacing: -0.3px;
+}
+
+.telex-connect-hero__body {
+	font-size: 14px;
+	color: var(--telex-muted);
+	line-height: 1.7;
+	margin: 0 0 28px;
+	max-width: 360px;
+}
+
+.telex-connect-pillars {
+	list-style: none;
+	margin: 0 0 32px;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 11px;
+}
+
+.telex-connect-pillar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 13px;
+	font-weight: 500;
+	color: #2c3338;
+}
+
+.telex-connect-pillar__dot {
+	display: block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--telex-brand);
+	flex-shrink: 0;
+}
+
+.telex-connect-hero__link {
+	font-size: 13px;
+	color: var(--telex-brand);
 }
 
 .telex-steps {
@@ -1347,6 +1417,20 @@
 
 	.wp-admin .telex-row-title-btn {
 		max-width: 120px;
+	}
+
+	.telex-connect-wrap--landing {
+		grid-template-columns: 1fr;
+		gap: 32px;
+		margin-top: 32px;
+	}
+
+	.telex-connect-hero__heading {
+		font-size: 24px;
+	}
+
+	.telex-connect-hero__body {
+		max-width: none;
 	}
 
 	.telex-connect-card {
