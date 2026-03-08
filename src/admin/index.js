@@ -56,6 +56,7 @@ import {
 	people,
 	shield,
 	chartBar,
+	starEmpty,
 	starFilled,
 	tag as tagIcon,
 	cautionFilled,
@@ -1263,7 +1264,6 @@ function ProjectCard( {
 	const [ showNetworkDeploy, setShowNetworkDeploy ] = useState( false );
 	const [ showNoteEditor, setShowNoteEditor ] = useState( false );
 	const [ noteValue, setNoteValue ] = useState( '' );
-	const [ noteSaved, setNoteSaved ] = useState( false );
 	const [ conflictData, setConflictData ] = useState( null );
 	const [ showPinModal, setShowPinModal ] = useState( false );
 	const [ pinReason, setPinReason ] = useState( '' );
@@ -1297,8 +1297,6 @@ function ProjectCard( {
 				method: 'PUT',
 				data: { note: noteValue },
 			} );
-			setNoteSaved( true );
-			setTimeout( () => setNoteSaved( false ), 2000 );
 		} catch {} // eslint-disable-line no-empty
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ noteValue, project.publicId, restUrl ] );
@@ -1445,28 +1443,31 @@ function ProjectCard( {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ isStarred, project.publicId, restUrl ] );
 
-	const saveTags = useCallback( async () => {
-		setTagsBusy( true );
-		try {
-			const resp = await apiFetch( {
-				url: `${ restUrl }/projects/${ project.publicId }/tags`,
-				method: 'PUT',
-				data: { tags },
-			} );
-			if ( resp?.tags ) {
-				setTags( resp.tags );
+	const persistTags = useCallback(
+		async ( nextTags ) => {
+			setTagsBusy( true );
+			try {
+				const resp = await apiFetch( {
+					url: `${ restUrl }/projects/${ project.publicId }/tags`,
+					method: 'PUT',
+					data: { tags: nextTags },
+				} );
+				if ( resp?.tags ) {
+					setTags( resp.tags );
+				}
+			} catch ( e ) {
+				onToast( {
+					type: 'error',
+					message:
+						e.message || __( 'Could not save tags.', 'dispatch' ),
+				} );
+			} finally {
+				setTagsBusy( false );
 			}
-			setShowTagEditor( false );
-		} catch ( e ) {
-			onToast( {
-				type: 'error',
-				message: e.message || __( 'Could not save tags.', 'dispatch' ),
-			} );
-		} finally {
-			setTagsBusy( false );
-		}
+		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ tags, project.publicId, restUrl ] );
+		[ project.publicId, restUrl ]
+	);
 
 	const addTag = useCallback( () => {
 		const clean = tagInput
@@ -1474,16 +1475,23 @@ function ProjectCard( {
 			.toLowerCase()
 			.replace( /[^a-z0-9_-]/g, '-' );
 		if ( clean && ! tags.includes( clean ) && tags.length < 20 ) {
-			setTags( ( prev ) => [ ...prev, clean ] );
+			const nextTags = [ ...tags, clean ];
+			setTags( nextTags );
+			persistTags( nextTags );
 		}
 		setTagInput( '' );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ tagInput, tags ] );
+	}, [ tagInput, tags, persistTags ] );
 
-	const removeTag = useCallback( ( t ) => {
-		setTags( ( prev ) => prev.filter( ( x ) => x !== t ) );
+	const removeTag = useCallback(
+		( t ) => {
+			const nextTags = tags.filter( ( x ) => x !== t );
+			setTags( nextTags );
+			persistTags( nextTags );
+		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [] );
+		[ tags, persistTags ]
+	);
 
 	// Refs for cleanup on unmount.
 	const cancelSignalRef = useRef( { cancelled: false } );
@@ -1741,6 +1749,44 @@ function ProjectCard( {
 						</>
 					);
 				} )() }
+			{ /* Star button — always present, fades in on hover or when starred */ }
+			<Tooltip
+				text={
+					isStarred
+						? __( 'Remove from favorites', 'dispatch' )
+						: __( 'Add to favorites', 'dispatch' )
+				}
+			>
+				<button
+					type="button"
+					className={ [
+						'telex-star-btn',
+						isStarred ? 'telex-star-btn--starred' : '',
+					]
+						.filter( Boolean )
+						.join( ' ' ) }
+					onClick={ handleToggleFavorite }
+					aria-label={
+						isStarred
+							? sprintf(
+									/* translators: %s: project name */
+									__( 'Unstar %s', 'dispatch' ),
+									project.name
+							  )
+							: sprintf(
+									/* translators: %s: project name */
+									__( 'Star %s', 'dispatch' ),
+									project.name
+							  )
+					}
+					aria-pressed={ isStarred }
+				>
+					<Icon
+						icon={ isStarred ? starFilled : starEmpty }
+						size={ 16 }
+					/>
+				</button>
+			</Tooltip>
 			{ /* Identity — avatar + name + type */ }
 			<div className="telex-row-identity">
 				<ProjectAvatar
@@ -1844,44 +1890,6 @@ function ProjectCard( {
 						</span>
 					) }
 				</div>
-				{ /* Star button — appears on hover via CSS */ }
-				<Tooltip
-					text={
-						isStarred
-							? __( 'Remove from favorites', 'dispatch' )
-							: __( 'Add to favorites', 'dispatch' )
-					}
-				>
-					<button
-						type="button"
-						className={ [
-							'telex-star-btn',
-							isStarred ? 'telex-star-btn--starred' : '',
-						]
-							.filter( Boolean )
-							.join( ' ' ) }
-						onClick={ handleToggleFavorite }
-						aria-label={
-							isStarred
-								? sprintf(
-										/* translators: %s: project name */
-										__( 'Unstar %s', 'dispatch' ),
-										project.name
-								  )
-								: sprintf(
-										/* translators: %s: project name */
-										__( 'Star %s', 'dispatch' ),
-										project.name
-								  )
-						}
-						aria-pressed={ isStarred }
-					>
-						<Icon
-							icon={ isStarred ? starFilled : starFilled }
-							size={ 16 }
-						/>
-					</button>
-				</Tooltip>
 			</div>
 
 			{ /* Meta — one clear state, no duplication with the actions zone */ }
@@ -2239,8 +2247,22 @@ function ProjectCard( {
 			{ /* Inline note editor */ }
 			{ showNoteEditor && (
 				<div className="telex-row-note-editor">
+					<div className="telex-row-editor-header">
+						<span className="telex-row-editor-label">
+							{ __( 'Note', 'dispatch' ) }
+						</span>
+						<button
+							type="button"
+							className="telex-row-editor-close"
+							onClick={ () => setShowNoteEditor( false ) }
+							aria-label={ __( 'Close note editor', 'dispatch' ) }
+						>
+							×
+						</button>
+					</div>
 					<TextareaControl
 						label={ __( 'Note', 'dispatch' ) }
+						hideLabelFromVision
 						value={ noteValue }
 						onChange={ setNoteValue }
 						rows={ 2 }
@@ -2250,20 +2272,13 @@ function ProjectCard( {
 						<Button
 							variant="primary"
 							size="small"
-							onClick={ saveNote }
+							onClick={ async () => {
+								await saveNote();
+								setShowNoteEditor( false );
+							} }
 							__next40pxDefaultSize={ false }
 						>
-							{ noteSaved
-								? __( 'Saved!', 'dispatch' )
-								: __( 'Save note', 'dispatch' ) }
-						</Button>
-						<Button
-							variant="tertiary"
-							size="small"
-							onClick={ () => setShowNoteEditor( false ) }
-							__next40pxDefaultSize={ false }
-						>
-							{ __( 'Cancel', 'dispatch' ) }
+							{ __( 'Save', 'dispatch' ) }
 						</Button>
 					</div>
 				</div>
@@ -2272,6 +2287,20 @@ function ProjectCard( {
 			{ /* Tag editor */ }
 			{ showTagEditor && (
 				<div className="telex-row-tag-editor">
+					<div className="telex-row-editor-header">
+						<span className="telex-row-editor-label">
+							{ __( 'Tags', 'dispatch' ) }
+						</span>
+						{ tagsBusy && <Spinner /> }
+						<button
+							type="button"
+							className="telex-row-editor-close"
+							onClick={ () => setShowTagEditor( false ) }
+							aria-label={ __( 'Close tag editor', 'dispatch' ) }
+						>
+							×
+						</button>
+					</div>
 					<div className="telex-row-tag-chips">
 						{ tags.map( ( t ) => (
 							<span
@@ -2317,32 +2346,10 @@ function ProjectCard( {
 							variant="secondary"
 							size="small"
 							onClick={ addTag }
+							disabled={ tagsBusy || ! tagInput.trim() }
 							__next40pxDefaultSize={ false }
 						>
 							{ __( 'Add', 'dispatch' ) }
-						</Button>
-					</div>
-					<div className="telex-row-note-actions">
-						<Button
-							variant="primary"
-							size="small"
-							onClick={ saveTags }
-							isBusy={ tagsBusy }
-							disabled={ tagsBusy }
-							__next40pxDefaultSize={ false }
-						>
-							{ __( 'Save tags', 'dispatch' ) }
-						</Button>
-						<Button
-							variant="tertiary"
-							size="small"
-							onClick={ () => {
-								setTags( project._tags || [] );
-								setShowTagEditor( false );
-							} }
-							__next40pxDefaultSize={ false }
-						>
-							{ __( 'Cancel', 'dispatch' ) }
 						</Button>
 					</div>
 				</div>
