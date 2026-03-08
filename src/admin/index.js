@@ -1870,22 +1870,6 @@ function ProjectCard( {
 							{ __( 'Inactive', 'dispatch' ) }
 						</span>
 					) }
-					{ noteValue && ! showNoteEditor && (
-						<span className="telex-row-note-preview">
-							{ noteValue.length > 60
-								? noteValue.substring( 0, 60 ) + '…'
-								: noteValue }
-						</span>
-					) }
-					{ tags.length > 0 && (
-						<span className="telex-row-tags">
-							{ tags.map( ( t ) => (
-								<span key={ t } className="telex-tag-chip">
-									{ t }
-								</span>
-							) ) }
-						</span>
-					) }
 					{ isFailed && (
 						<span className="telex-failed-badge">
 							<Icon icon={ cautionFilled } size={ 12 } />
@@ -2098,14 +2082,11 @@ function ProjectCard( {
 								/>
 							</Tooltip>
 						) }
-					{ /* eslint-disable no-nested-ternary */ }
 					<Tooltip
 						text={
 							showNoteEditor
 								? __( 'Close note', 'dispatch' )
-								: noteValue
-								? __( 'Edit note', 'dispatch' )
-								: __( 'Add note', 'dispatch' )
+								: noteValue || __( 'Add note', 'dispatch' )
 						}
 					>
 						<Button
@@ -2113,16 +2094,17 @@ function ProjectCard( {
 							icon={ showNoteEditor ? seen : pencil }
 							onClick={ () => setShowNoteEditor( ( v ) => ! v ) }
 							aria-label={
-								showNoteEditor
-									? __( 'Close note', 'dispatch' )
-									: noteValue
-									? __( 'Edit note', 'dispatch' )
+								noteValue
+									? sprintf(
+											/* translators: %s: note text */
+											__( 'Note: %s', 'dispatch' ),
+											noteValue
+									  )
 									: __( 'Add note', 'dispatch' )
 							}
 							__next40pxDefaultSize
 						/>
 					</Tooltip>
-					{ /* eslint-enable no-nested-ternary */ }
 					{ isInstalled && (
 						<Tooltip
 							text={
@@ -4970,59 +4952,87 @@ function NotificationPanel( { restUrl, onToast } ) {
 					'dispatch'
 				) }
 			</p>
-			<div className="telex-notification-checkboxes">
-				<CheckboxControl
-					label={ __( 'Notify on updates available', 'dispatch' ) }
-					checked={ !! settings.notify_updates }
-					onChange={ ( v ) =>
-						setSettings( { ...settings, notify_updates: v } )
-					}
-					__nextHasNoMarginBottom
-				/>
-				<CheckboxControl
-					label={ __( 'Notify on circuit breaker open', 'dispatch' ) }
-					checked={ !! settings.notify_circuit }
-					onChange={ ( v ) =>
-						setSettings( { ...settings, notify_circuit: v } )
-					}
-					__nextHasNoMarginBottom
-				/>
-				<CheckboxControl
-					label={ __( 'Notify on install failure', 'dispatch' ) }
-					checked={ !! settings.notify_failures }
-					onChange={ ( v ) =>
-						setSettings( { ...settings, notify_failures: v } )
-					}
-					__nextHasNoMarginBottom
-				/>
-			</div>
-			<div className="telex-notification-section">
-				<h4>{ __( 'Email', 'dispatch' ) }</h4>
-				<TextControl
-					label={ __( 'Email address', 'dispatch' ) }
-					type="email"
-					value={ settings.email || '' }
-					onChange={ ( v ) =>
-						setSettings( { ...settings, email: v } )
-					}
-					placeholder={ __( 'admin@example.com', 'dispatch' ) }
-					__next40pxDefaultSize
-					__nextHasNoMarginBottom
-				/>
-			</div>
-			<div className="telex-notification-section">
-				<h4>{ __( 'Slack', 'dispatch' ) }</h4>
-				<TextControl
-					label={ __( 'Slack webhook URL', 'dispatch' ) }
-					type="url"
-					value={ settings.slack_webhook || '' }
-					onChange={ ( v ) =>
-						setSettings( { ...settings, slack_webhook: v } )
-					}
-					placeholder="https://hooks.slack.com/services/…"
-					__next40pxDefaultSize
-					__nextHasNoMarginBottom
-				/>
+			<div className="telex-notification-columns">
+				<div className="telex-notification-col">
+					<h4>{ __( 'Alert conditions', 'dispatch' ) }</h4>
+					<div className="telex-notification-checkboxes">
+						<CheckboxControl
+							label={ __(
+								'Notify on updates available',
+								'dispatch'
+							) }
+							checked={ !! settings.notify_updates }
+							onChange={ ( v ) =>
+								setSettings( {
+									...settings,
+									notify_updates: v,
+								} )
+							}
+							__nextHasNoMarginBottom
+						/>
+						<CheckboxControl
+							label={ __(
+								'Notify on circuit breaker open',
+								'dispatch'
+							) }
+							checked={ !! settings.notify_circuit }
+							onChange={ ( v ) =>
+								setSettings( {
+									...settings,
+									notify_circuit: v,
+								} )
+							}
+							__nextHasNoMarginBottom
+						/>
+						<CheckboxControl
+							label={ __(
+								'Notify on install failure',
+								'dispatch'
+							) }
+							checked={ !! settings.notify_failures }
+							onChange={ ( v ) =>
+								setSettings( {
+									...settings,
+									notify_failures: v,
+								} )
+							}
+							__nextHasNoMarginBottom
+						/>
+					</div>
+				</div>
+				<div className="telex-notification-col">
+					<div className="telex-notification-section">
+						<h4>{ __( 'Email', 'dispatch' ) }</h4>
+						<TextControl
+							label={ __( 'Email address', 'dispatch' ) }
+							type="email"
+							value={ settings.email || '' }
+							onChange={ ( v ) =>
+								setSettings( { ...settings, email: v } )
+							}
+							placeholder={ __(
+								'admin@example.com',
+								'dispatch'
+							) }
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+						/>
+					</div>
+					<div className="telex-notification-section">
+						<h4>{ __( 'Slack', 'dispatch' ) }</h4>
+						<TextControl
+							label={ __( 'Slack webhook URL', 'dispatch' ) }
+							type="url"
+							value={ settings.slack_webhook || '' }
+							onChange={ ( v ) =>
+								setSettings( { ...settings, slack_webhook: v } )
+							}
+							placeholder="https://hooks.slack.com/services/…"
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+						/>
+					</div>
+				</div>
 			</div>
 			<div className="telex-notification-actions">
 				<Button

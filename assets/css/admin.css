@@ -729,7 +729,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	margin-bottom: 4px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2365,17 +2364,6 @@
  * Per-project notes
  * ------------------------------------------------------------------------- */
 
-.telex-row-note-preview {
-	display: block;
-	font-size: 12px;
-	color: var(--telex-muted);
-	margin-top: 2px;
-	font-style: italic;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	max-width: 300px;
-}
 
 .telex-row-note-editor,
 .telex-row-tag-editor {
@@ -2670,8 +2658,37 @@
 	margin-top: 0;
 }
 
+.telex-notification-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 32px;
+	align-items: start;
+	margin-top: 20px;
+}
+
+@media ( max-width: 782px ) {
+
+	.telex-notification-columns {
+		grid-template-columns: 1fr;
+		gap: 20px;
+	}
+}
+
+.telex-notification-col h4 {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--telex-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
 .telex-notification-section {
-	margin-top: 16px;
+	margin-top: 20px;
+}
+
+.telex-notification-section:first-child {
+	margin-top: 0;
 }
 
 .telex-notification-section h4 {
@@ -2686,7 +2703,9 @@
 .telex-notification-actions {
 	display: flex;
 	gap: 8px;
-	margin-top: 20px;
+	margin-top: 24px;
+	padding-top: 20px;
+	border-top: 1px solid var(--telex-border);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2809,12 +2828,6 @@
  * Tags
  * ------------------------------------------------------------------------- */
 
-.telex-row-tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
-	margin-top: 4px;
-}
 
 .telex-tag-chip {
 	display: inline-flex;
