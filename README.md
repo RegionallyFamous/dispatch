@@ -5,7 +5,7 @@
 **The missing link between Telex and your WordPress site.**
 
 [![CI](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml/badge.svg)](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.3.2-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
 [![WordPress](https://img.shields.io/badge/WordPress-6.7%2B-0073aa?logo=wordpress&logoColor=white&labelColor=1e293b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-7c3aed?logo=php&logoColor=white&labelColor=1e293b)](https://php.net)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-22c55e?labelColor=1e293b)](https://www.gnu.org/licenses/gpl-2.0.html)
@@ -72,17 +72,23 @@ Update a block in Telex? The update badge appears in your WordPress admin just l
 |---|---|
 | **One-click install & update** | Dispatch fetches the build, validates every file against a SHA-256 checksum, runs it through the WordPress Upgrader API, and activates it. No zip. No upload. No round trips. |
 | **Native WordPress updates** | Telex updates show up on the standard WordPress Updates screen alongside everything else. Your team's existing workflow doesn't change. |
-| **Auto-deploy webhook** | Connect Telex to your site and updates deploy the moment you push a new build. Set it once. Never think about it again. |
-| **Build snapshots** | Before a big change, capture the exact installed state of every project. If something breaks, restore it all in one command. Your safety net for risky deploys. |
+| **Stars & favorites** | Star any project to pin it to the top of your library. Sort by "Starred first" so the things you rely on are always front and center. |
+| **Freeform tags** | Tag projects however you like — up to 20 tags per project. Filter the entire library to a single tag in one click. |
+| **Bulk actions** | Select multiple projects with checkboxes and install, update, or remove them all at once. A sticky action bar appears the moment you check the first box. |
+| **Config export / import** | Export all your pins, notes, tags, groups, and auto-update settings as a JSON file. Import on any other site to replicate the full setup instantly. |
+| **Build snapshots** | Before a big change, capture the installed state of every project. If something breaks, restore in one command. Your safety net for risky deploys. |
 | **Version pinning** | Lock any project at a specific build. Pinned projects are immune to updates — including `wp telex update --all` — until you're ready to move. |
 | **Auto-update modes** | Per-project control: update immediately, delay 24 hours, or stay pinned. Auto-update the utilities, pin the mission-critical blocks. |
-| **WP-CLI first-class** | `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Full automation. Drop it in your CI/CD pipeline and every environment stays current on every deploy. |
+| **Update approval queue** | When a soak period expires, updates move into a visible queue so you can review and approve before anything touches production. |
+| **Failed install tracking** | Failed installs are flagged on the card and collected in a dedicated tab. Nothing falls through the cracks. |
+| **Dashboard widget** | A compact Dispatch summary right on your WordPress dashboard — installed count, pending updates, API status, and last activity at a glance. |
+| **WP-CLI first-class** | `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Full automation. Drop it in your CI/CD pipeline and every environment stays current. |
 | **Multisite** | Connect once at the network level. Every site on the network gets your full project library with no extra setup. |
 | **Notification channels** | Email and Slack notifications for installs, updates, and removals. Know exactly what changed, when, and who triggered it. |
 | **Block usage analytics** | See how many posts each block appears in. Know which ones are load-bearing before you touch them. |
 | **Audit log** | Every action — install, update, remove, connect, disconnect — is logged with a timestamp and acting user. GDPR-ready and registered with WordPress Privacy Tools. |
 | **Circuit breaker** | If Telex has a bad moment, Dispatch backs off gracefully and stops hammering the API. Your installed blocks keep running. Everything self-heals automatically. |
-| **Site Health integration** | Connection status, circuit breaker state, and project health surface directly in the WordPress Site Health screen. |
+| **Site Health integration** | Circuit breaker state and project health surface directly in the WordPress Site Health screen alongside your other checks. |
 | **No passwords, ever** | OAuth 2.0 Device Authorization Grant (RFC 8628). One code, one URL, one approval from any device. Nothing stored in plaintext. Nothing to manage. |
 
 ---
@@ -150,9 +156,8 @@ Everything lives in the [GitHub Wiki](https://github.com/RegionallyFamous/dispat
 | | |
 |---|---|
 | [Getting Started](https://github.com/RegionallyFamous/dispatch/wiki/Getting-Started) | Install Dispatch and connect to Telex |
-| [Managing Projects](https://github.com/RegionallyFamous/dispatch/wiki/Managing-Projects) | Install, update, snapshots, pinning, groups |
+| [Managing Projects](https://github.com/RegionallyFamous/dispatch/wiki/Managing-Projects) | Install, update, snapshots, pinning, tags, favorites, groups |
 | [WP-CLI Reference](https://github.com/RegionallyFamous/dispatch/wiki/WP-CLI-Reference) | Full command reference |
-| [Webhook & Auto-Deploy](https://github.com/RegionallyFamous/dispatch/wiki/Webhook-and-Auto-Deploy) | Auto-deploy on every new build |
 | [Multisite Setup](https://github.com/RegionallyFamous/dispatch/wiki/Multisite-Setup) | One connection for the whole network |
 | [Security Model](https://github.com/RegionallyFamous/dispatch/wiki/Security-Model) | How auth, encryption, and validation work |
 | [Troubleshooting](https://github.com/RegionallyFamous/dispatch/wiki/Troubleshooting) | Fixes for common issues |

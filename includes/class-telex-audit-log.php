@@ -50,44 +50,71 @@ class Telex_Audit_Log {
 			],
 			[ '%s', '%s', '%d', '%s', '%s' ]
 		);
+
+		// Invalidate the count cache so the list table shows the correct total
+		// immediately after a new event is written.
+		delete_transient( self::TRANSIENT_COUNT );
 	}
 
 	/** Columns that may be used as ORDER BY targets. */
 	private const SORTABLE_COLUMNS = [ 'id', 'action', 'created_at' ];
 
+	private const TRANSIENT_COUNT = 'telex_audit_count';
+
 	/**
 	 * Returns the total number of audit log entries.
+	 *
+	 * Result is cached for 60 seconds to avoid a COUNT(*) on every page view.
+	 * The cache is busted automatically whenever a new entry is inserted via log().
 	 *
 	 * @return int
 	 */
 	public static function count(): int {
+		$cached = get_transient( self::TRANSIENT_COUNT );
+		if ( false !== $cached ) {
+			return (int) $cached;
+		}
+
 		global $wpdb;
 		$table = self::table_name();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+
+		set_transient( self::TRANSIENT_COUNT, $count, MINUTE_IN_SECONDS );
+
+		return $count;
 	}
 
 	/**
 	 * Returns a paginated slice of audit log entries using SQL LIMIT/OFFSET.
 	 *
-	 * @param int    $limit   Maximum number of rows to return.
-	 * @param int    $offset  Number of rows to skip (0-based).
-	 * @param string $orderby Column to sort by ('id', 'action', or 'created_at').
-	 * @param string $order   Sort direction ('ASC' or 'DESC').
+	 * The `context` column is excluded by default — it is a potentially large
+	 * TEXT blob that is not displayed in list views. Pass true to include it
+	 * (e.g. for CSV export).
+	 *
+	 * @param int    $limit          Maximum number of rows to return.
+	 * @param int    $offset         Number of rows to skip (0-based).
+	 * @param string $orderby        Column to sort by ('id', 'action', or 'created_at').
+	 * @param string $order          Sort direction ('ASC' or 'DESC').
+	 * @param bool   $include_context Whether to include the context column.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function get_recent( int $limit = 50, int $offset = 0, string $orderby = 'id', string $order = 'DESC' ): array {
+	public static function get_recent( int $limit = 50, int $offset = 0, string $orderby = 'id', string $order = 'DESC', bool $include_context = false ): array {
 		global $wpdb;
 
 		// Allowlist both parameters so they can be safely interpolated.
 		$orderby = in_array( $orderby, self::SORTABLE_COLUMNS, true ) ? $orderby : 'id';
 		$order   = 'ASC' === strtoupper( $order ) ? 'ASC' : 'DESC';
 
+		$columns = $include_context
+			? 'id, action, public_id, user_id, context, created_at'
+			: 'id, action, public_id, user_id, created_at';
+
 		$table = self::table_name();
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$orderby/$order are all allowlisted above.
-		$sql = $wpdb->prepare( "SELECT * FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d", $limit, $offset );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table/$columns/$orderby/$order are all allowlisted above.
+		$sql = $wpdb->prepare( "SELECT {$columns} FROM {$table} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d", $limit, $offset );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $orderby is validated against SORTABLE_COLUMNS; $order is hardcoded to ASC/DESC.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$rows = $wpdb->get_results( $sql, ARRAY_A );
 
 		return is_array( $rows ) ? $rows : [];

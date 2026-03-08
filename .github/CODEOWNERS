@@ -1,0 +1,23 @@
+# CODEOWNERS
+#
+# Each line is a file pattern followed by one or more owners.
+# When a PR touches a matching file, those owners are automatically requested for review.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything not matched below.
+*                                       @regionallyfamous
+
+# Security-sensitive files always require maintainer review.
+SECURITY.md                             @regionallyfamous
+includes/class-telex-auth.php          @regionallyfamous
+includes/class-telex-circuit-breaker.php @regionallyfamous
+includes/class-telex-wp-http-client.php @regionallyfamous
+includes/class-telex-privacy.php       @regionallyfamous
+
+# GitHub Actions workflows.
+.github/workflows/                      @regionallyfamous
+
+# Dependency manifests.
+composer.json                           @regionallyfamous
+composer.lock                           @regionallyfamous
+package.json                            @regionallyfamous

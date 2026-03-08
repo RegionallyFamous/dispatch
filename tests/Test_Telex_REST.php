@@ -164,11 +164,37 @@ class Test_Telex_REST extends WP_UnitTestCase {
 	public function test_routes_are_registered(): void {
 		$routes = $this->server->get_routes();
 
-		$this->assertArrayHasKey( '/telex/v1/projects', $routes );
-		$this->assertArrayHasKey( '/telex/v1/auth/device', $routes );
-		$this->assertArrayHasKey( '/telex/v1/auth', $routes );
-		$this->assertArrayHasKey( '/telex/v1/auth/status', $routes );
-		$this->assertArrayHasKey( '/telex/v1/installed', $routes );
+		$expected = [
+			'/telex/v1/projects',
+			'/telex/v1/auth/device',
+			'/telex/v1/auth',
+			'/telex/v1/auth/status',
+			'/telex/v1/installed',
+			'/telex/v1/tags',
+			'/telex/v1/installs/failed',
+			'/telex/v1/auto-updates/pending',
+			'/telex/v1/config/export',
+			'/telex/v1/config/import',
+			'/telex/v1/audit-log',
+			'/telex/v1/circuit/reset',
+			'/telex/v1/health/installed',
+			'/telex/v1/analytics',
+			'/telex/v1/settings/notifications',
+			'/telex/v1/users',
+		];
+		foreach ( $expected as $route ) {
+			$this->assertArrayHasKey( $route, $routes, "Route {$route} should be registered." );
+		}
+
+		// Parameterised routes.
+		$parameterised = [
+			'favorite'    => '/telex/v1/projects/(?P<id>[a-zA-Z0-9_\\-]+)/favorite',
+			'tags'        => '/telex/v1/projects/(?P<id>[a-zA-Z0-9_\\-]+)/tags',
+			'failed-inst' => '/telex/v1/installs/failed/(?P<id>[a-zA-Z0-9_\\-]+)',
+		];
+		foreach ( $parameterised as $label => $route ) {
+			$this->assertArrayHasKey( $route, $routes, "Parameterised route [{$label}] {$route} should be registered." );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -518,78 +544,6 @@ class Test_Telex_REST extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// GET /settings/deploy-secret
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Asserts GET /settings/deploy-secret returns 401 for unauthenticated requests.
-	 *
-	 * @return void
-	 */
-	public function test_get_deploy_secret_returns_401_when_not_logged_in(): void {
-		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
-		$response = $this->server->dispatch( $request );
-		$this->assertSame( 401, $response->get_status() );
-	}
-
-	/**
-	 * Asserts GET /settings/deploy-secret returns 403 for a subscriber.
-	 *
-	 * @return void
-	 */
-	public function test_get_deploy_secret_returns_403_for_subscriber(): void {
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
-
-		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertSame( 403, $response->get_status() );
-	}
-
-	/**
-	 * Asserts GET /settings/deploy-secret returns the secret value for an admin.
-	 *
-	 * @return void
-	 */
-	public function test_get_deploy_secret_returns_secret_for_admin(): void {
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
-
-		$request  = new WP_REST_Request( 'GET', '/telex/v1/settings/deploy-secret' );
-		$response = $this->server->dispatch( $request );
-		$data     = $response->get_data();
-
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertArrayHasKey( 'secret', $data );
-		$this->assertNotEmpty( $data['secret'] );
-	}
-
-	// -------------------------------------------------------------------------
-	// POST /settings/deploy-secret
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Asserts POST /settings/deploy-secret regenerates and returns a new secret.
-	 *
-	 * @return void
-	 */
-	public function test_post_deploy_secret_regenerates_secret(): void {
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
-
-		// Store an initial secret.
-		update_option( 'dispatch_deploy_secret', 'initial-secret', false );
-
-		$request  = new WP_REST_Request( 'POST', '/telex/v1/settings/deploy-secret' );
-		$response = $this->server->dispatch( $request );
-		$data     = $response->get_data();
-
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertArrayHasKey( 'secret', $data );
-		$this->assertNotSame( 'initial-secret', $data['secret'] );
-
-		delete_option( 'dispatch_deploy_secret' );
-	}
-
-	// -------------------------------------------------------------------------
 	// POST /projects/{id}/deploy-network
 	// -------------------------------------------------------------------------
 
@@ -610,5 +564,211 @@ class Test_Telex_REST extends WP_UnitTestCase {
 		// endpoint reach deploy_network() and return 400. Test the 403 here since the
 		// WP test environment is always single-site.
 		$this->assertContains( $response->get_status(), [ 400, 403 ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// GET /telex/v1/auth/status — circuit breaker metadata
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts auth/status includes circuit breaker metadata fields.
+	 *
+	 * @return void
+	 */
+	public function test_auth_status_includes_circuit_metadata(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/auth/status' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'circuit_status', $data );
+		$this->assertArrayHasKey( 'circuit_opened_at', $data );
+		$this->assertArrayHasKey( 'circuit_failure_count', $data );
+		$this->assertSame( 'closed', $data['circuit_status'] );
+		$this->assertNull( $data['circuit_opened_at'] );
+		$this->assertSame( 0, $data['circuit_failure_count'] );
+	}
+
+	// -------------------------------------------------------------------------
+	// POST + DELETE /projects/{id}/favorite
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts POST /favorite returns 401 for unauthenticated requests.
+	 *
+	 * @return void
+	 */
+	public function test_post_favorite_requires_authentication(): void {
+		$request  = new WP_REST_Request( 'POST', '/telex/v1/projects/proj-abc/favorite' );
+		$response = $this->server->dispatch( $request );
+		$this->assertSame( 401, $response->get_status() );
+	}
+
+	/**
+	 * Asserts POST /favorite stars a project for the current user.
+	 *
+	 * @return void
+	 */
+	public function test_post_favorite_stars_project(): void {
+		$user_id = self::factory()->user->create( [ 'role' => 'administrator' ] );
+		wp_set_current_user( $user_id );
+
+		$request  = new WP_REST_Request( 'POST', '/telex/v1/projects/proj-abc/favorite' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertTrue( $data['starred'] );
+		$this->assertTrue( Telex_Favorites::is_starred( 'proj-abc', $user_id ) );
+
+		delete_user_meta( $user_id, 'telex_favorites' );
+	}
+
+	/**
+	 * Asserts DELETE /favorite un-stars a project for the current user.
+	 *
+	 * @return void
+	 */
+	public function test_delete_favorite_unstars_project(): void {
+		$user_id = self::factory()->user->create( [ 'role' => 'administrator' ] );
+		wp_set_current_user( $user_id );
+		Telex_Favorites::add( 'proj-abc', $user_id );
+
+		$request  = new WP_REST_Request( 'DELETE', '/telex/v1/projects/proj-abc/favorite' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertFalse( $data['starred'] );
+		$this->assertFalse( Telex_Favorites::is_starred( 'proj-abc', $user_id ) );
+
+		delete_user_meta( $user_id, 'telex_favorites' );
+	}
+
+	// -------------------------------------------------------------------------
+	// PUT /projects/{id}/tags + GET /tags
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts PUT /tags returns 401 for unauthenticated requests.
+	 *
+	 * @return void
+	 */
+	public function test_put_tags_requires_authentication(): void {
+		$request = new WP_REST_Request( 'PUT', '/telex/v1/projects/proj-abc/tags' );
+		$request->set_param( 'tags', [ 'beta' ] );
+		$response = $this->server->dispatch( $request );
+		$this->assertSame( 401, $response->get_status() );
+	}
+
+	/**
+	 * Asserts PUT /tags saves tags and returns the saved list.
+	 *
+	 * @return void
+	 */
+	public function test_put_tags_saves_and_returns_tags(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$request = new WP_REST_Request( 'PUT', '/telex/v1/projects/proj-abc/tags' );
+		$request->set_param( 'tags', [ 'client-a', 'beta' ] );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'tags', $data );
+		$this->assertContains( 'client-a', $data['tags'] );
+		$this->assertContains( 'beta', $data['tags'] );
+
+		delete_option( 'telex_tags_proj-abc' );
+	}
+
+	/**
+	 * Asserts GET /tags returns the aggregated tag list.
+	 *
+	 * @return void
+	 */
+	public function test_get_tags_returns_all_in_use(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		Telex_Tags::set( 'proj-abc', [ 'core', 'beta' ] );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/tags' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'tags', $data );
+		$this->assertContains( 'core', $data['tags'] );
+		$this->assertContains( 'beta', $data['tags'] );
+
+		delete_option( 'telex_tags_proj-abc' );
+		Telex_Tags::bust_cache();
+	}
+
+	// -------------------------------------------------------------------------
+	// GET + DELETE /installs/failed
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts GET /installs/failed returns 401 for unauthenticated requests.
+	 *
+	 * @return void
+	 */
+	public function test_get_failed_installs_requires_authentication(): void {
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/installs/failed' );
+		$response = $this->server->dispatch( $request );
+		$this->assertSame( 401, $response->get_status() );
+	}
+
+	/**
+	 * Asserts GET /installs/failed returns the list of recorded failures.
+	 *
+	 * @return void
+	 */
+	public function test_get_failed_installs_returns_failures(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		Telex_Failed_Installs::record( 'proj-fail', 'My Project', 'Timeout.' );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/installs/failed' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey( 'failures', $data );
+		$this->assertNotEmpty( $data['failures'] );
+		$this->assertSame( 'proj-fail', $data['failures'][0]['public_id'] );
+
+		Telex_Failed_Installs::clear( 'proj-fail' );
+	}
+
+	/**
+	 * Asserts DELETE /installs/failed/{id} clears a failure record.
+	 *
+	 * @return void
+	 */
+	public function test_delete_failed_install_clears_record(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		Telex_Failed_Installs::record( 'proj-fail', 'My Project', 'Timeout.' );
+
+		$request  = new WP_REST_Request( 'DELETE', '/telex/v1/installs/failed/proj-fail' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertFalse( Telex_Failed_Installs::has_failure( 'proj-fail' ) );
+	}
+
+	/**
+	 * Asserts DELETE /installs/failed/{id} returns 404 for a non-existent record.
+	 *
+	 * @return void
+	 */
+	public function test_delete_failed_install_returns_404_when_not_found(): void {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+
+		$request  = new WP_REST_Request( 'DELETE', '/telex/v1/installs/failed/does-not-exist' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 404, $response->get_status() );
 	}
 }

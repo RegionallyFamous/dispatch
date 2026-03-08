@@ -37,6 +37,24 @@ class Telex_Auto_Update {
 	}
 
 	/**
+	 * Primes the WordPress option cache for the given projects in a single query.
+	 *
+	 * Call this before iterating multiple projects to avoid one get_option() DB
+	 * hit per project (N+1). Requires WordPress 6.4+ (wp_prime_option_caches).
+	 *
+	 * @param string[] $public_ids Array of project public IDs.
+	 * @return void
+	 */
+	public static function prime_caches( array $public_ids ): void {
+		if ( empty( $public_ids ) || ! function_exists( 'wp_prime_option_caches' ) ) {
+			return;
+		}
+		wp_prime_option_caches(
+			array_map( [ self::class, 'mode_key' ], $public_ids )
+		);
+	}
+
+	/**
 	 * Returns the transient key for a project's queued-at timestamp (delayed mode).
 	 *
 	 * @param string $public_id Project public ID.
@@ -121,6 +139,12 @@ class Telex_Auto_Update {
 			}
 		}
 
+		// Prime the WordPress option cache for all pin and auto-update keys in one
+		// query each, so the per-project calls below don't each issue a DB read.
+		$installed_ids = array_keys( $installed );
+		self::prime_caches( $installed_ids );
+		Telex_Version_Pin::prime_caches( $installed_ids );
+
 		foreach ( $installed as $public_id => $info ) {
 			$mode = self::get_mode( $public_id );
 			if ( 'off' === $mode ) {
@@ -166,15 +190,16 @@ class Telex_Auto_Update {
 	 * Installs a project and records an audit log entry with initiator=auto.
 	 *
 	 * @param string $public_id Project public ID.
-	 * @return void
+	 * @return true|\WP_Error True on success, WP_Error on failure.
 	 */
-	private static function install_and_log( string $public_id ): void {
+	public static function install_and_log( string $public_id ): true|\WP_Error {
 		$result = Telex_Installer::install( $public_id );
 		if ( ! is_wp_error( $result ) ) {
 			Telex_Audit_Log::log( AuditAction::Update, $public_id, [ 'initiator' => 'auto' ] );
 			Telex_REST::bump_data_version();
-		} else {
-			wp_trigger_error( __CLASS__, 'Dispatch auto-update failed for ' . $public_id . ': ' . $result->get_error_message(), E_USER_WARNING );
+			return true;
 		}
+		wp_trigger_error( __CLASS__, 'Dispatch auto-update failed for ' . $public_id . ': ' . $result->get_error_message(), E_USER_WARNING );
+		return $result;
 	}
 }

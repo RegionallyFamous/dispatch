@@ -60,14 +60,12 @@ if ( is_multisite() ) {
 
 	// Network-level options.
 	delete_site_option( 'telex_auth_token' );
-	delete_site_option( 'dispatch_deploy_secret' );
 } else {
 	// Single-site options.
 	delete_option( 'telex_auth_token' );
 	delete_option( 'telex_installed_projects' );
 	delete_option( 'telex_installed_at' );
 	delete_option( 'telex_version' );
-	delete_option( 'dispatch_deploy_secret' );
 
 	// Remove all telex_* transients.
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching

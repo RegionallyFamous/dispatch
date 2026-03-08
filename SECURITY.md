@@ -2,9 +2,14 @@
 
 ## Supported Versions
 
-| Version | Supported |
-| ------- | --------- |
-| 1.0.x   | Yes       |
+Security patches are applied to the latest stable release only. Older major/minor
+branches receive critical patches at maintainer discretion.
+
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.3.x   | Yes (latest)       |
+| 1.2.x   | Critical only      |
+| < 1.2   | No                 |
 
 ## Reporting a Vulnerability
 

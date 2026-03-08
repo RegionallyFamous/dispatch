@@ -44,6 +44,9 @@ class Telex_Admin {
 		// Admin bar update badge.
 		add_action( 'admin_bar_menu', self::add_admin_bar_badge( ... ), 999 );
 
+		// Dashboard widget.
+		add_action( 'wp_dashboard_setup', self::register_dashboard_widget( ... ) );
+
 		// Site Health integration.
 		add_filter( 'debug_information', self::site_health_info( ... ) );
 		add_filter( 'site_status_tests', self::site_health_tests( ... ) );
@@ -263,7 +266,7 @@ class Telex_Admin {
 	}
 
 	/**
-	 * Renders the Settings sub-page (webhook config + audit log).
+	 * Renders the Settings sub-page (notifications, snapshots, audit log).
 	 *
 	 * @return void
 	 */
@@ -289,14 +292,11 @@ class Telex_Admin {
 
 		echo '<div class="telex-settings-body">';
 
-		// Webhook / auto-deploy panel — skeleton lives inside the mount point so
-		// React replaces it without a layout shift when the bundle boots.
 		if ( Telex_Auth::is_connected() ) {
 			printf(
-				'<div id="telex-webhook-app" data-rest-url="%s" data-nonce="%s" data-webhook-url="%s">%s</div>',
+				'<div id="telex-webhook-app" data-rest-url="%s" data-nonce="%s">%s</div>',
 				esc_attr( rest_url( 'telex/v1' ) ),
 				esc_attr( wp_create_nonce( 'wp_rest' ) ),
-				esc_attr( rest_url( 'telex/v1/deploy' ) ),
 				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- hardcoded static HTML with no user input.
 				self::render_settings_panel_skeletons()
 			);
@@ -309,10 +309,15 @@ class Telex_Admin {
 		echo '</div>';
 
 		// Flush skeleton HTML to the browser before hitting the DB.
-		// ob_flush() pushes the current buffer; flush() tells PHP to send it.
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		if ( ob_get_level() > 0 ) {
-			ob_flush();
+		// Disable zlib output compression first — if active it buffers everything
+		// and the skeleton would never reach the browser until the response ends.
+		// phpcs:ignore WordPress.PHP.IniSet.Risky,WordPress.PHP.NoSilencedErrors.Discouraged
+		@ini_set( 'zlib.output_compression', 'Off' );
+		// Drain all output buffers (WordPress may stack several) so the skeleton
+		// bytes are handed off to the SAPI/web-server send buffer.
+		while ( ob_get_level() > 0 ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			ob_end_flush();
 		}
 		flush();
 
@@ -372,8 +377,8 @@ class Telex_Admin {
 	}
 
 	/**
-	 * Returns skeleton HTML for the three React panels that mount inside
-	 * #telex-webhook-app (Webhook, Notifications, Snapshots). React's render()
+	 * Returns skeleton HTML for the two React panels that mount inside
+	 * #telex-webhook-app (Notifications, Snapshots). React's render()
 	 * replaces this markup when the bundle boots.
 	 *
 	 * @return string
@@ -392,10 +397,6 @@ class Telex_Admin {
 			);
 		};
 
-		$webhook_body =
-			'<div class="telex-skeleton telex-skeleton--input-group"></div>' .
-			'<div class="telex-skeleton telex-skeleton--input-group"></div>';
-
 		$notifications_body =
 			'<div class="telex-skeleton telex-skeleton--checkbox-row"></div>' .
 			'<div class="telex-skeleton telex-skeleton--checkbox-row"></div>' .
@@ -408,8 +409,7 @@ class Telex_Admin {
 			'<div class="telex-skeleton telex-skeleton--table-row"></div>' .
 			'<div class="telex-skeleton telex-skeleton--table-row"></div>';
 
-		return $panel( '', $webhook_body ) .
-			$panel( '', $notifications_body ) .
+		return $panel( '', $notifications_body ) .
 			$panel( '', $snapshots_body );
 	}
 
@@ -675,7 +675,7 @@ class Telex_Admin {
 			wp_die( esc_html__( 'Security check failed.', 'dispatch' ) );
 		}
 
-		$events = Telex_Audit_Log::get_recent( 10000 );
+		$events = Telex_Audit_Log::get_recent( 10000, 0, 'id', 'DESC', true );
 
 		// Batch-fetch all user records in one query to avoid N+1 get_userdata() calls.
 		$user_ids  = array_filter(
@@ -906,6 +906,99 @@ class Telex_Admin {
 		return $info;
 	}
 
+	// -------------------------------------------------------------------------
+	// Dashboard widget
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Register the Dispatch dashboard widget.
+	 *
+	 * @return void
+	 */
+	public static function register_dashboard_widget(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		wp_add_dashboard_widget(
+			'dispatch_overview',
+			__( 'Dispatch', 'dispatch' ),
+			self::render_dashboard_widget( ... )
+		);
+	}
+
+	/**
+	 * Render the Dispatch dashboard widget HTML.
+	 *
+	 * Reads cached data only — never makes API calls from the Dashboard page.
+	 *
+	 * @return void
+	 */
+	public static function render_dashboard_widget(): void {
+		$installed     = Telex_Tracker::get_all();
+		$installed_cnt = count( $installed );
+
+		// Count updates from the cached project list, if available.
+		$cached_projects = Telex_Cache::get_or_revalidate();
+		$updates_cnt     = 0;
+		if ( is_array( $cached_projects ) ) {
+			foreach ( $cached_projects as $p ) {
+				$id         = $p['publicId'] ?? '';
+				$local      = $installed[ $id ] ?? null;
+				$remote_ver = (int) ( $p['currentVersion'] ?? 0 );
+				$local_ver  = null !== $local ? (int) $local['version'] : 0;
+				$is_pinned  = Telex_Version_Pin::is_pinned( $id );
+				if ( null !== $local && $remote_ver > $local_ver && ! $is_pinned ) {
+					++$updates_cnt;
+				}
+			}
+		}
+
+		$cb_state     = Telex_Circuit_Breaker::status();
+		$dispatch_url = admin_url( 'admin.php?page=telex' );
+
+		// Get last activity timestamp.
+		$last_log = Telex_Audit_Log::get_recent( 1, 0, 'created_at', 'DESC' );
+		$last_at  = isset( $last_log[0]['created_at'] ) ? human_time_diff( (int) strtotime( $last_log[0]['created_at'] ) ) . ' ' . __( 'ago', 'dispatch' ) : __( 'No activity yet', 'dispatch' );
+
+		?>
+		<div class="dispatch-widget">
+			<ul class="dispatch-widget-stats">
+				<li>
+					<span class="dispatch-widget-label"><?php esc_html_e( 'Installed', 'dispatch' ); ?></span>
+					<strong><?php echo esc_html( (string) $installed_cnt ); ?></strong>
+				</li>
+				<li>
+					<span class="dispatch-widget-label"><?php esc_html_e( 'Updates', 'dispatch' ); ?></span>
+					<strong class="<?php echo $updates_cnt > 0 ? 'dispatch-widget-badge' : ''; ?>"><?php echo esc_html( (string) $updates_cnt ); ?></strong>
+				</li>
+				<li>
+					<span class="dispatch-widget-label"><?php esc_html_e( 'API', 'dispatch' ); ?></span>
+					<strong class="dispatch-widget-state dispatch-widget-state--<?php echo esc_attr( $cb_state ); ?>">
+						<?php echo esc_html( ucfirst( $cb_state ) ); ?>
+					</strong>
+				</li>
+			</ul>
+			<p class="dispatch-widget-activity">
+				<?php
+				printf(
+					/* translators: %s: relative time since last activity */
+					esc_html__( 'Last activity: %s', 'dispatch' ),
+					esc_html( $last_at )
+				);
+				?>
+			</p>
+			<p class="dispatch-widget-link">
+				<a href="<?php echo esc_url( $dispatch_url ); ?>"><?php esc_html_e( 'Open Dispatch →', 'dispatch' ); ?></a>
+			</p>
+		</div>
+		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// Site Health
+	// -------------------------------------------------------------------------
+
 	/**
 	 * Registers the Telex API reachability test with Site Health.
 	 *
@@ -917,7 +1010,119 @@ class Telex_Admin {
 			'label'             => __( 'Telex API is reachable', 'dispatch' ),
 			'async_direct_test' => self::run_api_reachability_test( ... ),
 		];
+
+		$tests['direct']['telex_circuit_breaker'] = [
+			'label' => __( 'Dispatch circuit breaker', 'dispatch' ),
+			'test'  => self::run_circuit_breaker_test( ... ),
+		];
+
+		$tests['direct']['telex_installed_health'] = [
+			'label' => __( 'Dispatch installed projects', 'dispatch' ),
+			'test'  => self::run_installed_health_test( ... ),
+		];
+
 		return $tests;
+	}
+
+	/**
+	 * Site Health: circuit breaker status check.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function run_circuit_breaker_test(): array {
+		$state = Telex_Circuit_Breaker::status();
+
+		if ( 'open' === $state ) {
+			return [
+				'label'       => __( 'Dispatch circuit breaker is open — API calls are paused', 'dispatch' ),
+				'status'      => 'critical',
+				'badge'       => [
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'red',
+				],
+				'description' => '<p>' . esc_html__( 'The Dispatch circuit breaker is open due to repeated API failures. Calls are paused until the next recovery window. Check your Telex connection.', 'dispatch' ) . '</p>',
+				'test'        => 'telex_circuit_breaker',
+			];
+		}
+
+		if ( 'half-open' === $state ) {
+			return [
+				'label'       => __( 'Dispatch circuit breaker is recovering', 'dispatch' ),
+				'status'      => 'recommended',
+				'badge'       => [
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'orange',
+				],
+				'description' => '<p>' . esc_html__( 'The Dispatch circuit breaker is in recovery mode. It will fully reopen after the next successful API call.', 'dispatch' ) . '</p>',
+				'test'        => 'telex_circuit_breaker',
+			];
+		}
+
+		return [
+			'label'       => __( 'Dispatch circuit breaker is healthy', 'dispatch' ),
+			'status'      => 'good',
+			'badge'       => [
+				'label' => __( 'Dispatch', 'dispatch' ),
+				'color' => 'blue',
+			],
+			'description' => '<p>' . esc_html__( 'The circuit breaker is closed. All API calls are flowing normally.', 'dispatch' ) . '</p>',
+			'test'        => 'telex_circuit_breaker',
+		];
+	}
+
+	/**
+	 * Site Health: installed project health check.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function run_installed_health_test(): array {
+		$installed = Telex_Tracker::get_all();
+		$count     = count( $installed );
+
+		if ( 0 === $count ) {
+			return [
+				'label'       => __( 'No projects installed via Dispatch', 'dispatch' ),
+				'status'      => 'good',
+				'badge'       => [
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'blue',
+				],
+				'description' => '<p>' . esc_html__( 'No projects are currently installed via Dispatch.', 'dispatch' ) . '</p>',
+				'test'        => 'telex_installed_health',
+			];
+		}
+
+		// Use cached health data — avoid running a full scan during every Site Health check.
+		$health   = Telex_Health::check_all();
+		$projects = $health['projects'] ?? [];
+		$errors   = array_filter( $projects, fn( $h ) => 'ok' !== $h['status'] );
+		$n_errors = count( $errors );
+
+		if ( $n_errors > 0 ) {
+			return [
+				/* translators: 1: error count, 2: total count */
+				'label'       => sprintf( __( 'Dispatch: %1$d of %2$d installed projects have health issues', 'dispatch' ), $n_errors, $count ),
+				'status'      => 'recommended',
+				'badge'       => [
+					'label' => __( 'Dispatch', 'dispatch' ),
+					'color' => 'orange',
+				],
+				'description' => '<p>' . esc_html__( 'One or more installed projects have health warnings. Open Dispatch to review them.', 'dispatch' ) . '</p>',
+				'test'        => 'telex_installed_health',
+			];
+		}
+
+		return [
+			/* translators: %d: installed project count */
+			'label'       => sprintf( __( 'Dispatch: %d installed project(s) healthy', 'dispatch' ), $count ),
+			'status'      => 'good',
+			'badge'       => [
+				'label' => __( 'Dispatch', 'dispatch' ),
+				'color' => 'blue',
+			],
+			'description' => '<p>' . esc_html__( 'All installed Dispatch projects are healthy.', 'dispatch' ) . '</p>',
+			'test'        => 'telex_installed_health',
+		];
 	}
 
 	/**

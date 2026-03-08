@@ -301,22 +301,16 @@ class Telex_Notifications {
 
 		$encoded_body = wp_json_encode( [ 'blocks' => $blocks ] );
 
-		$response = wp_remote_post(
-			$webhook_url,
-			[
-				'headers'     => [ 'Content-Type' => 'application/json' ],
-				'body'        => false !== $encoded_body ? $encoded_body : '{}',
-				'timeout'     => 10,
-				'redirection' => 0,
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			wp_trigger_error( __CLASS__, 'Dispatch: Slack notification failed — ' . $response->get_error_message(), E_USER_WARNING );
+		try {
+			$code = Telex_WP_Http_Client::post_json(
+				$webhook_url,
+				false !== $encoded_body ? $encoded_body : '{}'
+			);
+		} catch ( Telex_Http_Exception $e ) {
+			wp_trigger_error( __CLASS__, 'Dispatch: Slack notification failed — ' . $e->getMessage(), E_USER_WARNING );
 			return false;
 		}
 
-		$code = wp_remote_retrieve_response_code( $response );
-		return 200 === (int) $code;
+		return 200 === $code;
 	}
 }

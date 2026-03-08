@@ -30,6 +30,24 @@ class Telex_Version_Pin {
 	}
 
 	/**
+	 * Primes the WordPress option cache for the given projects in a single query.
+	 *
+	 * Call this before iterating multiple projects to avoid one get_option() DB
+	 * hit per project (N+1). Requires WordPress 6.4+ (wp_prime_option_caches).
+	 *
+	 * @param string[] $public_ids Array of project public IDs.
+	 * @return void
+	 */
+	public static function prime_caches( array $public_ids ): void {
+		if ( empty( $public_ids ) || ! function_exists( 'wp_prime_option_caches' ) ) {
+			return;
+		}
+		wp_prime_option_caches(
+			array_map( [ self::class, 'key' ], $public_ids )
+		);
+	}
+
+	/**
 	 * Pins a project at a specific version.
 	 *
 	 * @param string $public_id Project public ID.

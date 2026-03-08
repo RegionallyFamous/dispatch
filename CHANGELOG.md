@@ -6,6 +6,71 @@
 
 ---
 
+## [1.4.0] — 2026-03-08
+
+This release turns Dispatch into a full project management layer on top of
+Telex. You can now organize, annotate, and track your project library in
+ways that weren't possible before — without any of it depending on features
+that don't actually exist in the platform.
+
+### Stars and favorites
+
+Star any project with a single click. Starred projects bubble to the top
+of your library when you sort by "Starred first" — so the things you care
+about most are always within reach without searching.
+
+### Freeform tags
+
+Attach tags to any project directly from the card — up to 20 tags, up to
+32 characters each. Filter the entire library down to a single tag in one
+click. Tags are stored per site, not per user, so your whole team sees the
+same taxonomy.
+
+### Bulk actions
+
+Select multiple projects at once with checkboxes and apply a single action
+across all of them — install, update, or remove. A sticky action bar
+appears at the bottom of the screen as soon as you check the first project,
+so it's always in reach without scrolling.
+
+### Config export and import
+
+Export every piece of per-project metadata — version pins, notes, tags,
+groups, and auto-update settings — to a JSON file. Import the same file
+on a staging site, a client's server, or a fresh install to replicate the
+full setup in seconds. The CLI gets it too: `wp telex config export` and
+`wp telex config import`.
+
+### Update approval queue
+
+Auto-updates can now be held in a soak period before applying. When the
+soak window expires, the update moves into a visible approval queue at the
+top of the Updates tab. Approve to apply immediately or skip to defer.
+Gives you a natural review checkpoint before anything touches production.
+
+### Failed install tracking
+
+When an install fails, Dispatch records the failure against the project and
+shows a persistent badge on the card. A new "Failed" tab collects everything
+that needs attention so nothing falls through the cracks. Dismiss the record
+once the issue is resolved.
+
+### Dashboard widget
+
+The WordPress admin dashboard now shows a compact Dispatch summary: number
+of installed projects, pending updates, API connection status, and time of
+last activity. Everything at a glance without opening the full screen.
+
+### Expanded Site Health
+
+Two new Site Health tests: one checks the circuit breaker state and reports
+whether the Telex API connection is open, half-open, or tripped; the other
+scans every installed project and surfaces any with missing or deactivated
+files. Both are shown inline on the Site Health screen alongside your other
+checks.
+
+---
+
 ## [1.3.2] — 2026-03-08
 
 ### Fixed
@@ -112,9 +177,9 @@ already has in place.
 The settings page has been rebuilt from the ground up. It now fills the full
 available width, has a consistent page header matching the main Dispatch
 screen, and loads skeleton placeholders while each panel fetches its data —
-so there's no layout shift and no blank panels while things load. The webhook
-secret section, notification settings, and build snapshot table each have
-their own shaped skeleton that matches the real content.
+so there's no layout shift and no blank panels while things load. The
+notification settings and build snapshot table each have their own shaped
+skeleton that matches the real content.
 
 ### WP-CLI gets smarter
 
@@ -188,14 +253,8 @@ library of projects feels noticeably nicer.
 ### Settings page is properly named
 
 The sub-menu item that was labeled "Audit Log" now says "Settings" — which is
-what it actually is. It houses both the webhook configuration panel and the
+what it actually is. It houses the notification settings, build snapshots, and
 audit log, so the old name was just confusing.
-
-### Webhook URL is no longer baked into the page HTML
-
-The auto-deploy webhook URL is now fetched on demand via an authenticated REST
-call instead of being embedded in the page source. It was harmless before, but
-fetching it only when needed is the cleaner approach.
 
 ### Test suite renamed for PHPUnit 11
 
@@ -217,7 +276,7 @@ a comprehensive test suite, and a pile of CI hardening. More details in the
 
 This release is all about reliability and trust. We did a full 20-pass security
 and hardening audit of every layer of the plugin — REST API, installer, cache,
-authentication, webhooks, multisite, and the JavaScript UI. Plus we fixed a
+authentication, multisite, and the JavaScript UI. Plus we fixed a
 nasty crash that was breaking the projects screen for some sites.
 
 ### Your projects screen won't go blank anymore
@@ -227,14 +286,6 @@ actually exist. On sites where the project cache had expired, this crashed the
 REST API entirely — instead of your projects, you'd see a raw WordPress error
 notice. That's fixed. It now uses the correct atomic cache function and your
 projects load normally.
-
-### The auto-deploy webhook is a lot safer
-
-The webhook endpoint now validates request timestamps and rejects anything
-replayed more than 5 minutes later. It also rate-limits by IP so a flood of
-webhook calls won't take your site down. Your secret key is no longer embedded
-in the page HTML — it's fetched on demand so it never ends up in browser
-history or cached pages.
 
 ### Downloads are verified before they touch your site
 

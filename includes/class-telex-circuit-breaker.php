@@ -44,15 +44,22 @@ class Telex_Circuit_Breaker {
 	 * Returns false if open (caller should short-circuit with a cached/error response).
 	 */
 	public static function is_available(): bool {
-		if ( self::is_open() ) {
-			// Allow a single probe request through when the reset timeout has elapsed.
-			if ( self::reset_timeout_elapsed() && ! self::probe_in_flight() ) {
-				self::mark_probe_in_flight();
-				return true; // Half-open: let one request through.
-			}
-			return false;
+		// Read TRANSIENT_OPENED once and share it between the open-check and the
+		// reset-timeout-elapsed check, avoiding a second transient get.
+		$opened_at = get_transient( self::TRANSIENT_OPENED );
+
+		if ( false === $opened_at ) {
+			return true; // Circuit is closed — fast path.
 		}
-		return true;
+
+		// Circuit is open. Allow a probe when the reset timeout has elapsed.
+		$elapsed = time() - (int) $opened_at;
+		if ( $elapsed >= self::RESET_TIMEOUT && ! self::probe_in_flight() ) {
+			self::mark_probe_in_flight();
+			return true; // Half-open: let one request through.
+		}
+
+		return false;
 	}
 
 	/**
@@ -85,6 +92,26 @@ class Telex_Circuit_Breaker {
 				set_transient( self::TRANSIENT_OPENED, time(), self::FAILURE_WINDOW + self::RESET_TIMEOUT );
 			}
 		}
+	}
+
+	/**
+	 * Returns the Unix timestamp when the circuit was opened, or null if closed.
+	 *
+	 * @return int|null
+	 */
+	public static function get_opened_at(): ?int {
+		$raw = get_transient( self::TRANSIENT_OPENED );
+		return false !== $raw ? (int) $raw : null;
+	}
+
+	/**
+	 * Returns the current consecutive failure count within the failure window.
+	 *
+	 * @return int
+	 */
+	public static function get_failure_count(): int {
+		$raw = get_transient( self::TRANSIENT_FAILURES );
+		return false !== $raw ? (int) $raw : 0;
 	}
 
 	/**
@@ -125,10 +152,14 @@ class Telex_Circuit_Breaker {
 	/**
 	 * Returns true if the reset timeout has passed since the circuit opened.
 	 *
+	 * @param int|null $opened_at Unix timestamp from TRANSIENT_OPENED, or null to re-read.
 	 * @return bool
 	 */
-	private static function reset_timeout_elapsed(): bool {
-		$opened_at = (int) get_transient( self::TRANSIENT_OPENED );
+	private static function reset_timeout_elapsed( ?int $opened_at = null ): bool {
+		if ( null === $opened_at ) {
+			$raw       = get_transient( self::TRANSIENT_OPENED );
+			$opened_at = false !== $raw ? (int) $raw : 0;
+		}
 		if ( ! $opened_at ) {
 			return true;
 		}

@@ -107,7 +107,7 @@ class Test_Telex_Audit_Log extends WP_UnitTestCase {
 			]
 		);
 
-		$rows    = Telex_Audit_Log::get_recent( 1 );
+		$rows    = Telex_Audit_Log::get_recent( 1, 0, 'id', 'DESC', true );
 		$context = json_decode( $rows[0]['context'], true );
 
 		$this->assertSame( 5, $context['version'] );

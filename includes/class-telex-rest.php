@@ -31,17 +31,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   POST   /telex/v1/circuit/reset  (circuit breaker reset)
  *   GET    /telex/v1/audit-log      (paginated audit log)
  *   GET    /telex/v1/sites          (multisite site list)
- *   POST   /telex/v1/deploy         (webhook auto-deploy, HMAC-signed)
- *   POST   /telex/v1/settings/deploy-secret  (regenerate deploy secret)
+ *   POST   /telex/v1/projects/{id}/favorite  (star a project)
+ *   DELETE /telex/v1/projects/{id}/favorite  (un-star a project)
+ *   PUT    /telex/v1/projects/{id}/tags       (set freeform tags)
+ *   GET    /telex/v1/tags                     (all tags in use)
+ *   GET    /telex/v1/installs/failed          (failed install queue)
+ *   DELETE /telex/v1/installs/failed/{id}     (clear failure record)
+ *   GET    /telex/v1/config/export            (export all project metadata)
+ *   POST   /telex/v1/config/import            (import project metadata)
+ *   GET    /telex/v1/auto-updates/pending     (soak-complete pending approvals)
+ *   POST   /telex/v1/projects/{id}/auto-update/approve
+ *   POST   /telex/v1/projects/{id}/auto-update/skip
  */
 class Telex_REST {
 
-	private const NAMESPACE              = 'telex/v1';
-	private const DEPLOY_SECRET_KEY      = 'dispatch_deploy_secret';
-	private const DEPLOY_REPLAY_SECS     = 300; // 5-minute replay window for past timestamps.
-	private const DEPLOY_CLOCK_SKEW_SECS = 30;  // Max future clock skew accepted.
-	private const WEBHOOK_MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB hard cap before HMAC.
-
+	private const NAMESPACE = 'telex/v1';
 	/**
 	 * Build a 429 WP_Error with the Retry-After value encoded in both the
 	 * HTTP header and the JSON body so JavaScript clients can read it without
@@ -129,7 +133,9 @@ class Telex_REST {
 			]
 		);
 
-		// Build-readiness polling endpoint — used by the frontend between "building" and "installing".
+		// Build-readiness polling endpoint — MUST be registered before the generic
+		// single-project detail route below (/projects/{id}) or WordPress's router
+		// will consume the literal string "build" as a project ID.
 		register_rest_route(
 			self::NAMESPACE,
 			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/build',
@@ -246,37 +252,6 @@ class Telex_REST {
 							'sanitize_callback' => 'sanitize_text_field',
 						],
 					],
-				],
-			]
-		);
-
-		// Webhook auto-deploy (public endpoint, HMAC-validated).
-		register_rest_route(
-			self::NAMESPACE,
-			'/deploy',
-			[
-				[
-					'methods'             => \WP_REST_Server::CREATABLE,
-					'callback'            => [ self::class, 'webhook_deploy' ],
-					'permission_callback' => '__return_true',
-				],
-			]
-		);
-
-		// Deploy secret — read (GET) and regenerate (POST).
-		register_rest_route(
-			self::NAMESPACE,
-			'/settings/deploy-secret',
-			[
-				[
-					'methods'             => \WP_REST_Server::READABLE,
-					'callback'            => [ self::class, 'get_deploy_secret_endpoint' ],
-					'permission_callback' => [ self::class, 'require_manage_options' ],
-				],
-				[
-					'methods'             => \WP_REST_Server::CREATABLE,
-					'callback'            => [ self::class, 'regenerate_deploy_secret' ],
-					'permission_callback' => [ self::class, 'require_manage_options' ],
 				],
 			]
 		);
@@ -806,6 +781,185 @@ class Telex_REST {
 				],
 			]
 		);
+
+		// Favorites — star / un-star a project.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/favorite',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'add_favorite' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'remove_favorite' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Tags — set freeform labels on a project.
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/tags',
+			[
+				[
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => [ self::class, 'set_tags' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id'   => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+						'tags' => [
+							'type'     => 'array',
+							'required' => true,
+							'items'    => [ 'type' => 'string' ],
+							'default'  => [],
+						],
+					],
+				],
+			]
+		);
+
+		// All tags currently in use (for filter autocomplete).
+		register_rest_route(
+			self::NAMESPACE,
+			'/tags',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_all_tags' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Failed installs.
+		register_rest_route(
+			self::NAMESPACE,
+			'/installs/failed',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_failed_installs' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/installs/failed/(?P<id>[a-zA-Z0-9_\-]+)',
+			[
+				[
+					'methods'             => \WP_REST_Server::DELETABLE,
+					'callback'            => [ self::class, 'clear_failed_install' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		// Config export / import.
+		register_rest_route(
+			self::NAMESPACE,
+			'/config/export',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'config_export' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/config/import',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'config_import' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		// Pending auto-update approvals.
+		register_rest_route(
+			self::NAMESPACE,
+			'/auto-updates/pending',
+			[
+				[
+					'methods'             => \WP_REST_Server::READABLE,
+					'callback'            => [ self::class, 'get_pending_auto_updates' ],
+					'permission_callback' => [ self::class, 'require_manage_options' ],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/auto-update/approve',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'approve_auto_update' ],
+					'permission_callback' => [ self::class, 'require_install_cap' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/projects/(?P<id>[a-zA-Z0-9_\-]+)/auto-update/skip',
+			[
+				[
+					'methods'             => \WP_REST_Server::CREATABLE,
+					'callback'            => [ self::class, 'skip_auto_update' ],
+					'permission_callback' => [ self::class, 'require_install_cap' ],
+					'args'                => [
+						'id' => [
+							'type'              => 'string',
+							'required'          => true,
+							'sanitize_callback' => 'sanitize_text_field',
+						],
+					],
+				],
+			]
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -928,6 +1082,35 @@ class Telex_REST {
 		$all_plugins    = get_plugins();
 		$active_plugins = (array) get_option( 'active_plugins', [] );
 
+		// Build a slug → plugin-file map so the per-project activation check is O(1)
+		// instead of iterating all plugins for every installed project.
+		$slug_to_plugin_file = [];
+		foreach ( $all_plugins as $plugin_file => $_data ) {
+			$parts = explode( '/', $plugin_file, 2 );
+			if ( isset( $parts[0] ) ) {
+				$slug_to_plugin_file[ $parts[0] ] = $plugin_file;
+			}
+		}
+
+		// Batch-load per-project options (pin, auto-update) so the decorator loop
+		// below can call get_option() without a separate DB query per project.
+		$installed_ids = array_keys( $installed );
+		Telex_Version_Pin::prime_caches( $installed_ids );
+		Telex_Auto_Update::prime_caches( $installed_ids );
+
+		// Build a project-ID → group-IDs map in one pass to avoid reading the
+		// user_meta and iterating all groups once per project inside the loop.
+		$groups_for_user      = Telex_Project_Groups::get_for_user();
+		$project_to_group_ids = [];
+		foreach ( $groups_for_user as $group ) {
+			foreach ( (array) ( $group['project_ids'] ?? [] ) as $pid ) {
+				$project_to_group_ids[ $pid ][] = $group['id'];
+			}
+		}
+
+		// Batch-load favorites and build a fast lookup set.
+		$starred_ids = array_flip( Telex_Favorites::get_for_user() );
+
 		// Decorate each project with local install status.
 		$projects = array_map(
 			/**
@@ -936,7 +1119,7 @@ class Telex_REST {
 			 * @param array<string, mixed> $project Raw project from the Telex API.
 			 * @return array<string, mixed>
 			 */
-			static function ( array $project ) use ( $installed, $remote_versions, $all_plugins, $active_plugins ): array {
+			static function ( array $project ) use ( $installed, $remote_versions, $active_plugins, $slug_to_plugin_file, $project_to_group_ids, $starred_ids ): array {
 				$id             = $project['publicId'] ?? '';
 				$remote_version = $remote_versions[ $id ] ?? (int) ( $project['currentVersion'] ?? 0 );
 				$local          = $installed[ $id ] ?? null;
@@ -959,21 +1142,18 @@ class Telex_REST {
 					if ( 'theme' === $type ) {
 						$is_active = ( get_stylesheet() === $slug );
 					} else {
-						// Find the plugin file for this slug.
-						foreach ( $all_plugins as $plugin_file => $_data ) {
-							if ( str_starts_with( $plugin_file, $slug . '/' ) ) {
-								$is_active = in_array( $plugin_file, $active_plugins, true );
-								break;
-							}
-						}
+						$plugin_file = $slug_to_plugin_file[ $slug ] ?? '';
+						$is_active   = '' !== $plugin_file && in_array( $plugin_file, $active_plugins, true );
 					}
 				}
 
 				$project['_is_active']   = $is_active;
-				$pin                     = Telex_Version_Pin::get( $id );
-				$project['_pin']         = $pin;
+				$project['_pin']         = Telex_Version_Pin::get( $id );
 				$project['_auto_update'] = Telex_Auto_Update::get_mode( $id );
-				$project['_group_ids']   = Telex_Project_Groups::get_group_ids_for_project( $id );
+				$project['_group_ids']   = $project_to_group_ids[ $id ] ?? [];
+				$project['_favorite']    = isset( $starred_ids[ $id ] );
+				$project['_tags']        = Telex_Tags::get( $id );
+				$project['_failed']      = Telex_Failed_Installs::has_failure( $id );
 
 				return $project;
 			},
@@ -1126,15 +1306,22 @@ class Telex_REST {
 		// Pass the already-fetched build data to the installer to avoid a second
 		// getBuild() round-trip. A duplicate call can race with the build-readiness
 		// state and incorrectly report "not ready" immediately after confirmation.
-		$result = Telex_Installer::install( $public_id, $activate, $build );
+		$project_name = $project_data['name'] ?? $public_id;
+		$result       = Telex_Installer::install( $public_id, $activate, $build );
 
 		if ( is_wp_error( $result ) ) {
+			// Persist the failure so the user can see and retry it later.
+			Telex_Failed_Installs::record( $public_id, (string) $project_name, $result->get_error_message() );
 			return new \WP_Error(
 				$result->get_error_code(),
 				$result->get_error_message(),
 				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
 			);
 		}
+
+		// Clear any prior failure record on success.
+		Telex_Failed_Installs::clear( $public_id );
+		self::bump_data_version();
 
 		return rest_ensure_response(
 			[
@@ -1305,22 +1492,26 @@ class Telex_REST {
 	 * @return \WP_REST_Response
 	 */
 	public static function get_auth_status( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		$circuit_status   = Telex_Circuit_Breaker::status();
-		$circuit_reset_at = null;
+		$circuit_status    = Telex_Circuit_Breaker::status();
+		$circuit_opened_at = null;
+		$circuit_reset_at  = null;
 
-		// Surface the circuit reset timestamp when the breaker is open so the UI
-		// can display a countdown without requiring the client to guess the window.
-		if ( 'open' === $circuit_status ) {
-			$reset_transient  = get_transient( 'telex_cb_reset_at' );
-			$circuit_reset_at = false !== $reset_transient ? (int) $reset_transient : null;
+		if ( 'closed' !== $circuit_status ) {
+			$circuit_opened_at = Telex_Circuit_Breaker::get_opened_at();
+			// circuit_reset_at is the earliest timestamp the breaker may allow a probe.
+			if ( null !== $circuit_opened_at ) {
+				$circuit_reset_at = $circuit_opened_at + 60; // RESET_TIMEOUT = 60s.
+			}
 		}
 
 		return rest_ensure_response(
 			[
-				'status'           => Telex_Auth::get_status()->value,
-				'is_connected'     => Telex_Auth::is_connected(),
-				'circuit_status'   => $circuit_status,
-				'circuit_reset_at' => $circuit_reset_at,
+				'status'                => Telex_Auth::get_status()->value,
+				'is_connected'          => Telex_Auth::is_connected(),
+				'circuit_status'        => $circuit_status,
+				'circuit_opened_at'     => $circuit_opened_at,
+				'circuit_reset_at'      => $circuit_reset_at,
+				'circuit_failure_count' => Telex_Circuit_Breaker::get_failure_count(),
 			]
 		);
 	}
@@ -1433,10 +1624,11 @@ class Telex_REST {
 			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
 		}
 
-		// Fetch page of rows.
+		// Fetch page of rows — omit the context blob since the REST response
+		// only surfaces id, action, public_id, user_id, created_at, and _user_name.
 		$limit_values = array_merge( $where_values, [ $per_page, $offset ] );
 		$rows         = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", ...$limit_values ),
+			$wpdb->prepare( "SELECT id, action, public_id, user_id, created_at FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", ...$limit_values ),
 			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
@@ -1849,199 +2041,6 @@ class Telex_REST {
 		);
 	}
 
-	// -------------------------------------------------------------------------
-	// Webhook auto-deploy
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Returns the deploy secret, generating one on first call.
-	 *
-	 * @return string 64-char hex secret.
-	 */
-	public static function get_deploy_secret(): string {
-		$secret = get_option( self::DEPLOY_SECRET_KEY );
-		if ( ! $secret ) {
-			$secret = bin2hex( random_bytes( 32 ) );
-			update_option( self::DEPLOY_SECRET_KEY, $secret, false );
-		}
-		return (string) $secret;
-	}
-
-	/**
-	 * POST /telex/v1/settings/deploy-secret — regenerates the deploy secret.
-	 *
-	 * @param \WP_REST_Request $request The incoming REST request.
-	 * @return \WP_REST_Response
-	 */
-	public static function regenerate_deploy_secret( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		$secret = bin2hex( random_bytes( 32 ) );
-		update_option( self::DEPLOY_SECRET_KEY, $secret, false );
-		return rest_ensure_response( [ 'secret' => $secret ] );
-	}
-
-	/**
-	 * GET /telex/v1/settings/deploy-secret — returns the current deploy secret.
-	 *
-	 * The secret is never embedded in page HTML; it is only served over this
-	 * authenticated endpoint so it cannot be exfiltrated via XSS or devtools.
-	 *
-	 * @param \WP_REST_Request $request The incoming REST request.
-	 * @return \WP_REST_Response
-	 */
-	public static function get_deploy_secret_endpoint( \WP_REST_Request $request ): \WP_REST_Response { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
-		return rest_ensure_response( [ 'secret' => self::get_deploy_secret() ] );
-	}
-
-	/**
-	 * POST /telex/v1/deploy — HMAC-signed webhook that triggers a project install/update.
-	 *
-	 * Expected payload:  { "project_id": "...", "build_version": 42, "timestamp": 1234567890 }
-	 * Expected header:   X-Telex-Signature: sha256=<hex-digest>
-	 *
-	 * The signature is computed over the raw request body with the deploy secret as the key.
-	 * Requests older than DEPLOY_REPLAY_SECS are rejected to prevent replay attacks.
-	 *
-	 * @param \WP_REST_Request $request The incoming REST request.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
-	public static function webhook_deploy( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
-		// --- Per-IP rate limiting ---------------------------------------------
-		// Authenticated endpoints use per-user limits; this public endpoint uses
-		// a per-IP counter so a single source cannot flood the install queue.
-		$_wh_retry = self::check_webhook_rate_limit();
-		if ( $_wh_retry > 0 ) {
-			return new \WP_Error(
-				'telex_rate_limit',
-				'Too many webhook requests from this address. Please wait.',
-				[
-					'status'  => 429,
-					'headers' => [ 'Retry-After' => (string) $_wh_retry ],
-				]
-			);
-		}
-
-		// --- Content-Type guard -----------------------------------------------
-		// All webhook params must live in the JSON body so the HMAC covers them.
-		// Rejecting non-JSON prevents a class of bypass where params are supplied
-		// via query string while the body (and therefore the HMAC) is empty.
-		$ct = $request->get_content_type();
-		if ( empty( $ct['value'] ) || 'application/json' !== $ct['value'] ) {
-			return new \WP_Error( 'telex_bad_content_type', 'Content-Type must be application/json.', [ 'status' => 415 ] );
-		}
-
-		// --- Body size guard --------------------------------------------------
-		// Enforce before HMAC to prevent a large-body memory-exhaustion attack.
-		// WordPress's post_max_size is a PHP-level limit but varies per host;
-		// this cap is unconditional regardless of server configuration.
-		$body = $request->get_body();
-		if ( strlen( $body ) > self::WEBHOOK_MAX_BODY_BYTES ) {
-			return new \WP_Error( 'telex_body_too_large', 'Request body exceeds maximum allowed size.', [ 'status' => 413 ] );
-		}
-
-		// --- Signature verification -------------------------------------------
-		$sig_header = $request->get_header( 'X-Telex-Signature' );
-		if ( ! $sig_header || ! str_starts_with( $sig_header, 'sha256=' ) ) {
-			return new \WP_Error( 'telex_no_signature', 'Missing or malformed X-Telex-Signature header.', [ 'status' => 401 ] );
-		}
-
-		$provided_sig = substr( $sig_header, 7 );
-		$secret       = self::get_deploy_secret();
-		$expected_sig = hash_hmac( 'sha256', $body, $secret );
-
-		if ( ! hash_equals( $expected_sig, $provided_sig ) ) {
-			return new \WP_Error( 'telex_bad_signature', 'Signature verification failed.', [ 'status' => 401 ] );
-		}
-
-		// --- Replay protection ------------------------------------------------
-		// timestamp is required — a missing field would otherwise allow
-		// indefinite replay of any HMAC-valid request without a timestamp.
-		$timestamp = (int) $request->get_param( 'timestamp' );
-		if ( 0 === $timestamp ) {
-			return new \WP_Error( 'telex_replay', 'timestamp is required.', [ 'status' => 400 ] );
-		}
-
-		// Directional window: allow DEPLOY_CLOCK_SKEW_SECS of future drift
-		// (clock skew) but reject anything more than DEPLOY_REPLAY_SECS old.
-		// Using abs() would silently accept pre-signed requests timestamped
-		// up to 5 minutes in the future — an unnecessary attack surface.
-		$age = time() - $timestamp;
-		if ( $age < -self::DEPLOY_CLOCK_SKEW_SECS || $age > self::DEPLOY_REPLAY_SECS ) {
-			return new \WP_Error( 'telex_replay', 'Request timestamp is outside the acceptable range.', [ 'status' => 400 ] );
-		}
-
-		// --- Install ----------------------------------------------------------
-		$public_id = sanitize_text_field( (string) ( $request->get_param( 'project_id' ) ?? '' ) );
-		if ( ! $public_id ) {
-			return new \WP_Error( 'telex_missing_id', 'project_id is required.', [ 'status' => 400 ] );
-		}
-
-		$result = Telex_Installer::install( $public_id );
-
-		if ( is_wp_error( $result ) ) {
-			return new \WP_Error(
-				$result->get_error_code(),
-				$result->get_error_message(),
-				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
-			);
-		}
-
-		self::bump_data_version();
-
-		return rest_ensure_response(
-			[
-				'success'    => true,
-				'project_id' => $public_id,
-			]
-		);
-	}
-
-	/**
-	 * Per-IP rate limiter for the public webhook endpoint.
-	 *
-	 * Uses a transient keyed on a hashed, normalised IP address. Allows up to
-	 * 10 webhook triggers per minute from any single address.
-	 *
-	 * @return int Seconds until the rate-limit window resets, or 0 if under the limit.
-	 */
-	private static function check_webhook_rate_limit(): int {
-		$window = 60;
-		$max    = 10;
-
-		// Normalise IPv6 addresses before hashing to prevent bypass via
-		// equivalent representations (e.g. "::1" vs "0:0:0:0:0:0:0:1").
-		// The raw address is never stored — only its SHA-256 digest.
-		$raw_ip = (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- hashed immediately; never stored raw.
-		$ip_key = 'telex_wh_rl_' . substr( hash( 'sha256', self::normalise_ip( $raw_ip ) ), 0, 32 );
-		$count  = (int) get_transient( $ip_key );
-		if ( $count >= $max ) {
-			return $window;
-		}
-		set_transient( $ip_key, $count + 1, $window );
-		return 0;
-	}
-
-	/**
-	 * Returns a canonical string representation of an IPv4 or IPv6 address.
-	 *
-	 * Uses inet_pton / inet_ntop to collapse equivalent IPv6 forms such as
-	 * "::0001" and "0:0:0:0:0:0:0:1" to the same canonical string "::1",
-	 * ensuring they map to the same rate-limit bucket.
-	 *
-	 * @param string $ip Raw IP address string (typically from $_SERVER['REMOTE_ADDR']).
-	 * @return string Canonical IP string, or the original value if parsing fails.
-	 */
-	private static function normalise_ip( string $ip ): string {
-		if ( '' === $ip ) {
-			return $ip;
-		}
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton triggers E_WARNING on invalid input.
-		$packed = @inet_pton( $ip );
-		if ( false === $packed ) {
-			return $ip;
-		}
-		$canonical = inet_ntop( $packed );
-		return false !== $canonical ? $canonical : $ip;
-	}
 
 	/**
 	 * Maps a Telex WP_Error code to an appropriate HTTP status code.
@@ -2553,5 +2552,251 @@ class Telex_REST {
 	 */
 	public static function bump_data_version(): void {
 		set_transient( 'telex_data_version', wp_generate_uuid4(), 5 * MINUTE_IN_SECONDS );
+	}
+
+	// -------------------------------------------------------------------------
+	// Favorites
+	// -------------------------------------------------------------------------
+
+	/**
+	 * POST /telex/v1/projects/{id}/favorite — star a project.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function add_favorite( \WP_REST_Request $request ): \WP_REST_Response {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		Telex_Favorites::add( $id );
+		return rest_ensure_response( [ 'starred' => true ] );
+	}
+
+	/**
+	 * DELETE /telex/v1/projects/{id}/favorite — un-star a project.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function remove_favorite( \WP_REST_Request $request ): \WP_REST_Response {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		Telex_Favorites::remove( $id );
+		return rest_ensure_response( [ 'starred' => false ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Tags
+	// -------------------------------------------------------------------------
+
+	/**
+	 * PUT /telex/v1/projects/{id}/tags — replace the tag list for a project.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function set_tags( \WP_REST_Request $request ): \WP_REST_Response {
+		$id    = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$tags  = (array) ( $request->get_param( 'tags' ) ?? [] );
+		$saved = Telex_Tags::set( $id, $tags );
+		Telex_Tags::bust_cache();
+		return rest_ensure_response( [ 'tags' => $saved ] );
+	}
+
+	/**
+	 * GET /telex/v1/tags — return all tags currently in use across all projects.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_all_tags(): \WP_REST_Response {
+		return rest_ensure_response( [ 'tags' => Telex_Tags::all_in_use() ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Failed installs
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/installs/failed — return all persisted install failures.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_failed_installs(): \WP_REST_Response {
+		return rest_ensure_response( [ 'failures' => Telex_Failed_Installs::get_all() ] );
+	}
+
+	/**
+	 * DELETE /telex/v1/installs/failed/{id} — clear a failure record.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function clear_failed_install( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		if ( ! Telex_Failed_Installs::has_failure( $id ) ) {
+			return new \WP_Error( 'telex_not_found', __( 'No failure record found for that project.', 'dispatch' ), [ 'status' => 404 ] );
+		}
+		Telex_Failed_Installs::clear( $id );
+		return rest_ensure_response( [ 'cleared' => true ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Config export / import
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/config/export — assemble all per-project user metadata into JSON.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function config_export(): \WP_REST_Response {
+		$installed = Telex_Tracker::get_all();
+		$config    = [
+			'version'  => 1,
+			'exported' => gmdate( 'c' ),
+			'projects' => [],
+		];
+
+		foreach ( array_keys( $installed ) as $id ) {
+			$entry = [
+				'publicId'   => $id,
+				'pin'        => Telex_Version_Pin::get( $id ),
+				'autoUpdate' => Telex_Auto_Update::get_mode( $id ),
+				'tags'       => Telex_Tags::get( $id ),
+			];
+
+			$note_raw = get_option( 'telex_note_' . sanitize_key( $id ), '' );
+			$note     = is_string( $note_raw ) ? $note_raw : '';
+			if ( '' !== $note ) {
+				$entry['note'] = $note;
+			}
+
+			$config['projects'][] = $entry;
+		}
+
+		// Also export group definitions for the current user.
+		$config['groups'] = Telex_Project_Groups::get_for_user();
+
+		// Favorites.
+		$config['favorites'] = Telex_Favorites::get_for_user();
+
+		return rest_ensure_response( $config );
+	}
+
+	/**
+	 * POST /telex/v1/config/import — validate and merge a dispatch-config.json payload.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function config_import( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$body = $request->get_json_params();
+
+		if ( empty( $body ) || ! isset( $body['version'] ) ) {
+			return new \WP_Error( 'invalid_config', __( 'Invalid config file. Missing version field.', 'dispatch' ), [ 'status' => 400 ] );
+		}
+
+		$imported = 0;
+
+		foreach ( (array) ( $body['projects'] ?? [] ) as $entry ) {
+			$id = sanitize_text_field( (string) ( $entry['publicId'] ?? '' ) );
+			if ( '' === $id ) {
+				continue;
+			}
+
+			if ( isset( $entry['pin'] ) && is_array( $entry['pin'] ) ) {
+				Telex_Version_Pin::pin( $id, (int) ( $entry['pin']['version'] ?? 0 ), (string) ( $entry['pin']['reason'] ?? '' ) );
+			}
+
+			if ( isset( $entry['autoUpdate'] ) && is_string( $entry['autoUpdate'] ) ) {
+				Telex_Auto_Update::set_mode( $id, $entry['autoUpdate'] );
+			}
+
+			if ( isset( $entry['tags'] ) && is_array( $entry['tags'] ) ) {
+				Telex_Tags::set( $id, $entry['tags'] );
+			}
+
+			if ( isset( $entry['note'] ) && is_string( $entry['note'] ) ) {
+				update_option( 'telex_note_' . sanitize_key( $id ), sanitize_textarea_field( $entry['note'] ), false );
+			}
+
+			++$imported;
+		}
+
+		Telex_Tags::bust_cache();
+
+		return rest_ensure_response(
+			[
+				'imported' => $imported,
+				/* translators: %d: number of project configs imported */
+				'message'  => sprintf( __( '%d project configuration(s) imported.', 'dispatch' ), $imported ),
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Update approval queue
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GET /telex/v1/auto-updates/pending — projects whose soak period has expired.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function get_pending_auto_updates(): \WP_REST_Response {
+		$installed = Telex_Tracker::get_all();
+		$pending   = [];
+
+		foreach ( array_keys( $installed ) as $id ) {
+			if ( 'delayed' !== Telex_Auto_Update::get_mode( $id ) ) {
+				continue;
+			}
+			$queued_at = Telex_Auto_Update::get_queued_at( $id );
+			if ( null === $queued_at ) {
+				continue;
+			}
+			$soak_complete = ( time() - $queued_at ) >= DAY_IN_SECONDS;
+			if ( $soak_complete ) {
+				$pending[] = [
+					'publicId'  => $id,
+					'queuedAt'  => gmdate( 'c', $queued_at ),
+					'soakHours' => (int) round( ( time() - $queued_at ) / HOUR_IN_SECONDS ),
+				];
+			}
+		}
+
+		return rest_ensure_response( [ 'pending' => $pending ] );
+	}
+
+	/**
+	 * POST /telex/v1/projects/{id}/auto-update/approve — install now.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function approve_auto_update( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$id     = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$result = Telex_Auto_Update::install_and_log( $id );
+
+		if ( is_wp_error( $result ) ) {
+			return new \WP_Error(
+				$result->get_error_code(),
+				$result->get_error_message(),
+				[ 'status' => self::http_status_for_error( $result->get_error_code() ) ]
+			);
+		}
+
+		self::bump_data_version();
+		return rest_ensure_response( [ 'status' => 'installed' ] );
+	}
+
+	/**
+	 * POST /telex/v1/projects/{id}/auto-update/skip — clear the queued update.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 * @return \WP_REST_Response
+	 */
+	public static function skip_auto_update( \WP_REST_Request $request ): \WP_REST_Response {
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		delete_transient( 'telex_update_queued_' . $id );
+		Telex_Auto_Update::set_mode( $id, 'disabled' );
+		return rest_ensure_response( [ 'skipped' => true ] );
 	}
 }

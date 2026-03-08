@@ -15,10 +15,12 @@
             <file>tests/Test_Telex_Circuit_Breaker.php</file>
             <file>tests/Test_Telex_DTOs.php</file>
             <file>tests/Test_Telex_Enums.php</file>
+            <file>tests/Test_Telex_Failed_Installs.php</file>
+            <file>tests/Test_Telex_Favorites.php</file>
             <file>tests/Test_Telex_Installer.php</file>
-            <file>tests/Test_Telex_REST_Webhook.php</file>
             <file>tests/Test_Telex_REST.php</file>
             <file>tests/Test_Telex_SDK.php</file>
+            <file>tests/Test_Telex_Tags.php</file>
             <file>tests/Test_Telex_Tracker.php</file>
             <file>tests/Test_Telex_Updater.php</file>
             <file>tests/Test_Telex_WP_Http_Client.php</file>

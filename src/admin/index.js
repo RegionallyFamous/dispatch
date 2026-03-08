@@ -46,7 +46,6 @@ import {
 	search as searchIcon,
 	download,
 	globe,
-	copy as copyIcon,
 	keyboardReturn,
 	pencil,
 	seen,
@@ -57,6 +56,9 @@ import {
 	people,
 	shield,
 	chartBar,
+	starFilled,
+	tag as tagIcon,
+	cautionFilled,
 } from '@wordpress/icons';
 import { getAvatarGradient, djb2, relativeDate } from './utils';
 import { reducer, actions, selectors, DEFAULT_STATE } from './store';
@@ -979,194 +981,6 @@ function ChangelogModal( { project, installed, onConfirm, onCancel } ) {
 }
 
 // ---------------------------------------------------------------------------
-// Webhook / auto-deploy settings panel
-// ---------------------------------------------------------------------------
-
-/**
- * @param {Object}   root0
- * @param {string}   root0.webhookUrl
- * @param {string}   root0.restUrl
- * @param {Function} root0.onToast    Toast callback from the parent.
- * @return {import('@wordpress/element').WPElement} Rendered element.
- */
-function WebhookPanel( { webhookUrl, restUrl, onToast } ) {
-	const [ visibleSecret, setVisibleSecret ] = useState( false );
-	const [ copiedUrl, setCopiedUrl ] = useState( false );
-	const [ copiedSecret, setCopiedSecret ] = useState( false );
-	const [ regenerating, setRegenerating ] = useState( false );
-	const [ currentSecret, setCurrentSecret ] = useState( '' );
-	const [ secretLoading, setSecretLoading ] = useState( true );
-
-	// Timer refs for copy feedback — cleared on unmount to avoid state updates
-	// after the component is gone.
-	const copyUrlTimerRef = useRef( null );
-	const copySecretTimerRef = useRef( null );
-
-	// Fetch the deploy secret via the authenticated REST endpoint on mount.
-	// The secret is intentionally not embedded in page HTML (see Pass 1).
-	useEffect( () => {
-		apiFetch( { url: `${ restUrl }/settings/deploy-secret` } )
-			.then( ( data ) => {
-				setCurrentSecret( data.secret || '' );
-				setSecretLoading( false );
-			} )
-			.catch( () => {
-				setSecretLoading( false );
-				onToast?.( {
-					type: 'error',
-					message: __(
-						"Couldn't load your webhook URL — try refreshing.",
-						'dispatch'
-					),
-				} );
-			} );
-
-		// Capture current refs at effect time for the cleanup closure.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		const urlTimer = copyUrlTimerRef;
-		const secretTimer = copySecretTimerRef;
-		return () => {
-			clearTimeout( urlTimer.current );
-			clearTimeout( secretTimer.current );
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [] );
-
-	function copy( text, setCopied, timerRef ) {
-		clearTimeout( timerRef.current );
-		if ( window.navigator?.clipboard ) {
-			window.navigator.clipboard.writeText( text ).catch( () => {} );
-		}
-		setCopied( true );
-		timerRef.current = setTimeout( () => setCopied( false ), 2000 );
-	}
-
-	async function handleRegenerate() {
-		setRegenerating( true );
-		try {
-			const data = await apiFetch( {
-				url: `${ restUrl }/settings/deploy-secret`,
-				method: 'POST',
-			} );
-			setCurrentSecret( data.secret );
-		} catch ( err ) {
-			onToast?.( {
-				type: 'error',
-				message:
-					err?.message ||
-					__(
-						'Could not regenerate secret. Please try again.',
-						'dispatch'
-					),
-			} );
-		}
-		setRegenerating( false );
-	}
-
-	if ( ! webhookUrl ) {
-		return null;
-	}
-
-	const maskedSecret = currentSecret
-		? currentSecret.slice( 0, 8 ) + '••••••••••••••••••••••••'
-		: '';
-
-	return (
-		<div className="telex-webhook-panel">
-			<h3>{ __( 'Auto-deploy webhook', 'dispatch' ) }</h3>
-			<p>
-				{ __(
-					'Give this URL to Telex and it will automatically push new builds to your site.',
-					'dispatch'
-				) }
-			</p>
-
-			<div className="telex-webhook-field">
-				<span className="telex-webhook-label">
-					{ __( 'URL', 'dispatch' ) }
-				</span>
-				<span className="telex-webhook-value" title={ webhookUrl }>
-					{ webhookUrl }
-				</span>
-				<Button
-					variant="secondary"
-					icon={ copyIcon }
-					onClick={ () =>
-						copy( webhookUrl, setCopiedUrl, copyUrlTimerRef )
-					}
-					__next40pxDefaultSize
-				>
-					{ copiedUrl
-						? __( 'Copied!', 'dispatch' )
-						: __( 'Copy', 'dispatch' ) }
-				</Button>
-			</div>
-
-			{ secretLoading && (
-				<div
-					className="telex-webhook-field telex-webhook-field--skeleton"
-					aria-hidden="true"
-				>
-					<div className="telex-skeleton telex-skeleton--webhook-label" />
-					<div className="telex-skeleton telex-skeleton--webhook-value" />
-					<div className="telex-skeleton telex-skeleton--button" />
-					<div className="telex-skeleton telex-skeleton--button" />
-				</div>
-			) }
-			{ ! secretLoading && currentSecret && (
-				<div className="telex-webhook-field">
-					<span className="telex-webhook-label">
-						{ __( 'Secret', 'dispatch' ) }
-					</span>
-					<span
-						className="telex-webhook-value"
-						title={ visibleSecret ? currentSecret : undefined }
-						aria-live="polite"
-						aria-atomic="true"
-					>
-						{ visibleSecret ? currentSecret : maskedSecret }
-					</span>
-					<Button
-						variant="tertiary"
-						onClick={ () => setVisibleSecret( ( v ) => ! v ) }
-						aria-pressed={ visibleSecret }
-						__next40pxDefaultSize
-					>
-						{ visibleSecret
-							? __( 'Hide', 'dispatch' )
-							: __( 'Show', 'dispatch' ) }
-					</Button>
-					<Button
-						variant="secondary"
-						icon={ copyIcon }
-						onClick={ () =>
-							copy(
-								currentSecret,
-								setCopiedSecret,
-								copySecretTimerRef
-							)
-						}
-						__next40pxDefaultSize
-					>
-						{ copiedSecret
-							? __( 'Copied!', 'dispatch' )
-							: __( 'Copy', 'dispatch' ) }
-					</Button>
-					<Button
-						variant="tertiary"
-						onClick={ handleRegenerate }
-						disabled={ regenerating }
-						isBusy={ regenerating }
-						__next40pxDefaultSize
-					>
-						{ __( 'Regenerate', 'dispatch' ) }
-					</Button>
-				</div>
-			) }
-		</div>
-	);
-}
-
 // ---------------------------------------------------------------------------
 // Network deploy modal (multisite)
 // ---------------------------------------------------------------------------
@@ -1459,6 +1273,15 @@ function ProjectCard( {
 	);
 	const [ autoUpdateBusy, setAutoUpdateBusy ] = useState( false );
 
+	// Favorites (optimistic UI).
+	const [ isStarred, setIsStarred ] = useState( !! project._favorite );
+
+	// Tags inline editor.
+	const [ showTagEditor, setShowTagEditor ] = useState( false );
+	const [ tagInput, setTagInput ] = useState( '' );
+	const [ tags, setTags ] = useState( project._tags || [] );
+	const [ tagsBusy, setTagsBusy ] = useState( false );
+
 	// Load saved note on mount.
 	useEffect( () => {
 		apiFetch( { url: `${ restUrl }/projects/${ project.publicId }/note` } )
@@ -1607,6 +1430,60 @@ function ProjectCard( {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[ project.publicId, restUrl ]
 	);
+
+	const handleToggleFavorite = useCallback( async () => {
+		const next = ! isStarred;
+		setIsStarred( next ); // Optimistic update.
+		try {
+			await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/favorite`,
+				method: next ? 'POST' : 'DELETE',
+			} );
+		} catch {
+			setIsStarred( ! next ); // Revert on error.
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ isStarred, project.publicId, restUrl ] );
+
+	const saveTags = useCallback( async () => {
+		setTagsBusy( true );
+		try {
+			const resp = await apiFetch( {
+				url: `${ restUrl }/projects/${ project.publicId }/tags`,
+				method: 'PUT',
+				data: { tags },
+			} );
+			if ( resp?.tags ) {
+				setTags( resp.tags );
+			}
+			setShowTagEditor( false );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message: e.message || __( 'Could not save tags.', 'dispatch' ),
+			} );
+		} finally {
+			setTagsBusy( false );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ tags, project.publicId, restUrl ] );
+
+	const addTag = useCallback( () => {
+		const clean = tagInput
+			.trim()
+			.toLowerCase()
+			.replace( /[^a-z0-9_-]/g, '-' );
+		if ( clean && ! tags.includes( clean ) && tags.length < 20 ) {
+			setTags( ( prev ) => [ ...prev, clean ] );
+		}
+		setTagInput( '' );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ tagInput, tags ] );
+
+	const removeTag = useCallback( ( t ) => {
+		setTags( ( prev ) => prev.filter( ( x ) => x !== t ) );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 
 	// Refs for cleanup on unmount.
 	const cancelSignalRef = useRef( { cancelled: false } );
@@ -1815,6 +1692,8 @@ function ProjectCard( {
 		return null;
 	} )();
 
+	const isFailed = !! project._failed;
+
 	return (
 		<div
 			className={ [
@@ -1825,9 +1704,12 @@ function ProjectCard( {
 				isBusy ? 'telex-project-row--busy' : '',
 				isSelected ? 'telex-project-row--selected' : '',
 				isPinned ? 'telex-project-row--pinned' : '',
+				isStarred ? 'telex-project-row--starred' : '',
+				isFailed ? 'telex-project-row--failed' : '',
 			]
 				.filter( Boolean )
 				.join( ' ' ) }
+			data-public-id={ project.publicId }
 		>
 			{ /* Optional checkbox for multi-select */ }
 			{ showCheckbox &&
@@ -1946,7 +1828,60 @@ function ProjectCard( {
 								: noteValue }
 						</span>
 					) }
+					{ tags.length > 0 && (
+						<span className="telex-row-tags">
+							{ tags.map( ( t ) => (
+								<span key={ t } className="telex-tag-chip">
+									{ t }
+								</span>
+							) ) }
+						</span>
+					) }
+					{ isFailed && (
+						<span className="telex-failed-badge">
+							<Icon icon={ cautionFilled } size={ 12 } />
+							{ __( 'Install failed', 'dispatch' ) }
+						</span>
+					) }
 				</div>
+				{ /* Star button — appears on hover via CSS */ }
+				<Tooltip
+					text={
+						isStarred
+							? __( 'Remove from favorites', 'dispatch' )
+							: __( 'Add to favorites', 'dispatch' )
+					}
+				>
+					<button
+						type="button"
+						className={ [
+							'telex-star-btn',
+							isStarred ? 'telex-star-btn--starred' : '',
+						]
+							.filter( Boolean )
+							.join( ' ' ) }
+						onClick={ handleToggleFavorite }
+						aria-label={
+							isStarred
+								? sprintf(
+										/* translators: %s: project name */
+										__( 'Unstar %s', 'dispatch' ),
+										project.name
+								  )
+								: sprintf(
+										/* translators: %s: project name */
+										__( 'Star %s', 'dispatch' ),
+										project.name
+								  )
+						}
+						aria-pressed={ isStarred }
+					>
+						<Icon
+							icon={ isStarred ? starFilled : starFilled }
+							size={ 16 }
+						/>
+					</button>
+				</Tooltip>
 			</div>
 
 			{ /* Meta — one clear state, no duplication with the actions zone */ }
@@ -2277,6 +2212,28 @@ function ProjectCard( {
 							/>
 						</Tooltip>
 					) }
+					<Tooltip
+						text={
+							tags.length > 0
+								? __( 'Edit tags', 'dispatch' )
+								: __( 'Add tags', 'dispatch' )
+						}
+					>
+						<Button
+							variant="tertiary"
+							icon={ tagIcon }
+							onClick={ () => setShowTagEditor( ( v ) => ! v ) }
+							aria-label={
+								tags.length > 0
+									? __( 'Edit tags', 'dispatch' )
+									: __( 'Add tags', 'dispatch' )
+							}
+							className={
+								tags.length > 0 ? 'telex-btn-has-tags' : ''
+							}
+							__next40pxDefaultSize
+						/>
+					</Tooltip>
 				</div>
 			</div>
 			{ /* Inline note editor */ }
@@ -2304,6 +2261,85 @@ function ProjectCard( {
 							variant="tertiary"
 							size="small"
 							onClick={ () => setShowNoteEditor( false ) }
+							__next40pxDefaultSize={ false }
+						>
+							{ __( 'Cancel', 'dispatch' ) }
+						</Button>
+					</div>
+				</div>
+			) }
+
+			{ /* Tag editor */ }
+			{ showTagEditor && (
+				<div className="telex-row-tag-editor">
+					<div className="telex-row-tag-chips">
+						{ tags.map( ( t ) => (
+							<span
+								key={ t }
+								className="telex-tag-chip telex-tag-chip--editable"
+							>
+								{ t }
+								<button
+									type="button"
+									className="telex-tag-chip__remove"
+									onClick={ () => removeTag( t ) }
+									aria-label={ sprintf(
+										/* translators: %s: tag name */
+										__( 'Remove tag %s', 'dispatch' ),
+										t
+									) }
+								>
+									×
+								</button>
+							</span>
+						) ) }
+					</div>
+					<div className="telex-row-tag-input">
+						<TextControl
+							label={ __( 'Add tag', 'dispatch' ) }
+							hideLabelFromVision
+							placeholder={ __(
+								'e.g. client-a, beta',
+								'dispatch'
+							) }
+							value={ tagInput }
+							onChange={ setTagInput }
+							onKeyDown={ ( e ) => {
+								if ( e.key === 'Enter' ) {
+									e.preventDefault();
+									addTag();
+								}
+							} }
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+						/>
+						<Button
+							variant="secondary"
+							size="small"
+							onClick={ addTag }
+							__next40pxDefaultSize={ false }
+						>
+							{ __( 'Add', 'dispatch' ) }
+						</Button>
+					</div>
+					<div className="telex-row-note-actions">
+						<Button
+							variant="primary"
+							size="small"
+							onClick={ saveTags }
+							isBusy={ tagsBusy }
+							disabled={ tagsBusy }
+							__next40pxDefaultSize={ false }
+						>
+							{ __( 'Save tags', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="tertiary"
+							size="small"
+							onClick={ () => {
+								setTags( project._tags || [] );
+								setShowTagEditor( false );
+							} }
 							__next40pxDefaultSize={ false }
 						>
 							{ __( 'Cancel', 'dispatch' ) }
@@ -2798,6 +2834,7 @@ function ProjectsApp() {
 			'themes',
 			'activity',
 			'health',
+			'failed',
 		];
 		if ( validTabs.includes( hash ) ) {
 			return hash;
@@ -2864,6 +2901,14 @@ function ProjectsApp() {
 	// Analytics data (block usage counts).
 	const [ analyticsData, setAnalyticsData ] = useState( {} );
 
+	// Tag filter.
+	const [ tagFilter, setTagFilter ] = useState( '' );
+	const [ allTags, setAllTags ] = useState( [] );
+
+	// Pending auto-update approvals.
+	const [ pendingApprovals, setPendingApprovals ] = useState( [] );
+	const [ pendingLoading, setPendingLoading ] = useState( false );
+
 	// Heartbeat data version — used to detect mutations by other admin sessions.
 	const dataVersionRef = useRef( '' );
 
@@ -2913,6 +2958,14 @@ function ProjectsApp() {
 					.then( ( d ) => setHealthData( d ) )
 					.catch( () => {} )
 					.finally( () => setHealthLoading( false ) );
+			}
+			// Lazy-load pending approvals on first visit to updates tab.
+			if ( tabName === 'updates' ) {
+				setPendingLoading( true );
+				apiFetch( { url: `${ restUrl }/auto-updates/pending` } )
+					.then( ( d ) => setPendingApprovals( d?.pending || [] ) )
+					.catch( () => {} )
+					.finally( () => setPendingLoading( false ) );
 			}
 		},
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3139,6 +3192,10 @@ function ProjectsApp() {
 					setAnalyticsData( data.usage );
 				}
 			} )
+			.catch( () => {} );
+		// Load all tags for the filter dropdown.
+		apiFetch( { url: `${ restUrl }/tags` } )
+			.then( ( data ) => setAllTags( data?.tags || [] ) )
 			.catch( () => {} );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [] );
@@ -3411,6 +3468,16 @@ function ProjectsApp() {
 						return ub - ua;
 					} );
 					break;
+				case 'starred-first':
+					copy.sort( ( a, b ) => {
+						if ( a._favorite === b._favorite ) {
+							return ( a.name || '' ).localeCompare(
+								b.name || ''
+							);
+						}
+						return a._favorite ? -1 : 1;
+					} );
+					break;
 				default: // 'name-asc'
 					copy.sort( ( a, b ) =>
 						( a.name || '' ).localeCompare( b.name || '' )
@@ -3437,6 +3504,9 @@ function ProjectsApp() {
 						if ( tabName === 'themes' ) {
 							return t === 'theme';
 						}
+						if ( tabName === 'failed' ) {
+							return p._failed;
+						}
 						return true;
 					} )
 					.filter(
@@ -3455,8 +3525,19 @@ function ProjectsApp() {
 							p._group_ids.includes( activeGroupId )
 						);
 					} )
+					.filter( ( p ) => {
+						if ( ! tagFilter ) {
+							return true;
+						}
+						return p._tags && p._tags.includes( tagFilter );
+					} )
 			),
-		[ projects, searchQuery, sortProjects, activeGroupId ] // eslint-disable-line react-hooks/exhaustive-deps
+		[ projects, searchQuery, sortProjects, activeGroupId, tagFilter ] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+
+	const failedCount = useMemo(
+		() => projects.filter( ( p ) => p._failed ).length,
+		[ projects ]
 	);
 
 	const tabs = useMemo(
@@ -3494,8 +3575,20 @@ function ProjectsApp() {
 				name: 'health',
 				title: __( 'Health', 'dispatch' ),
 			},
+			...( failedCount > 0
+				? [
+						{
+							name: 'failed',
+							title: `${ __(
+								'Failed',
+								'dispatch'
+							) } (${ failedCount })`,
+							className: 'telex-tab--failed',
+						},
+				  ]
+				: [] ),
 		],
-		[ projects.length, updatesCount, blocksCount, themesCount ]
+		[ projects.length, updatesCount, blocksCount, themesCount, failedCount ]
 	);
 
 	// Inline reconnect: when auth expires, show modal device flow rather than full reload.
@@ -3748,6 +3841,29 @@ function ProjectsApp() {
 							/>
 						</Tooltip>
 					) }
+					{ allTags.length > 0 &&
+						activeTab !== 'activity' &&
+						activeTab !== 'health' && (
+							<SelectControl
+								className="telex-tag-filter"
+								label={ __( 'Tag', 'dispatch' ) }
+								hideLabelFromVision
+								__next40pxDefaultSize
+								value={ tagFilter }
+								options={ [
+									{
+										value: '',
+										label: __( 'All tags', 'dispatch' ),
+									},
+									...allTags.map( ( t ) => ( {
+										value: t,
+										label: t,
+									} ) ),
+								] }
+								onChange={ ( v ) => setTagFilter( v ) }
+								__nextHasNoMarginBottom
+							/>
+						) }
 					{ activeTab !== 'activity' && activeTab !== 'health' && (
 						<SelectControl
 							className="telex-sort-control"
@@ -3778,6 +3894,10 @@ function ProjectsApp() {
 								{
 									value: 'most-used',
 									label: __( 'Most used', 'dispatch' ),
+								},
+								{
+									value: 'starred-first',
+									label: __( 'Starred first', 'dispatch' ),
 								},
 							] }
 							onChange={ changeSortOrder }
@@ -4408,6 +4528,159 @@ function ProjectsApp() {
 							aria-labelledby={ `telex-tab-${ activeTab }` }
 							className="telex-tab-panel"
 						>
+							{ /* Pending auto-update approval queue */ }
+							{ activeTab === 'updates' &&
+								! pendingLoading &&
+								pendingApprovals.length > 0 && (
+									<div className="telex-approval-queue">
+										<h3 className="telex-approval-queue__title">
+											{ sprintf(
+												/* translators: %d: number of pending approvals */
+												_n(
+													'%d update awaiting approval',
+													'%d updates awaiting approval',
+													pendingApprovals.length,
+													'dispatch'
+												),
+												pendingApprovals.length
+											) }
+										</h3>
+										<div className="telex-approval-queue__list">
+											{ pendingApprovals.map(
+												( item ) => {
+													const proj = projects.find(
+														( p ) =>
+															p.publicId ===
+															item.publicId
+													);
+													return (
+														<div
+															key={
+																item.publicId
+															}
+															className="telex-approval-item"
+														>
+															<span className="telex-approval-item__name">
+																{ proj?.name ||
+																	item.publicId }
+															</span>
+															<span className="telex-approval-item__age">
+																{ sprintf(
+																	/* translators: %d: number of hours */
+																	__(
+																		'Queued %dh ago',
+																		'dispatch'
+																	),
+																	item.soakHours
+																) }
+															</span>
+															<div className="telex-approval-item__actions">
+																<Button
+																	variant="primary"
+																	size="small"
+																	onClick={ async () => {
+																		try {
+																			await apiFetch(
+																				{
+																					url: `${ restUrl }/projects/${ item.publicId }/auto-update/approve`,
+																					method: 'POST',
+																				}
+																			);
+																			setPendingApprovals(
+																				(
+																					prev
+																				) =>
+																					prev.filter(
+																						(
+																							x
+																						) =>
+																							x.publicId !==
+																							item.publicId
+																					)
+																			);
+																			fetchData(
+																				true
+																			);
+																			addToast(
+																				{
+																					type: 'success',
+																					message:
+																						sprintf(
+																							/* translators: %s: project name */
+																							__(
+																								'%s updated.',
+																								'dispatch'
+																							),
+																							proj?.name ||
+																								item.publicId
+																						),
+																				}
+																			);
+																		} catch ( e ) {
+																			addToast(
+																				{
+																					type: 'error',
+																					message:
+																						e.message ||
+																						__(
+																							'Update failed.',
+																							'dispatch'
+																						),
+																				}
+																			);
+																		}
+																	} }
+																	__next40pxDefaultSize={
+																		false
+																	}
+																>
+																	{ __(
+																		'Approve',
+																		'dispatch'
+																	) }
+																</Button>
+																<Button
+																	variant="tertiary"
+																	size="small"
+																	onClick={ async () => {
+																		await apiFetch(
+																			{
+																				url: `${ restUrl }/projects/${ item.publicId }/auto-update/skip`,
+																				method: 'POST',
+																			}
+																		).catch(
+																			() => {}
+																		);
+																		setPendingApprovals(
+																			(
+																				prev
+																			) =>
+																				prev.filter(
+																					(
+																						x
+																					) =>
+																						x.publicId !==
+																						item.publicId
+																				)
+																		);
+																	} }
+																	__next40pxDefaultSize={
+																		false
+																	}
+																>
+																	{ __(
+																		'Skip',
+																		'dispatch'
+																	) }
+																</Button>
+															</div>
+														</div>
+													);
+												}
+											) }
+										</div>
+									</div>
+								) }
 							<div
 								className="telex-project-list"
 								role="list"
@@ -5242,18 +5515,137 @@ function SnapshotPanel( { restUrl, onToast } ) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings page — webhook-only app
+// Settings page app
 // ---------------------------------------------------------------------------
 
 /**
- * Minimal app for the Settings page: WebhookPanel + Notifications + Snapshots.
+ * Minimal app for the Settings page: Notifications, Snapshots, Import/Export.
  *
  * @return {import('@wordpress/element').WPElement} Settings app element.
  */
+/**
+ * Import / Export panel — shown in the Settings tab.
+ *
+ * @param {Object}   root0
+ * @param {string}   root0.restUrl REST API base URL.
+ * @param {Function} root0.onToast Toast callback.
+ * @return {import('@wordpress/element').WPElement} Panel element.
+ */
+function ImportExportPanel( { restUrl, onToast } ) {
+	const [ exporting, setExporting ] = useState( false );
+	const [ importing, setImporting ] = useState( false );
+	const fileInputRef = useRef( null );
+
+	const handleExport = useCallback( async () => {
+		setExporting( true );
+		try {
+			const data = await apiFetch( {
+				url: `${ restUrl }/config/export`,
+			} );
+			const blob = new Blob( [ JSON.stringify( data, null, 2 ) ], {
+				type: 'application/json',
+			} );
+			const url = URL.createObjectURL( blob );
+			const a = document.createElement( 'a' );
+			a.href = url;
+			a.download = 'dispatch-config.json';
+			a.click();
+			URL.revokeObjectURL( url );
+			onToast( {
+				type: 'success',
+				message: __( 'Config exported.', 'dispatch' ),
+			} );
+		} catch ( e ) {
+			onToast( {
+				type: 'error',
+				message: e.message || __( 'Export failed.', 'dispatch' ),
+			} );
+		} finally {
+			setExporting( false );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ restUrl ] );
+
+	const handleImport = useCallback(
+		async ( e ) => {
+			const file = e.target.files?.[ 0 ];
+			if ( ! file ) {
+				return;
+			}
+			setImporting( true );
+			try {
+				const text = await file.text();
+				const json = JSON.parse( text );
+				const resp = await apiFetch( {
+					url: `${ restUrl }/config/import`,
+					method: 'POST',
+					data: json,
+				} );
+				onToast( {
+					type: 'success',
+					message:
+						resp?.message ||
+						__( 'Config imported successfully.', 'dispatch' ),
+				} );
+			} catch ( err ) {
+				onToast( {
+					type: 'error',
+					message: err.message || __( 'Import failed.', 'dispatch' ),
+				} );
+			} finally {
+				setImporting( false );
+				if ( fileInputRef.current ) {
+					fileInputRef.current.value = '';
+				}
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ restUrl ]
+	);
+
+	return (
+		<div className="telex-notification-panel">
+			<h3>{ __( 'Config Export / Import', 'dispatch' ) }</h3>
+			<p className="description">
+				{ __(
+					'Export your pins, notes, tags, groups, and auto-update settings as a JSON file. Import on any site to replicate your setup.',
+					'dispatch'
+				) }
+			</p>
+			<div className="telex-notification-actions">
+				<Button
+					variant="secondary"
+					isBusy={ exporting }
+					disabled={ exporting }
+					onClick={ handleExport }
+					__next40pxDefaultSize
+				>
+					{ __( 'Export config', 'dispatch' ) }
+				</Button>
+				<Button
+					variant="secondary"
+					isBusy={ importing }
+					disabled={ importing }
+					onClick={ () => fileInputRef.current?.click() }
+					__next40pxDefaultSize
+				>
+					{ __( 'Import config', 'dispatch' ) }
+				</Button>
+				<input
+					ref={ fileInputRef }
+					type="file"
+					accept="application/json,.json"
+					style={ { display: 'none' } }
+					onChange={ handleImport }
+				/>
+			</div>
+		</div>
+	);
+}
+
 function WebhookApp() {
 	const container = document.getElementById( 'telex-webhook-app' );
 	const restUrl = container?.dataset?.restUrl?.replace( /\/$/, '' ) || '';
-	const webhookUrl = container?.dataset?.webhookUrl || '';
 	const [ toasts, setToasts ] = useState( [] );
 
 	/**
@@ -5279,13 +5671,9 @@ function WebhookApp() {
 
 	return (
 		<>
-			<WebhookPanel
-				webhookUrl={ webhookUrl }
-				restUrl={ restUrl }
-				onToast={ addToast }
-			/>
 			<NotificationPanel restUrl={ restUrl } onToast={ addToast } />
 			<SnapshotPanel restUrl={ restUrl } onToast={ addToast } />
+			<ImportExportPanel restUrl={ restUrl } onToast={ addToast } />
 			<ToastList toasts={ toasts } onDismiss={ removeToast } />
 		</>
 	);

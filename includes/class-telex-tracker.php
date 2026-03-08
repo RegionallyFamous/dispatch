@@ -93,12 +93,26 @@ class Telex_Tracker {
 	 * @return array{version: int, type: string, slug: string, installed_at: string, updated_at: string}|null
 	 */
 	public static function get_by_slug( string $slug ): ?array {
+		return self::get_all_by_slug()[ $slug ] ?? null;
+	}
+
+	/**
+	 * Returns all tracked projects keyed by their WordPress slug.
+	 *
+	 * Builds the map in a single pass over get_all() so callers that need to
+	 * look up multiple projects by slug pay only O(N) once rather than O(N²).
+	 *
+	 * @return array<string, array{version: int, type: string, slug: string, installed_at: string, updated_at: string}>
+	 */
+	public static function get_all_by_slug(): array {
+		$map = [];
 		foreach ( self::get_all() as $entry ) {
-			if ( isset( $entry['slug'] ) && $entry['slug'] === $slug ) {
-				return $entry;
+			$s = $entry['slug'] ?? '';
+			if ( '' !== $s ) {
+				$map[ $s ] = $entry;
 			}
 		}
-		return null;
+		return $map;
 	}
 
 	// -------------------------------------------------------------------------

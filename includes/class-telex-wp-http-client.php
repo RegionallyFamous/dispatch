@@ -67,6 +67,48 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 	}
 
 	/**
+	 * Sends a JSON POST to any HTTPS URL, applying the same security hardening as sendRequest().
+	 *
+	 * Intended for outbound notifications (e.g. Slack webhooks) where the full
+	 * PSR-7 round-trip is unnecessary. Returns the HTTP status code, or throws
+	 * Telex_Http_Exception on network error or security violation.
+	 *
+	 * @param string               $url     HTTPS destination URL.
+	 * @param string               $body    Request body (JSON-encoded by the caller).
+	 * @param array<string,string> $headers Additional headers; Content-Type defaults to application/json.
+	 * @param int                  $timeout Request timeout in seconds.
+	 * @return int HTTP response status code.
+	 * @throws Telex_Http_Exception On network error or non-HTTPS URL.
+	 */
+	public static function post_json( string $url, string $body, array $headers = [], int $timeout = self::TIMEOUT_METADATA ): int {
+		if ( ! str_starts_with( $url, 'https://' ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new Telex_Http_Exception( sprintf( 'Telex HTTP client only supports HTTPS. Rejected: %s', $url ) );
+		}
+
+		$merged_headers = array_merge( [ 'Content-Type' => 'application/json' ], $headers );
+
+		$wp_response = wp_remote_post(
+			$url,
+			[
+				'headers'             => $merged_headers,
+				'body'                => $body,
+				'timeout'             => $timeout,
+				'sslverify'           => true,
+				'redirection'         => 0,
+				'limit_response_size' => self::MAX_RESPONSE_BYTES,
+			]
+		);
+
+		if ( is_wp_error( $wp_response ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			throw new Telex_Http_Exception( $wp_response->get_error_message() );
+		}
+
+		return (int) wp_remote_retrieve_response_code( $wp_response );
+	}
+
+	/**
 	 * Sends a PSR-7 request and returns a PSR-7 response.
 	 *
 	 * @param \Psr\Http\Message\RequestInterface $request The outgoing request.
@@ -92,6 +134,8 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 
 		$body = (string) $request->getBody();
 
+		$request_start = microtime( true );
+
 		$wp_response = wp_remote_request(
 			$uri,
 			[
@@ -105,12 +149,22 @@ final class Telex_WP_Http_Client implements \Psr\Http\Client\ClientInterface {
 			]
 		);
 
+		$elapsed_ms = (int) round( ( microtime( true ) - $request_start ) * 1000 );
+
 		if ( is_wp_error( $wp_response ) ) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			throw new Telex_Http_Exception( $wp_response->get_error_message() );
 		}
 
 		$status_code = (int) wp_remote_retrieve_response_code( $wp_response );
+
+		// Log slow requests (> 3 s) to the PHP error log for correlation with
+		// circuit-breaker trips. Only fires when WP_DEBUG_LOG is enabled so there
+		// is no overhead in production unless explicitly opted in.
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG && $elapsed_ms > 3000 ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( 'Dispatch: slow Telex API request — %s %s took %d ms (HTTP %d)', $method, $uri, $elapsed_ms, $status_code ) );
+		}
 
 		// Guard against empty/missing status code (network layer error).
 		if ( $status_code < 100 || $status_code > 599 ) {

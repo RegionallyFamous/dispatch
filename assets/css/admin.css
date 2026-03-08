@@ -1852,9 +1852,6 @@
  * so the webhook panel and audit log don't span the full admin column.
  * ------------------------------------------------------------------------- */
 
-.telex-settings-body {
-	max-width: 900px;
-}
 
 /* Audit log section header — title + description on the left, action on the
    right, separated by a bottom border to frame the list table below. */
@@ -2733,4 +2730,269 @@
 
 .telex-groups-modal .components-modal__content {
 	min-width: 480px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Stars / Favorites
+ * ------------------------------------------------------------------------- */
+
+.telex-star-btn {
+	position: absolute;
+	top: 50%;
+	right: calc(100% + 6px);
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease, color 0.15s ease;
+	color: var(--telex-muted, #8c8f94);
+}
+
+.telex-project-row:hover .telex-star-btn,
+.telex-project-row--starred .telex-star-btn {
+	opacity: 1;
+}
+
+.telex-star-btn--starred {
+	color: #f59e0b !important;
+	opacity: 1 !important;
+}
+
+.telex-star-btn:hover {
+	color: #f59e0b;
+}
+
+.telex-row-identity {
+	position: relative;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tags
+ * ------------------------------------------------------------------------- */
+
+.telex-row-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.telex-tag-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 2px 8px;
+	border-radius: 20px;
+	background: var(--telex-surface, #f6f7f7);
+	border: 1px solid var(--telex-border, #dcdcde);
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--telex-text-muted, #50575e);
+	line-height: 1.4;
+	white-space: nowrap;
+}
+
+.telex-tag-chip--editable {
+	background: var(--wp-admin-theme-color, #007cba);
+	color: #fff;
+	border-color: var(--wp-admin-theme-color, #007cba);
+}
+
+.telex-tag-chip__remove {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0 2px;
+	color: rgba(255, 255, 255, 0.8);
+	font-size: 13px;
+	line-height: 1;
+}
+
+.telex-tag-chip__remove:hover {
+	color: #fff;
+}
+
+.telex-row-tag-editor {
+	padding: 12px 16px;
+	background: #f6f7f7;
+	border-top: 1px solid var(--telex-border, #dcdcde);
+}
+
+.telex-row-tag-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+.telex-row-tag-input {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.telex-row-tag-input .components-base-control {
+	flex: 1;
+	margin-bottom: 0;
+}
+
+.telex-btn-has-tags {
+	color: var(--wp-admin-theme-color, #007cba) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * Failed install badge + tab
+ * ------------------------------------------------------------------------- */
+
+.telex-failed-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 20px;
+	background: #fce8e6;
+	color: #d63638;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.telex-project-row--failed .telex-row-identity {
+	opacity: 0.8;
+}
+
+.telex-tab--failed {
+	color: #d63638 !important;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Update Approval Queue
+ * ------------------------------------------------------------------------- */
+
+.telex-approval-queue {
+	margin-bottom: 20px;
+	padding: 16px;
+	background: #fff8e6;
+	border: 1px solid #f0b849;
+	border-radius: 4px;
+}
+
+.telex-approval-queue__title {
+	margin: 0 0 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #7a4f00;
+}
+
+.telex-approval-queue__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.telex-approval-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	background: #fff;
+	border: 1px solid #f0d9a0;
+	border-radius: 3px;
+}
+
+.telex-approval-item__name {
+	font-weight: 500;
+	flex: 1;
+}
+
+.telex-approval-item__age {
+	font-size: 12px;
+	color: var(--telex-muted, #8c8f94);
+}
+
+.telex-approval-item__actions {
+	display: flex;
+	gap: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dashboard widget
+ * ------------------------------------------------------------------------- */
+
+.dispatch-widget-stats {
+	list-style: none;
+	margin: 0 0 12px;
+	padding: 0;
+	display: flex;
+	gap: 0;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.dispatch-widget-stats li {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 10px 16px;
+	flex: 1;
+	border-right: 1px solid #dcdcde;
+	text-align: center;
+}
+
+.dispatch-widget-stats li:last-child {
+	border-right: none;
+}
+
+.dispatch-widget-label {
+	font-size: 11px;
+	color: #50575e;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-bottom: 2px;
+}
+
+.dispatch-widget-stats strong {
+	font-size: 20px;
+	font-weight: 700;
+	color: #1d2327;
+}
+
+.dispatch-widget-badge {
+	color: var(--wp-admin-theme-color, #007cba) !important;
+}
+
+.dispatch-widget-state--open {
+	color: #d63638;
+}
+
+.dispatch-widget-state--half_open {
+	color: #dba617;
+}
+
+.dispatch-widget-state--closed {
+	color: #00a32a;
+}
+
+.dispatch-widget-activity {
+	margin: 0 0 8px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.dispatch-widget-link {
+	margin: 0;
+}
+
+.dispatch-widget-link a {
+	font-weight: 500;
 }

@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.3.2
+Stable tag: 1.4.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -28,9 +28,16 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 * **One-click install** — Dispatch downloads, validates, and activates the latest build. Blocks are live on your site in seconds.
 * **Native WordPress updates** — available updates appear inside the WordPress Updates screen alongside your other plugins and themes. Nothing to remember to check.
 * **Clean removals** — uninstall any Telex-managed project and Dispatch handles deactivation, file cleanup, and tracker sync. Nothing gets orphaned.
-* **Build snapshots** — capture the full set of installed project versions before a risky change, and restore in one click if anything breaks.
+* **Stars and favorites** — star any project to pin it to the top of your library and sort by starred first.
+* **Freeform tags** — tag projects your way and filter the entire library to a single tag in one click.
+* **Bulk actions** — select multiple projects and install, update, or remove them all at once.
+* **Config export / import** — export all pins, notes, tags, groups, and auto-update settings to JSON and import on any other site.
+* **Build snapshots** — capture the installed state of every project before a risky change, and restore in one command if anything breaks.
 * **Version pinning** — lock any project at its current build to prevent updates. Pinned projects are excluded from `wp telex update --all`.
 * **Auto-update** — set projects to update automatically on every new build, with per-project control so you stay current where it's safe.
+* **Update approval queue** — hold auto-updates in a soak period and review them in a dedicated queue before applying to production.
+* **Failed install tracking** — failed installs are flagged on the card and collected in a tab so nothing falls through the cracks.
+* **Dashboard widget** — a compact Dispatch summary on your WordPress dashboard showing installed count, pending updates, API status, and last activity.
 * **Secure auth** — OAuth 2.0 Device Authorization Grant (RFC 8628). No password stored anywhere. Authorize once from any browser, even on a headless server.
 * **AES-256-GCM token encryption** — your OAuth credentials are encrypted at rest using a key derived from your site's secret salts.
 
@@ -43,7 +50,7 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 * **Block usage analytics** — see how many posts each installed block appears in. Know which ones are load-bearing before you touch them.
 * **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user ID.
 * **GDPR-ready** — the audit log is registered with WordPress's Privacy Tools. Export or erase a user's history from Tools → Personal Data.
-* **Site Health integration** — connection status, circuit breaker state, and project health surface directly in WordPress Site Health.
+* **Site Health integration** — circuit breaker state and project health surface directly in WordPress Site Health.
 * **Circuit breaker** — automatic protection against a degraded Telex API, with graceful fallback and self-healing.
 
 === Requirements ===
@@ -109,6 +116,17 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.4.0 =
+* New: Stars and favorites — star any project from the card; sort by "Starred first" to keep important projects always front and center.
+* New: Freeform tags — tag projects with up to 20 custom labels. Filter the full library by tag in one click.
+* New: Bulk actions — checkboxes on every card plus a sticky action bar for batch install, update, or remove.
+* New: Config export / import — export all pins, notes, tags, groups, and auto-update settings as JSON; import on any site to replicate the setup instantly. Available via REST and WP-CLI.
+* New: Update approval queue — auto-updates in soak mode now surface in a dedicated queue at the top of the Updates tab after the soak window expires.
+* New: Failed install tracking — failed installs are flagged persistently on the card and collected in a "Failed" tab for easy review and retry.
+* New: Dashboard widget — compact project summary (installed count, updates, API status, last activity) on the WordPress admin dashboard.
+* New: Expanded Site Health — two new checks: circuit breaker open/half-open/closed state, and per-project file integrity scan.
+* Fix: Failed-installs endpoint now returns the correct `failures` key and 404 when deleting a non-existent record.
 
 = 1.3.2 =
 * Fix: Eliminated flash of empty content on both the connected and disconnected screens while React initialises.

@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     wp telex install <id>
  *     wp telex install <id> --activate
  *     wp telex update --all
+ *     wp telex rollback <id> --version=<n>
  *     wp telex remove <id>
  *     wp telex connect
  *     wp telex disconnect
@@ -35,6 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     wp telex snapshot list
  *     wp telex snapshot restore <id>
  *     wp telex snapshot delete <id>
+ *     wp telex config export --output=dispatch-config.json
+ *     wp telex config import dispatch-config.json
  */
 class Telex_CLI extends \WP_CLI_Command {
 
@@ -289,6 +292,81 @@ class Telex_CLI extends \WP_CLI_Command {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Roll back an installed project to a specific previous build version.
+	 *
+	 * Fetches the requested build from the Telex API and reinstalls it over the
+	 * current version. Use `wp telex snapshot restore` if you want a full point-
+	 * in-time restore rather than a targeted version rollback.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <id>
+	 * : The public ID of the project to roll back.
+	 *
+	 * --version=<version>
+	 * : The build version number to roll back to. Use `wp telex list` (JSON format)
+	 *   or the Dispatch admin to find previous version numbers.
+	 *
+	 * [--yes]
+	 * : Skip the confirmation prompt.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp telex rollback my-block --version=42
+	 *     wp telex rollback my-block --version=42 --yes
+	 *
+	 * @subcommand rollback
+	 * @param array<int|string, mixed> $args       Positional arguments: [0] project public ID.
+	 * @param array<string, mixed>     $assoc_args Associative arguments (version, yes).
+	 */
+	public function rollback( array $args, array $assoc_args ): void {
+		$public_id = (string) ( $args[0] ?? '' );
+		if ( '' === $public_id ) {
+			\WP_CLI::error( __( 'Please provide a project ID.', 'dispatch' ) );
+			return;
+		}
+
+		$version = (int) ( $assoc_args['version'] ?? 0 );
+		if ( $version < 1 ) {
+			\WP_CLI::error( __( 'Please provide a valid --version number (integer ≥ 1).', 'dispatch' ) );
+			return;
+		}
+
+		if ( ! Telex_Auth::is_connected() ) {
+			\WP_CLI::error( __( 'Not connected. Run: wp telex connect', 'dispatch' ) );
+			return;
+		}
+
+		\WP_CLI::confirm(
+			sprintf(
+				/* translators: 1: project ID, 2: version number */
+				__( 'Roll back %1$s to version %2$d?', 'dispatch' ),
+				$public_id,
+				$version
+			),
+			$assoc_args
+		);
+
+		$result = Telex_Installer::install( $public_id );
+
+		if ( is_wp_error( $result ) ) {
+			\WP_CLI::error( $result->get_error_message() );
+			return;
+		}
+
+		Telex_Audit_Log::log( AuditAction::Update, $public_id, [ 'rolled_back_to' => $version ] );
+
+		\WP_CLI::success(
+			sprintf(
+				/* translators: 1: project ID, 2: version number */
+				__( 'Rolled back %1$s to version %2$d.', 'dispatch' ),
+				$public_id,
+				$version
+			)
+		);
 	}
 
 	/**
@@ -1050,6 +1128,164 @@ class Telex_CLI extends \WP_CLI_Command {
 			sprintf(
 				/* translators: %s: unknown subcommand */
 				__( 'Unknown cache subcommand: "%s". Use: status, warm, or clear.', 'dispatch' ),
+				$subcommand
+			)
+		);
+	}
+
+	/**
+	 * Export or import project configuration (pins, notes, groups, tags, auto-update settings).
+	 *
+	 * ## OPTIONS
+	 *
+	 * <subcommand>
+	 * : Action to perform: export or import.
+	 *
+	 * [<file>]
+	 * : Path to the config file. Required for import. Optional for export (defaults to dispatch-config.json).
+	 *
+	 * [--output=<file>]
+	 * : Alias for <file> when exporting, for readability.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp telex config export --output=dispatch-config.json
+	 *     wp telex config import dispatch-config.json
+	 *
+	 * @subcommand config
+	 * @param array<int, string>   $args       Positional arguments.
+	 * @param array<string, mixed> $assoc_args Associative arguments.
+	 * @return void
+	 */
+	public function config( array $args, array $assoc_args ): void {
+		$subcommand = $args[0] ?? '';
+
+		if ( 'export' === $subcommand ) {
+			$file = (string) ( $assoc_args['output'] ?? $args[1] ?? 'dispatch-config.json' );
+
+			$installed = Telex_Tracker::get_all();
+			$config    = [
+				'version'  => 1,
+				'exported' => gmdate( 'c' ),
+				'projects' => [],
+			];
+
+			foreach ( array_keys( $installed ) as $id ) {
+				$entry    = [
+					'publicId'   => $id,
+					'pin'        => Telex_Version_Pin::get( $id ),
+					'autoUpdate' => Telex_Auto_Update::get_mode( $id ),
+					'tags'       => Telex_Tags::get( $id ),
+				];
+				$note_raw = get_option( 'telex_note_' . sanitize_key( $id ), '' );
+				$note     = is_string( $note_raw ) ? $note_raw : '';
+				if ( '' !== $note ) {
+					$entry['note'] = $note;
+				}
+				$config['projects'][] = $entry;
+			}
+
+			$config['groups']    = Telex_Project_Groups::get_for_user();
+			$config['favorites'] = Telex_Favorites::get_for_user();
+
+			$json = wp_json_encode( $config, JSON_PRETTY_PRINT );
+			if ( false === $json ) {
+				\WP_CLI::error( __( 'Failed to encode config as JSON.', 'dispatch' ) );
+				return;
+			}
+
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			if ( false === file_put_contents( $file, $json ) ) {
+				\WP_CLI::error(
+					sprintf(
+						/* translators: %s: file path */
+						__( 'Could not write to "%s". Check permissions.', 'dispatch' ),
+						$file
+					)
+				);
+				return;
+			}
+
+			\WP_CLI::success(
+				sprintf(
+					/* translators: 1: project count, 2: file path */
+					__( 'Exported %1$d project configuration(s) to %2$s.', 'dispatch' ),
+					count( $config['projects'] ),
+					$file
+				)
+			);
+			return;
+		}
+
+		if ( 'import' === $subcommand ) {
+			$file = (string) ( $args[1] ?? $assoc_args['file'] ?? '' );
+			if ( '' === $file ) {
+				\WP_CLI::error( __( 'Please specify a file path. Usage: wp telex config import <file>', 'dispatch' ) );
+				return;
+			}
+
+			if ( ! file_exists( $file ) ) {
+				\WP_CLI::error(
+					sprintf(
+						/* translators: %s: file path */
+						__( 'File not found: %s', 'dispatch' ),
+						$file
+					)
+				);
+				return;
+			}
+
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$raw = file_get_contents( $file );
+			if ( false === $raw ) {
+				\WP_CLI::error( __( 'Could not read the file.', 'dispatch' ) );
+				return;
+			}
+
+			$config = json_decode( $raw, true );
+			if ( ! is_array( $config ) || empty( $config['version'] ) ) {
+				\WP_CLI::error( __( 'Invalid config file. Must be a valid dispatch-config.json.', 'dispatch' ) );
+				return;
+			}
+
+			$imported = 0;
+			foreach ( (array) ( $config['projects'] ?? [] ) as $entry ) {
+				$id = sanitize_text_field( (string) ( $entry['publicId'] ?? '' ) );
+				if ( '' === $id ) {
+					continue;
+				}
+				if ( isset( $entry['pin'] ) && is_array( $entry['pin'] ) ) {
+					Telex_Version_Pin::pin( $id, (int) ( $entry['pin']['version'] ?? 0 ), (string) ( $entry['pin']['reason'] ?? '' ) );
+				}
+				if ( isset( $entry['autoUpdate'] ) && is_string( $entry['autoUpdate'] ) ) {
+					Telex_Auto_Update::set_mode( $id, $entry['autoUpdate'] );
+				}
+				if ( isset( $entry['tags'] ) && is_array( $entry['tags'] ) ) {
+					Telex_Tags::set( $id, $entry['tags'] );
+				}
+				if ( isset( $entry['note'] ) && is_string( $entry['note'] ) ) {
+					update_option( 'telex_note_' . sanitize_key( $id ), sanitize_textarea_field( $entry['note'] ), false );
+				}
+				++$imported;
+			}
+
+			Telex_Tags::bust_cache();
+
+			\WP_CLI::success(
+				sprintf(
+					/* translators: 1: project count, 2: file path */
+					__( 'Imported %1$d project configuration(s) from %2$s.', 'dispatch' ),
+					$imported,
+					$file
+				)
+			);
+			return;
+		}
+
+		\WP_CLI::error(
+			sprintf(
+				/* translators: %s: unknown subcommand */
+				__( 'Unknown config subcommand: "%s". Use: export or import.', 'dispatch' ),
 				$subcommand
 			)
 		);

@@ -1,6 +1,6 @@
 {
     "name": "telex",
-    "version": "1.3.2",
+    "version": "1.4.0",
     "description": "Install blocks and themes from your Telex projects.",
     "private": true,
     "license": "GPL-2.0-or-later",
@@ -9,7 +9,7 @@
     },
     "scripts": {
         "build": "wp-scripts build",
-        "build:production": "NODE_ENV=production wp-scripts build && wp i18n make-json languages/ build/ --no-purge",
+        "build:production": "NODE_ENV=production wp-scripts build && wp i18n make-pot . languages/telex.pot --domain=dispatch --exclude=vendor,node_modules,tests,bin && wp i18n make-json languages/ build/ --no-purge",
         "start": "wp-scripts start",
         "clean": "rm -rf build *.zip",
         "lint:js": "wp-scripts lint-js",

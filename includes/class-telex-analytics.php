@@ -25,6 +25,15 @@ class Telex_Analytics {
 	public const CRON_HOOK      = 'telex_analytics_scan';
 
 	/**
+	 * Maximum number of posts scanned in a single analytics pass.
+	 *
+	 * Overridable via the TELEX_ANALYTICS_MAX_POSTS constant so operators with
+	 * large installs can raise or lower the limit without touching plugin code.
+	 * Set to 0 to disable the cap (not recommended on large databases).
+	 */
+	private const DEFAULT_MAX_POSTS = 5000;
+
+	/**
 	 * Returns the cached usage data, or an empty result if no scan has run yet.
 	 *
 	 * @return array{scanned_at: string|null, usage: array<string, array{usage_count: int, post_ids: int[]}>}
@@ -72,16 +81,39 @@ class Telex_Analytics {
 		}
 
 		// Retrieve all published post types that can contain blocks.
+		$max_posts = defined( 'TELEX_ANALYTICS_MAX_POSTS' )
+			? (int) TELEX_ANALYTICS_MAX_POSTS
+			: self::DEFAULT_MAX_POSTS;
+
+		$query_args = [
+			'post_status' => [ 'publish', 'draft', 'private' ],
+			'post_type'   => 'any',
+			'fields'      => 'ids',
+		];
+
+		if ( $max_posts > 0 ) {
+			$query_args['posts_per_page'] = $max_posts;
+		} else {
+			// Uncapped scan — only safe on small databases; deliberately opted into.
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_post_type -- uncapped scan opted in via constant.
+			$query_args['posts_per_page'] = -1;
+		}
+
 		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_post_type -- intentional full scan.
-		$posts = get_posts(
-			[
-				'post_status'    => [ 'publish', 'draft', 'private' ],
-				'post_type'      => 'any',
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-			]
-		);
+		$posts = get_posts( $query_args );
 		// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_post_type
+
+		// Warn if the cap was hit — results may be incomplete.
+		if ( $max_posts > 0 && count( $posts ) >= $max_posts ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_trigger_error,WordPress.Security.EscapeOutput.OutputNotEscaped
+			trigger_error(
+				sprintf(
+					'Dispatch analytics scan reached the %d-post limit (TELEX_ANALYTICS_MAX_POSTS). Block usage counts may be incomplete. Increase the constant or set it to 0 to scan all posts.',
+					(int) $max_posts
+				),
+				E_USER_NOTICE
+			);
+		}
 
 		// Tally: publicId → [ usage_count, post_ids[] ]
 		$usage = array_fill_keys(

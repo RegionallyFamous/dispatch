@@ -243,6 +243,22 @@ function DeviceFlowApp() {
 						)
 				);
 				setStatus( STATUS.EXPIRED );
+				return; // Skip finally so pollInFlightRef stays true — no more polls.
+			}
+
+			// 429 rate-limit: pause polling for the Retry-After duration (or 30 s).
+			// Without this the poller would immediately re-request on every tick,
+			// keeping itself perpetually rate-limited.
+			if ( err?.status === 429 || err?.data?.status === 429 ) {
+				const retryAfter =
+					parseInt(
+						err?.data?.retry_after || err?.retry_after || '30',
+						10
+					) || 30;
+				stopPolling();
+				setTimeout( () => {
+					startPolling( retryAfter );
+				}, retryAfter * 1000 );
 			}
 			// Otherwise: transient error — keep polling silently.
 		} finally {

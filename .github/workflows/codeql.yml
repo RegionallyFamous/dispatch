@@ -1,0 +1,68 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Mondays at 08:00 UTC to catch new vulnerability signatures.
+    - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript', 'php']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@4f3212b61783c3c68e8309a0f18a699764811cda # v3
+        with:
+          languages: ${{ matrix.language }}
+          # Extend the default security queries with the security-extended pack
+          # to catch a broader set of CWEs (path traversal, open redirect, etc.).
+          queries: security-extended
+
+      - name: Set up Node.js
+        if: matrix.language == 'javascript'
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        if: matrix.language == 'javascript'
+        run: npm ci
+
+      - name: Build JavaScript assets
+        if: matrix.language == 'javascript'
+        run: npm run build
+
+      - name: Set up PHP
+        if: matrix.language == 'php'
+        uses: shivammathur/setup-php@d59004228537ca90c8dca680592a08a675bf52b6 # v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+
+      - name: Install Composer dependencies
+        if: matrix.language == 'php'
+        run: composer install --prefer-dist --no-progress --no-dev
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@4f3212b61783c3c68e8309a0f18a699764811cda # v3
+        with:
+          category: '/language:${{ matrix.language }}'
