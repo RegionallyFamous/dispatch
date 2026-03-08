@@ -2,7 +2,7 @@
 
 # Dispatch for Telex
 
-**Build a block in Telex. Click Install. It's live on your site.**
+**The missing link between Telex and your WordPress site.**
 
 [![CI](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml/badge.svg)](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.3.2-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
@@ -24,147 +24,145 @@
 
 ---
 
-## The problem with zip files
+## Telex is extraordinary. Getting builds onto your site shouldn't be a chore.
 
-[Telex](https://telex.automattic.ai) is Automattic AI Labs' natural language block and theme builder. Describe what you want in plain English, click Build, and two minutes later you have a fully functional WordPress block — a Minesweeper game, a pricing table, a personality quiz, a full Gutenberg theme. Without writing a single line of code.
+[Telex](https://telex.automattic.ai) is Automattic AI Labs' natural language block and theme builder — described by Matt Mullenweg as "V0 or Lovable, but specifically for WordPress." Describe what you want in plain English. Click **Build**. Two minutes later you have a fully functional, production-quality WordPress block: a Minesweeper game, a pricing table, an EV charging calculator, a complete Gutenberg theme. Without writing a single line of code.
+
+Thousands of creators are using it to ship things they couldn't have built otherwise. The generation is fast, the output is real, and the creative loop is genuinely exciting.
 
 Then you hit the zip file.
 
-Every Telex-to-WordPress deploy without Dispatch follows the exact same script:
+---
+
+## The last mile problem
+
+Every time you build something in Telex — or revise it, or iterate on it — deploying it to WordPress follows the same soul-crushing script:
 
 1. Click **Download** in Telex
-2. Find the file in your Downloads folder
-3. Switch to your WordPress dashboard
-4. Navigate to Plugins → Add New → Upload Plugin
-5. Choose the file
+2. Hunt for the file in your Downloads folder
+3. Switch over to your WordPress admin
+4. Navigate to **Plugins → Add New → Upload Plugin**
+5. Click **Choose File** and find the zip again
 6. Wait for the upload
 7. Click **Install Now**, then **Activate**
 
-Seven steps. Per block. Per revision. The generation took two minutes. The deploy cycle takes five — and it repeats with every single iteration.
+**Seven steps. Per block. Per revision. Per site.**
 
-**Dispatch eliminates the entire loop.** Connect your site to Telex once. Your full project library appears inside WordPress admin. Click **Install**. Done.
+The generation took two minutes. The deploy cycle takes five — and it repeats from scratch every single time you make a change. If you're managing a client site with a dozen Telex blocks, you're doing this over and over, for every update, across every environment.
+
+It's not a workflow. It's friction. And it compounds.
 
 ---
 
-## What it does
+## Dispatch eliminates the loop entirely.
+
+Install Dispatch. Connect it to your Telex account once — takes about 30 seconds. Your entire Telex project library appears inside WordPress admin. Every block, every theme, every revision.
+
+**Click Install. It's done.**
+
+No download. No upload form. No file management. Dispatch handles the fetch, the validation, the install, and the activation. The same mechanism WordPress uses for every other plugin — just automatic.
+
+Update a block in Telex? The update badge appears in your WordPress admin just like any other plugin update. Click it. Done. Or set auto-update and never click anything.
+
+---
+
+## Everything you'd expect. And then some.
 
 | | |
 |---|---|
-| **Browse your library** | Every block and theme you've built in Telex lives in a searchable grid inside WordPress admin — filterable by type, grouped by collection, sorted by what needs attention. |
-| **One-click install** | Dispatch fetches the latest build, verifies every file with a SHA-256 checksum, runs it through WordPress' native upgrader, and activates it. The whole thing takes a few seconds. |
-| **Native updates** | Updates appear on the WordPress **Updates** screen right next to your plugins and themes — because that's where your team already looks. No separate dashboard to remember. |
-| **Clean removals** | Dispatch deactivates before deleting, handles filesystem cleanup, and keeps its tracker in sync. Nothing gets orphaned. |
-| **Build snapshots** | Capture the exact build version of every installed project, then restore the whole set in one command if something breaks. Your escape hatch for risky deploys. |
-| **Version pinning** | Lock any project at its current build. Pinned projects are excluded from updates — including `wp telex update --all` — until you're ready to move forward. |
-| **Auto-update** | Set projects to update automatically whenever a new build lands. Per-project control so you can auto-update utilities while keeping your flagship blocks pinned. |
-| **Notification channels** | Email digests and Slack webhooks for install, update, and removal events. Know what changed, when it changed, and who triggered it. |
-| **Project health** | A dedicated tab showing active state, file integrity, version freshness, and compatibility warnings for every installed project. |
-| **Block analytics** | See how many posts each installed block is embedded in. Know which ones are load-bearing before you touch them. |
-| **Auto-deploy webhook** | Push a new build in Telex → your site updates automatically. Set it and forget it. |
-| **WP-CLI** | `wp telex update --all`, `wp telex snapshot create`, `wp telex pin`. Automate everything. Drop Dispatch commands into your deployment pipeline. |
-| **Multisite** | Connect once at the network level. Every site on the network gets access to your full project library. |
-| **Audit log** | Every install, update, removal, and connection event is recorded with a timestamp and acting user. GDPR-ready — registered with WordPress Privacy Tools. |
-| **Circuit breaker** | If the Telex API goes down, Dispatch backs off gracefully. Your installed blocks keep running — they're just files on disk. |
+| **One-click install & update** | Dispatch fetches the build, validates every file against a SHA-256 checksum, runs it through the WordPress Upgrader API, and activates it. No zip. No upload. No round trips. |
+| **Native WordPress updates** | Telex updates show up on the standard WordPress Updates screen alongside everything else. Your team's existing workflow doesn't change. |
+| **Auto-deploy webhook** | Connect Telex to your site and updates deploy the moment you push a new build. Set it once. Never think about it again. |
+| **Build snapshots** | Before a big change, capture the exact installed state of every project. If something breaks, restore it all in one command. Your safety net for risky deploys. |
+| **Version pinning** | Lock any project at a specific build. Pinned projects are immune to updates — including `wp telex update --all` — until you're ready to move. |
+| **Auto-update modes** | Per-project control: update immediately, delay 24 hours, or stay pinned. Auto-update the utilities, pin the mission-critical blocks. |
+| **WP-CLI first-class** | `wp telex install`, `wp telex update --all`, `wp telex snapshot create`. Full automation. Drop it in your CI/CD pipeline and every environment stays current on every deploy. |
+| **Multisite** | Connect once at the network level. Every site on the network gets your full project library with no extra setup. |
+| **Notification channels** | Email and Slack notifications for installs, updates, and removals. Know exactly what changed, when, and who triggered it. |
+| **Block usage analytics** | See how many posts each block appears in. Know which ones are load-bearing before you touch them. |
+| **Audit log** | Every action — install, update, remove, connect, disconnect — is logged with a timestamp and acting user. GDPR-ready and registered with WordPress Privacy Tools. |
+| **Circuit breaker** | If Telex has a bad moment, Dispatch backs off gracefully and stops hammering the API. Your installed blocks keep running. Everything self-heals automatically. |
+| **Site Health integration** | Connection status, circuit breaker state, and project health surface directly in the WordPress Site Health screen. |
+| **No passwords, ever** | OAuth 2.0 Device Authorization Grant (RFC 8628). One code, one URL, one approval from any device. Nothing stored in plaintext. Nothing to manage. |
 
 ---
 
-## Try it now
+## Try it in 10 seconds
 
-The fastest way to see Dispatch in action is WordPress Playground — a full WordPress environment that runs entirely in your browser, no account or install needed.
+The fastest way to see Dispatch is WordPress Playground — a complete WordPress environment in your browser. No account, no install.
 
 ### [→ Open in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/RegionallyFamous/dispatch/main/blueprint.json)
 
-The Playground opens pre-logged-in with Dispatch already installed and activated, dropped directly on the Dispatch projects screen. From there you can connect a Telex account and try the full install flow — or just poke around the UI.
-
-> The Playground uses a shared `github-proxy.com` URL to pull the latest release zip. If the proxy is slow, give it 20–30 seconds on first load.
+Loads pre-logged-in with Dispatch already installed and activated, straight to the projects screen. Connect a Telex account and try the full install flow — or just explore the UI.
 
 ---
 
-## Quick start
+## Get started
 
-**Requirements:** WordPress 6.7+, PHP 8.2+, a [Telex account](https://telex.automattic.ai).
+**Requirements:** WordPress 6.7+, PHP 8.2+, a [Telex account](https://telex.automattic.ai) (free).
 
-### Option A — Download from GitHub Releases
+### Install Dispatch
 
-1. Grab `dispatch-for-telex-x.x.x.zip` from the [latest release](https://github.com/RegionallyFamous/dispatch/releases/latest).
-2. In your WordPress admin, go to **Plugins → Add New → Upload Plugin**.
-3. Upload the zip and activate.
+**From GitHub Releases:**
+```bash
+# Download dispatch-for-telex-x.x.x.zip from the latest release, then:
+# Plugins → Add New → Upload Plugin
+```
 
-### Option B — WP-CLI
-
+**Via WP-CLI:**
 ```bash
 wp plugin install https://github.com/RegionallyFamous/dispatch/releases/latest/download/dispatch-for-telex.zip --activate
 ```
 
-### Then: connect to Telex
+### Connect to Telex
 
-1. Open **Dispatch** in the WordPress admin sidebar.
+1. Open **Dispatch** in your WordPress admin sidebar.
 2. Click **Connect to Telex**.
-3. Open the URL shown on any device, sign into Telex, and enter the code.
-4. Your projects appear. Click **Install** on anything you want.
+3. Open the URL shown — on any device, any browser.
+4. Sign into Telex and enter the code.
+5. Your projects appear. Click **Install** on anything you want live.
 
-One-time setup. Everything after that is one click per project.
+That's it. One-time setup. Everything after that is one click per project.
 
 ---
 
-## WP-CLI
-
-Every action in the UI has a CLI equivalent.
+## Built for teams and pipelines
 
 ```bash
-wp telex list                   # See all projects and their install status
-wp telex install <id>           # Install a specific project
-wp telex update <id>            # Update a specific project
-wp telex update --all           # Update everything at once
-wp telex remove <id>            # Remove a project
-wp telex snapshot create        # Capture current install state
-wp telex circuit status         # Inspect circuit breaker state
-wp telex cache warm             # Pre-warm the project cache
+wp telex list                  # See everything and its status
+wp telex install <id>          # Install a project
+wp telex update --all          # Update everything non-pinned
+wp telex snapshot create       # Capture current state before a risky deploy
+wp telex snapshot restore <id> # Restore if something breaks
+wp telex pin <id>              # Lock a project at its current build
 ```
 
-Drop `wp telex update --all` into your CI/CD pipeline and every environment stays current on every deploy. See the [WP-CLI Reference](https://github.com/RegionallyFamous/dispatch/wiki/WP-CLI-Reference) wiki page for the full command surface.
+Drop `wp telex update --all` into your deployment script. Every environment — staging, production, client preview — stays current on every deploy without anyone lifting a finger.
 
----
-
-## Security
-
-There are no passwords anywhere in Dispatch.
-
-**Authentication** uses the [OAuth 2.0 Device Authorization Grant](https://www.rfc-editor.org/rfc/rfc8628) (RFC 8628) — the same flow used by the GitHub CLI and the AWS CLI. You get a short code and a URL. Open the URL, sign in to Telex, enter the code. Done.
-
-**Token storage** uses AES-256-GCM authenticated encryption. The key is derived from your site's own secret salts and never leaves your server.
-
-**Downloads** are verified with a SHA-256 checksum before anything is unpacked. If a single byte has been tampered with in transit, the install is aborted.
-
-**The webhook** validates HMAC-SHA256 signatures, rejects replayed requests (5-minute window), and rate-limits by IP.
-
-See the [Security Model](https://github.com/RegionallyFamous/dispatch/wiki/Security-Model) wiki page for the full details.
+→ [Full WP-CLI Reference](https://github.com/RegionallyFamous/dispatch/wiki/WP-CLI-Reference)
 
 ---
 
 ## Documentation
 
-All documentation lives in the [GitHub Wiki](https://github.com/RegionallyFamous/dispatch/wiki).
+Everything lives in the [GitHub Wiki](https://github.com/RegionallyFamous/dispatch/wiki).
 
 | | |
 |---|---|
-| [Getting Started](https://github.com/RegionallyFamous/dispatch/wiki/Getting-Started) | Requirements, installation, and first connection |
-| [Managing Projects](https://github.com/RegionallyFamous/dispatch/wiki/Managing-Projects) | Install, update, remove, snapshots, pinning, auto-update |
-| [WP-CLI Reference](https://github.com/RegionallyFamous/dispatch/wiki/WP-CLI-Reference) | Full command reference with examples |
-| [Site Health & Diagnostics](https://github.com/RegionallyFamous/dispatch/wiki/Site-Health-and-Diagnostics) | Diagnostics, circuit breaker, and debug info |
-| [Webhook & Auto-Deploy](https://github.com/RegionallyFamous/dispatch/wiki/Webhook-and-Auto-Deploy) | Auto-deploy on new Telex builds |
-| [Multisite Setup](https://github.com/RegionallyFamous/dispatch/wiki/Multisite-Setup) | Network activation and per-site management |
-| [Notification Channels](https://github.com/RegionallyFamous/dispatch/wiki/Notification-Channels) | Email and Slack notifications |
-| [Architecture](https://github.com/RegionallyFamous/dispatch/wiki/Architecture) | Layered design, REST API, data flow |
-| [Security Model](https://github.com/RegionallyFamous/dispatch/wiki/Security-Model) | Auth, encryption, webhook validation |
-| [Troubleshooting](https://github.com/RegionallyFamous/dispatch/wiki/Troubleshooting) | Common issues and fixes |
-| [Contributing](https://github.com/RegionallyFamous/dispatch/wiki/Contributing) | Dev setup, coding standards, running tests |
+| [Getting Started](https://github.com/RegionallyFamous/dispatch/wiki/Getting-Started) | Install Dispatch and connect to Telex |
+| [Managing Projects](https://github.com/RegionallyFamous/dispatch/wiki/Managing-Projects) | Install, update, snapshots, pinning, groups |
+| [WP-CLI Reference](https://github.com/RegionallyFamous/dispatch/wiki/WP-CLI-Reference) | Full command reference |
+| [Webhook & Auto-Deploy](https://github.com/RegionallyFamous/dispatch/wiki/Webhook-and-Auto-Deploy) | Auto-deploy on every new build |
+| [Multisite Setup](https://github.com/RegionallyFamous/dispatch/wiki/Multisite-Setup) | One connection for the whole network |
+| [Security Model](https://github.com/RegionallyFamous/dispatch/wiki/Security-Model) | How auth, encryption, and validation work |
+| [Troubleshooting](https://github.com/RegionallyFamous/dispatch/wiki/Troubleshooting) | Fixes for common issues |
+| [Contributing](https://github.com/RegionallyFamous/dispatch/wiki/Contributing) | Dev setup and PR process |
 
 ---
 
 ## Contributing
 
-Bug reports and PRs are welcome. Please read [SECURITY.md](SECURITY.md) before reporting a security issue — don't open a public issue for vulnerabilities.
+Bug reports and PRs are welcome. Please read [SECURITY.md](SECURITY.md) before reporting a vulnerability — don't open a public issue.
 
 For everything else, [open an issue](https://github.com/RegionallyFamous/dispatch/issues) or see the [Contributing guide](https://github.com/RegionallyFamous/dispatch/wiki/Contributing).
 
