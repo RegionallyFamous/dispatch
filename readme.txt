@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -110,6 +110,11 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 == Changelog ==
 
+= 1.3.1 =
+* Fix: Duplicate page header — the Dispatch admin page was rendering its header and all content twice due to a duplicate WordPress hook registration. Resolved by removing the redundant callback from the submenu entry.
+* Fix: Activity and Health tabs now show skeleton loaders instead of a plain spinner while data loads.
+* Fix: PHPStan and PHPCS housekeeping in Notifications, Snapshot, Analytics, and Health classes.
+
 = 1.3.0 =
 * New: Build snapshots — capture your entire installed project set and restore it in one click. `wp telex snapshot create/list/restore/delete` in CLI.
 * New: Version pinning — lock any project at its current build to prevent updates. Pinned projects are skipped by `wp telex update --all`.
@@ -193,6 +198,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.3.1 =
+Patch release fixing a critical bug that caused the entire admin page to render twice. Update immediately.
 
 = 1.3.0 =
 Major feature release: build snapshots, version pinning, auto-update preferences, Slack/email notifications, project groups, block analytics, and a GDPR-ready audit log. No database migrations required beyond the auto-created tables.

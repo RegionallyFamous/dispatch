@@ -2157,7 +2157,7 @@ class Telex_REST {
 		);
 
 		$data = array_map(
-			static fn( object $u ) => [
+			static fn( \WP_User $u ) => [
 				'id'   => (int) $u->ID,
 				'name' => (string) $u->display_name,
 			],

@@ -6,6 +6,19 @@
 
 ---
 
+## [1.3.1] — 2026-03-08
+
+### Fixed
+
+- **Duplicate page header** — The Dispatch admin page was rendering its header and content twice because `add_menu_page` and `add_submenu_page` both registered a callback on the same WordPress hook (`toplevel_page_telex`). Removed the redundant callback from the submenu registration; the sidebar label still reads "Projects" as intended.
+- **Activity & Health tab loading state** — Replaced the plain spinner on the Activity and Health tabs with proper skeleton tables that match the real content layout, eliminating a jarring layout shift when data loads.
+- **PHPStan — `wp_json_encode` return type** (`Telex_Notifications`) — `wp_json_encode()` can return `false`; the return value is now stored in a variable and a safe fallback (`'{}'`) is used on failure.
+- **PHPStan — redundant `array_values()` after `usort()`** (`Telex_Snapshot`) — `usort()` already reindexes the array in-place; the redundant `array_values()` call and unnecessary `??` fallbacks on guaranteed keys were removed.
+- **PHPCS — doc-comment violations** in `Telex_Analytics` and `Telex_Health` — Inline `@var` type-narrowing annotations now use the `@phpstan-var` tag with a proper short description, satisfying both PHPDoc and PHPStan conventions.
+- **PHPCS — false-positive "commented-out code"** — Array-shape type annotations in the form `array{key: type}` were being flagged as commented-out PHP code. Suppressed `Squiz.PHP.CommentedOutCode.Found` in `phpcs.xml.dist` for the entire project.
+
+---
+
 ## [1.3.0] — 2026-03-08
 
 This is the biggest Dispatch release yet. We went from a deployment tool to a
