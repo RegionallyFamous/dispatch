@@ -2755,9 +2755,8 @@
 	color: var(--telex-muted, #8c8f94);
 }
 
-.telex-project-row:hover .telex-star-btn,
-.telex-project-row--starred .telex-star-btn {
-	opacity: 1;
+.telex-star-btn:hover {
+	color: #f59e0b;
 }
 
 .telex-star-btn--starred {
@@ -2765,12 +2764,9 @@
 	opacity: 1 !important;
 }
 
-.telex-star-btn:hover {
-	color: #f59e0b;
-}
-
-.telex-row-identity {
-	position: relative;
+.telex-project-row--starred .telex-star-btn,
+.telex-project-row:hover .telex-star-btn {
+	opacity: 1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2991,8 +2987,5 @@
 
 .dispatch-widget-link {
 	margin: 0;
-}
-
-.dispatch-widget-link a {
 	font-weight: 500;
 }
