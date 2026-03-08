@@ -36,6 +36,26 @@ const STEPS = [
 	__( "You're in!", 'dispatch' ),
 ];
 
+function TelexLogo( { className } ) {
+	return (
+		<svg
+			width="153"
+			height="32"
+			viewBox="0 0 153 32"
+			fill="currentColor"
+			aria-label={ __( 'Telex', 'dispatch' ) }
+			role="img"
+			className={ className }
+		>
+			<path d="M129.428 15.726L119.051 0H131.211L135.828 7.63443L140.491 0H152.423L142.046 15.6346L152.88 32.0006H140.72L135.645 23.6804L130.525 32.0006H118.594L129.428 15.726Z" />
+			<path d="M90.4297 0H117.722V8.7773H100.944V12.0231H116.579V19.7489H100.944V23.2233H117.95V32.0006H90.4297V0Z" />
+			<path d="M62.3496 0H73.0469V22.8576H88.0872V32.0006H62.3496V0Z" />
+			<path d="M31.9453 0H59.2372V8.7773H42.4598V12.0231H58.0944V19.7489H42.4598V23.2233H59.4658V32.0006H31.9453V0Z" />
+			<path d="M9.41732 9.05159H0V0H29.532V9.05159H20.1147V32.0006H9.41732V9.05159Z" />
+		</svg>
+	);
+}
+
 function StepIndicator( { active } ) {
 	return (
 		<ol
@@ -311,14 +331,7 @@ function DeviceFlowApp() {
 			<div className="telex-connect-wrap telex-connect-wrap--landing">
 				{ /* ---- Left: hero ---- */ }
 				<div className="telex-connect-hero">
-					<div className="telex-connect-hero__icon">
-						<Icon
-							icon={ pluginsIcon }
-							size={ 20 }
-							aria-hidden={ true }
-							focusable={ false }
-						/>
-					</div>
+					<TelexLogo className="telex-connect-hero__logo" />
 					<h2 className="telex-connect-hero__heading">
 						{ __(
 							'Your Telex projects, live in WordPress.',

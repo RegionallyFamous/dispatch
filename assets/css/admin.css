@@ -954,15 +954,12 @@
 	padding-top: 6px;
 }
 
-.telex-connect-hero__icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 44px;
-	height: 44px;
-	background: var(--telex-brand);
-	color: #fff;
-	margin-bottom: 20px;
+.telex-connect-hero__logo {
+	display: block;
+	height: 26px;
+	width: auto;
+	color: var(--telex-brand);
+	margin-bottom: 28px;
 }
 
 .telex-connect-hero__heading {
