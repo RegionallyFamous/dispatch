@@ -467,6 +467,19 @@
 	justify-content: center;
 }
 
+/* Installed version chip — sits inline with the icon buttons in the secondary
+   group. Timestamp is hidden and surfaces via a Tooltip on hover/focus. */
+.telex-row-version {
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--telex-muted);
+	letter-spacing: 0.02em;
+	padding: 0 4px;
+	line-height: 36px;
+	cursor: default;
+	white-space: nowrap;
+}
+
 .telex-row-secondary .components-button.is-destructive:hover {
 	color: var(--telex-error);
 }

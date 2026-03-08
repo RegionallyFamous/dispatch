@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,16 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.2.0 =
+* Performance: the admin page no longer decrypts the API token when all project version data is already cached — cold-cache and warm-cache page loads are now treated differently.
+* Performance: installing or removing a project no longer flushes the entire project-list cache; only the per-project entry is invalidated, avoiding a redundant synchronous API round-trip.
+* Performance: the background cache warm-up cron job now exits early if a user request already refreshed the data since the job was queued.
+* Performance: `reconcile()` (filesystem stat calls for installed projects) is now rate-limited to once per minute via a transient lock, preventing repeated `is_dir()` calls on busy admin pages.
+* Performance: the plugin-row update notice now uses a lightweight connection check instead of decrypting and constructing a full API client.
+* Reliability: the admin project list now retries automatically once after a 1.5 s delay when the initial page-load fetch fails due to a transient network error.
+* Reliability: concurrent project-list fetches (e.g. rapid keyboard-shortcut presses) are now coalesced — only one request is in flight at a time.
+* Reliability: the build-status poll interval during installation is now capped at 30 seconds, preventing a misconfigured server response from stalling the UI indefinitely.
 
 = 1.1.1 =
 * Project avatars now show unique gradient backgrounds and geometric shapes — no two projects ever look the same.

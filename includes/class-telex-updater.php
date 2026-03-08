@@ -263,17 +263,14 @@ class Telex_Updater {
 	 * @return void
 	 */
 	public static function render_plugin_row_notice( string $public_id, array $info, string $plugin_file ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-		$client = Telex_Auth::get_client();
-		if ( ! $client ) {
+		// is_connected() is a lightweight option read — avoids decrypting the token
+		// just to check whether we should render a notice.
+		if ( ! Telex_Auth::is_connected() ) {
 			return;
 		}
 
-		try {
-			$remote         = Telex_Cache::get_project( $public_id );
-			$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
-		} catch ( \Exception ) {
-			return;
-		}
+		$remote         = Telex_Cache::get_project( $public_id );
+		$remote_version = (int) ( $remote['currentVersion'] ?? 0 );
 
 		if ( ! Telex_Tracker::needs_update( $public_id, $remote_version ) ) {
 			return;

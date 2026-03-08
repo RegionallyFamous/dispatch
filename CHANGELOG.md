@@ -6,6 +6,50 @@
 
 ---
 
+## [1.2.0] — 2026-03-08
+
+This release is a focused performance and reliability pass. No new features —
+just a faster, more resilient plugin that does the same things with less work.
+
+### Faster admin page loads
+
+The biggest day-to-day win: the admin page no longer decrypts the API token
+or creates an HTTP client on every load when project version data is already
+sitting in the cache. Before this change, every visit to the Dispatch screen
+would always decrypt the stored token even if it had nothing useful to do with
+it. Now it only decrypts when there is actual work to do.
+
+Installing or removing a project also stopped flushing the entire project-list
+cache. The old code would nuke the whole list, forcing the very next page view
+to fetch fresh data from the API. That was redundant — the UI already requests
+a force-refresh after every install. Now only the per-project cache entry is
+invalidated, and the list stays warm.
+
+### Less redundant work on busy sites
+
+The `reconcile()` call that checks whether installed plugins and themes still
+exist on disk now runs at most once per minute per site, protected by a short
+transient lock. Previously it ran on every request to the projects endpoint —
+meaning every admin page visit would issue one `is_dir()` filesystem call per
+installed project. On a site with twenty installed projects and active editors,
+that adds up quickly.
+
+The background cache warming cron job also exits early if a user request has
+already refreshed the data since the cron was queued, eliminating a common
+redundant API round-trip on sites where caches are actively used.
+
+### More resilient initial load
+
+The project list now retries automatically once, after a 1.5-second delay,
+when the initial page-load fetch fails — catching cold-server responses and
+brief network blips without showing the user a permanent error banner. Rapid
+keyboard-shortcut presses (`r` to refresh) are coalesced so only one request
+is in flight at a time. And the build-status poll interval during installation
+is now capped at 30 seconds so a pathological server response can no longer
+stall the install UI indefinitely.
+
+---
+
 ## [1.1.1] — 2026-03-07
 
 This release is a visual and housekeeping pass. Every project in your library

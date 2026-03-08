@@ -105,12 +105,15 @@ class Telex_Cache {
 	/**
 	 * Deletes the cached entry for a specific project.
 	 *
+	 * The project-list cache is intentionally left intact. The UI always calls
+	 * force_refresh=1 after an install or removal, which busts the list explicitly.
+	 * Busting the list here would cause a redundant cold-cache round-trip.
+	 *
 	 * @param string $public_id The Telex project public ID.
 	 * @return void
 	 */
 	public static function bust_project( string $public_id ): void {
 		delete_transient( self::TRANSIENT_PROJECT . md5( $public_id ) );
-		self::bust_all();
 	}
 
 	// -------------------------------------------------------------------------
@@ -198,6 +201,12 @@ class Telex_Cache {
 	public static function warm(): void {
 		wp_cache_delete( self::TRANSIENT_REFRESH_LOCK, 'telex' );
 		delete_transient( self::TRANSIENT_REFRESH_LOCK );
+
+		// Bail early if a user request already refreshed the cache since the
+		// cron event was scheduled — avoids a redundant API round-trip.
+		if ( null !== self::get_projects() ) {
+			return;
+		}
 
 		if ( ! Telex_Auth::is_connected() ) {
 			return;

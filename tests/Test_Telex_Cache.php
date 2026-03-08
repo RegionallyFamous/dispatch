@@ -193,14 +193,18 @@ class Test_Telex_Cache extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Asserts bust_project() also busts the project list (to force a fresh fetch).
+	 * Asserts bust_project() leaves the project list cache intact.
+	 *
+	 * The list is only busted on explicit force_refresh requests; bust_project()
+	 * scopes its invalidation to the single per-project transient so that a cold
+	 * list round-trip is not triggered for every install or update.
 	 *
 	 * @return void
 	 */
-	public function test_bust_project_also_busts_project_list(): void {
+	public function test_bust_project_leaves_project_list_intact(): void {
 		Telex_Cache::set_projects( $this->sample_projects );
 		Telex_Cache::bust_project( 'proj-1' );
-		$this->assertNull( Telex_Cache::get_projects() );
+		$this->assertIsArray( Telex_Cache::get_projects() );
 	}
 
 	/**

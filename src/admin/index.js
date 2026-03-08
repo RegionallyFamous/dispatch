@@ -1227,7 +1227,10 @@ async function installWithPolling(
 	onBuilding?.( data.poll_interval || 5 );
 
 	const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
-	let pollInterval = data.poll_interval || 5;
+	// Cap the server-supplied interval so a misconfigured response can't stall
+	// the UI indefinitely.
+	const MAX_POLL_INTERVAL = 30;
+	let pollInterval = Math.min( data.poll_interval || 5, MAX_POLL_INTERVAL );
 
 	for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
 		// Bail out immediately if the component unmounted or the user navigated away.
@@ -1248,7 +1251,10 @@ async function installWithPolling(
 		} );
 
 		if ( buildStatus.poll_interval ) {
-			pollInterval = buildStatus.poll_interval;
+			pollInterval = Math.min(
+				buildStatus.poll_interval,
+				MAX_POLL_INTERVAL
+			);
 		}
 
 		if ( ! buildStatus.ready ) {
@@ -1581,17 +1587,6 @@ function ProjectCard( {
 							/>
 						) }
 
-						{ /* Installed + up to date: just the current version number */ }
-						{ isInstalled && ! needsUpdate && (
-							<span className="telex-meta-item">
-								{ sprintf(
-									/* translators: %s: version number */
-									__( 'v%s', 'dispatch' ),
-									installed.version
-								) }
-							</span>
-						) }
-
 						{ /* Not installed: idle badge */ }
 						{ ! isInstalled && (
 							<StatusBadge
@@ -1599,12 +1594,6 @@ function ProjectCard( {
 								remoteVersion={ project.currentVersion }
 								installed={ installed }
 							/>
-						) }
-
-						{ timestamp && (
-							<span className="telex-meta-item telex-meta-item--timestamp">
-								{ timestamp }
-							</span>
 						) }
 					</>
 				) }
@@ -1668,6 +1657,30 @@ function ProjectCard( {
 				) }
 
 				<div className="telex-row-secondary">
+					{ isInstalled &&
+						! needsUpdate &&
+						( timestamp ? (
+							<Tooltip text={ timestamp }>
+								<span
+									className="telex-row-version"
+									tabIndex={ 0 }
+								>
+									{ sprintf(
+										/* translators: %s: version number */
+										__( 'v%s', 'dispatch' ),
+										installed.version
+									) }
+								</span>
+							</Tooltip>
+						) : (
+							<span className="telex-row-version">
+								{ sprintf(
+									/* translators: %s: version number */
+									__( 'v%s', 'dispatch' ),
+									installed.version
+								) }
+							</span>
+						) ) }
 					<Tooltip
 						text={ sprintf(
 							/* translators: %s: project name */
@@ -1803,6 +1816,8 @@ function ProjectsApp() {
 	const [ showShortcuts, setShowShortcuts ] = useState( false );
 	const [ activeTab, setActiveTab ] = useState( 'all' );
 	const searchInputRef = useRef( null );
+	// Guard against stacking concurrent fetches (e.g. rapid keyboard shortcut presses).
+	const fetchInFlightRef = useRef( false );
 
 	function addToast( toast ) {
 		setToasts( ( prev ) => [
@@ -1849,6 +1864,12 @@ function ProjectsApp() {
 	// Fetch project list + installed tracker data.
 	const fetchData = useCallback(
 		async ( forceRefresh = false ) => {
+			// Don't stack requests — if a fetch is already in flight and this is
+			// not a user-initiated force-refresh, silently skip.
+			if ( fetchInFlightRef.current && ! forceRefresh ) {
+				return;
+			}
+			fetchInFlightRef.current = true;
 			try {
 				const url = forceRefresh
 					? `${ restUrl }/projects?force_refresh=1`
@@ -1861,6 +1882,17 @@ function ProjectsApp() {
 			} catch ( err ) {
 				if ( err?.code === 'telex_token_expired' ) {
 					setAuthExpired( true );
+				} else if (
+					! forceRefresh &&
+					fetchInFlightRef.retryDone !== true
+				) {
+					// Single automatic retry after 1.5 s for transient network failures
+					// (e.g. a cold server or brief connectivity blip on initial page load).
+					fetchInFlightRef.retryDone = true;
+					fetchInFlightRef.current = false;
+					await new Promise( ( r ) => setTimeout( r, 1500 ) );
+					await fetchData( false );
+					return;
 				} else {
 					setError(
 						err.message ||
@@ -1870,6 +1902,9 @@ function ProjectsApp() {
 							)
 					);
 				}
+			} finally {
+				fetchInFlightRef.current = false;
+				fetchInFlightRef.retryDone = false;
 			}
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		},

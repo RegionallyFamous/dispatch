@@ -29,9 +29,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_REST {
 
-	private const NAMESPACE          = 'telex/v1';
-	private const DEPLOY_SECRET_KEY  = 'dispatch_deploy_secret';
-	private const DEPLOY_REPLAY_SECS = 300; // 5-minute replay window
+	private const NAMESPACE              = 'telex/v1';
+	private const DEPLOY_SECRET_KEY      = 'dispatch_deploy_secret';
+	private const DEPLOY_REPLAY_SECS     = 300; // 5-minute replay window for past timestamps.
+	private const DEPLOY_CLOCK_SKEW_SECS = 30;  // Max future clock skew accepted.
+	private const WEBHOOK_MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB hard cap before HMAC.
 
 	/**
 	 * Registers all telex/v1 REST routes.
@@ -288,6 +290,10 @@ class Telex_REST {
 			Telex_Cache::bust_all();
 		}
 
+		// $client is set only in the sync-fetch branch; reused below to avoid a second
+		// token decrypt when some installed projects still need a live version lookup.
+		$client = null;
+
 		// Try stale-while-revalidate first — serves instantly and schedules background refresh.
 		$stale_or_live = Telex_Cache::get_or_revalidate();
 		if ( null !== $stale_or_live ) {
@@ -320,7 +326,8 @@ class Telex_REST {
 		// need the accurate version to detect updates. Resolution order:
 		// 1. Per-project cache (seeded by Telex_Updater on every WP update-check).
 		// 2. The bulk $projects array — handles future API versions that do expose it.
-		// 3. Live per-project get() — only for installed items missing from both above.
+		// 3. Live per-project get() — only for projects missing from both caches above.
+		// Decrypt the token only when at least one project actually needs a live call.
 		$remote_versions = [];
 		if ( ! empty( $installed ) ) {
 			// Build a fast lookup from the bulk list in case currentVersion is present.
@@ -332,27 +339,37 @@ class Telex_REST {
 				}
 			}
 
-			$vc = Telex_Auth::get_client();
-			if ( $vc ) {
-				foreach ( array_keys( $installed ) as $installed_id ) {
-					// 1. Per-project cache.
-					$cp = Telex_Cache::get_project( $installed_id );
-					if ( is_array( $cp ) && isset( $cp['currentVersion'] ) ) {
-						$remote_versions[ $installed_id ] = (int) $cp['currentVersion'];
-						continue;
-					}
-					// 2. Bulk list.
-					if ( isset( $bulk_versions[ $installed_id ] ) ) {
-						$remote_versions[ $installed_id ] = $bulk_versions[ $installed_id ];
-						continue;
-					}
-					// 3. Live API call.
-					try {
-						$rp                               = $vc->projects->get( $installed_id );
-						$remote_versions[ $installed_id ] = (int) ( $rp['currentVersion'] ?? 0 );
-						Telex_Cache::set_project( $installed_id, $rp );
-					} catch ( \Exception ) {
-						$remote_versions[ $installed_id ] = 0;
+			// Resolve from cache / bulk list first; collect only the IDs that need a live call.
+			$needs_live = [];
+			foreach ( array_keys( $installed ) as $installed_id ) {
+				// 1. Per-project cache.
+				$cp = Telex_Cache::get_project( $installed_id );
+				if ( is_array( $cp ) && isset( $cp['currentVersion'] ) ) {
+					$remote_versions[ $installed_id ] = (int) $cp['currentVersion'];
+					continue;
+				}
+				// 2. Bulk list.
+				if ( isset( $bulk_versions[ $installed_id ] ) ) {
+					$remote_versions[ $installed_id ] = $bulk_versions[ $installed_id ];
+					continue;
+				}
+				$needs_live[] = $installed_id;
+			}
+
+			if ( ! empty( $needs_live ) ) {
+				// Reuse the client from the sync-fetch branch when available; otherwise
+				// decrypt the token now — this is the only path that requires it.
+				$vc = $client ?? Telex_Auth::get_client();
+				if ( $vc ) {
+					foreach ( $needs_live as $installed_id ) {
+						// 3. Live API call.
+						try {
+							$rp                               = $vc->projects->get( $installed_id );
+							$remote_versions[ $installed_id ] = (int) ( $rp['currentVersion'] ?? 0 );
+							Telex_Cache::set_project( $installed_id, $rp );
+						} catch ( \Exception ) {
+							$remote_versions[ $installed_id ] = 0;
+						}
 					}
 				}
 			}
@@ -388,8 +405,10 @@ class Telex_REST {
 
 		// ETag derived only from data content, not the from_cache flag, so clients
 		// receive a 304 whenever the project list hasn't changed regardless of cache state.
+		// SHA-256 over the payload — MD5 is sufficient for ETags but SHA-256 is
+		// consistent with the rest of the codebase and avoids MD5 collision concerns.
 		$json_payload  = wp_json_encode( [ $projects, $installed ] );
-		$etag          = '"' . md5( false !== $json_payload ? $json_payload : '' ) . '"';
+		$etag          = '"' . hash( 'sha256', false !== $json_payload ? $json_payload : '' ) . '"';
 		$if_none_match = trim( $request->get_header( 'If-None-Match' ) ?? '' );
 
 		$response = rest_ensure_response( $body );
@@ -790,22 +809,26 @@ class Telex_REST {
 			foreach ( $sites as $site ) {
 				switch_to_blog( (int) $site->blog_id );
 
-				$result = Telex_Installer::install( $public_id, false, $pre_fetched_build );
+				// try/finally guarantees restore_current_blog() runs even if
+				// an unexpected exception escapes Telex_Installer::install().
+				try {
+					$result = Telex_Installer::install( $public_id, false, $pre_fetched_build );
 
-				if ( is_wp_error( $result ) ) {
-					$failed[] = [
-						'id'     => (int) $site->blog_id,
-						'domain' => $site->domain . $site->path,
-						'error'  => $result->get_error_message(),
-					];
-				} else {
-					$succeeded[] = [
-						'id'     => (int) $site->blog_id,
-						'domain' => $site->domain . $site->path,
-					];
+					if ( is_wp_error( $result ) ) {
+						$failed[] = [
+							'id'     => (int) $site->blog_id,
+							'domain' => $site->domain . $site->path,
+							'error'  => $result->get_error_message(),
+						];
+					} else {
+						$succeeded[] = [
+							'id'     => (int) $site->blog_id,
+							'domain' => $site->domain . $site->path,
+						];
+					}
+				} finally {
+					restore_current_blog();
 				}
-
-				restore_current_blog();
 			}
 
 			$offset     += $batch;
@@ -891,6 +914,24 @@ class Telex_REST {
 			);
 		}
 
+		// --- Content-Type guard -----------------------------------------------
+		// All webhook params must live in the JSON body so the HMAC covers them.
+		// Rejecting non-JSON prevents a class of bypass where params are supplied
+		// via query string while the body (and therefore the HMAC) is empty.
+		$ct = $request->get_content_type();
+		if ( empty( $ct['value'] ) || 'application/json' !== $ct['value'] ) {
+			return new \WP_Error( 'telex_bad_content_type', 'Content-Type must be application/json.', [ 'status' => 415 ] );
+		}
+
+		// --- Body size guard --------------------------------------------------
+		// Enforce before HMAC to prevent a large-body memory-exhaustion attack.
+		// WordPress's post_max_size is a PHP-level limit but varies per host;
+		// this cap is unconditional regardless of server configuration.
+		$body = $request->get_body();
+		if ( strlen( $body ) > self::WEBHOOK_MAX_BODY_BYTES ) {
+			return new \WP_Error( 'telex_body_too_large', 'Request body exceeds maximum allowed size.', [ 'status' => 413 ] );
+		}
+
 		// --- Signature verification -------------------------------------------
 		$sig_header = $request->get_header( 'X-Telex-Signature' );
 		if ( ! $sig_header || ! str_starts_with( $sig_header, 'sha256=' ) ) {
@@ -899,7 +940,6 @@ class Telex_REST {
 
 		$provided_sig = substr( $sig_header, 7 );
 		$secret       = self::get_deploy_secret();
-		$body         = $request->get_body();
 		$expected_sig = hash_hmac( 'sha256', $body, $secret );
 
 		if ( ! hash_equals( $expected_sig, $provided_sig ) ) {
@@ -913,8 +953,14 @@ class Telex_REST {
 		if ( 0 === $timestamp ) {
 			return new \WP_Error( 'telex_replay', 'timestamp is required.', [ 'status' => 400 ] );
 		}
-		if ( abs( time() - $timestamp ) > self::DEPLOY_REPLAY_SECS ) {
-			return new \WP_Error( 'telex_replay', 'Request timestamp is too old.', [ 'status' => 400 ] );
+
+		// Directional window: allow DEPLOY_CLOCK_SKEW_SECS of future drift
+		// (clock skew) but reject anything more than DEPLOY_REPLAY_SECS old.
+		// Using abs() would silently accept pre-signed requests timestamped
+		// up to 5 minutes in the future — an unnecessary attack surface.
+		$age = time() - $timestamp;
+		if ( $age < -self::DEPLOY_CLOCK_SKEW_SECS || $age > self::DEPLOY_REPLAY_SECS ) {
+			return new \WP_Error( 'telex_replay', 'Request timestamp is outside the acceptable range.', [ 'status' => 400 ] );
 		}
 
 		// --- Install ----------------------------------------------------------
@@ -944,22 +990,49 @@ class Telex_REST {
 	/**
 	 * Per-IP rate limiter for the public webhook endpoint.
 	 *
-	 * Uses a transient keyed on a hashed IP address. Allows up to 10 webhook
-	 * triggers per minute from any single address.
+	 * Uses a transient keyed on a hashed, normalised IP address. Allows up to
+	 * 10 webhook triggers per minute from any single address.
 	 *
 	 * @return int Seconds until the rate-limit window resets, or 0 if under the limit.
 	 */
 	private static function check_webhook_rate_limit(): int {
 		$window = 60;
 		$max    = 10;
-		// Hash the IP so the raw address is never stored in the database.
-		$ip_key = 'telex_wh_rl_' . substr( hash( 'sha256', (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ), 0, 32 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- hashed immediately; never stored raw.
+
+		// Normalise IPv6 addresses before hashing to prevent bypass via
+		// equivalent representations (e.g. "::1" vs "0:0:0:0:0:0:0:1").
+		// The raw address is never stored — only its SHA-256 digest.
+		$raw_ip = (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- hashed immediately; never stored raw.
+		$ip_key = 'telex_wh_rl_' . substr( hash( 'sha256', self::normalise_ip( $raw_ip ) ), 0, 32 );
 		$count  = (int) get_transient( $ip_key );
 		if ( $count >= $max ) {
 			return $window;
 		}
 		set_transient( $ip_key, $count + 1, $window );
 		return 0;
+	}
+
+	/**
+	 * Returns a canonical string representation of an IPv4 or IPv6 address.
+	 *
+	 * Uses inet_pton / inet_ntop to collapse equivalent IPv6 forms such as
+	 * "::0001" and "0:0:0:0:0:0:0:1" to the same canonical string "::1",
+	 * ensuring they map to the same rate-limit bucket.
+	 *
+	 * @param string $ip Raw IP address string (typically from $_SERVER['REMOTE_ADDR']).
+	 * @return string Canonical IP string, or the original value if parsing fails.
+	 */
+	private static function normalise_ip( string $ip ): string {
+		if ( '' === $ip ) {
+			return $ip;
+		}
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton triggers E_WARNING on invalid input.
+		$packed = @inet_pton( $ip );
+		if ( false === $packed ) {
+			return $ip;
+		}
+		$canonical = inet_ntop( $packed );
+		return false !== $canonical ? $canonical : $ip;
 	}
 
 	/**

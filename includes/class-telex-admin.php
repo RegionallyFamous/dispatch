@@ -392,6 +392,27 @@ class Telex_Admin {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Sanitises a CSV cell value to prevent spreadsheet formula injection.
+	 *
+	 * Cells whose first character is a formula trigger ( =, +, -, @, TAB, CR )
+	 * will be interpreted as formulas by Excel, LibreOffice Calc, and Google
+	 * Sheets. Prefixing with a TAB character defuses this while keeping the
+	 * value human-readable in any viewer.
+	 *
+	 * @param string $value Raw cell value.
+	 * @return string Safe cell value.
+	 */
+	private static function csv_safe( string $value ): string {
+		if ( '' === $value ) {
+			return $value;
+		}
+		if ( in_array( $value[0], [ '=', '+', '-', '@', "\t", "\r" ], true ) ) {
+			return "\t" . $value;
+		}
+		return $value;
+	}
+
+	/**
 	 * Streams the audit log as a CSV download if the correct action + nonce are present.
 	 *
 	 * @return void
@@ -465,10 +486,10 @@ class Telex_Admin {
 			fputcsv(
 				$out,
 				[
-					$event['created_at'] ?? '',
-					$event['action'] ?? '',
-					$event['public_id'] ?? '',
-					$user,
+					self::csv_safe( (string) ( $event['created_at'] ?? '' ) ),
+					self::csv_safe( (string) ( $event['action'] ?? '' ) ),
+					self::csv_safe( (string) ( $event['public_id'] ?? '' ) ),
+					self::csv_safe( $user ),
 				]
 			);
 		}

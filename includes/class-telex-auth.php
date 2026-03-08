@@ -62,7 +62,9 @@ class Telex_Auth {
 	public static function check_rate_limit( string $action ): int {
 		$user_id = get_current_user_id();
 		$now     = time();
-		$key     = md5( (string) $user_id . '_' . $action );
+		// Salted HMAC — key cannot be predicted/enumerated by an attacker who
+		// knows a user ID and action name, preventing transient-key guessing.
+		$key = hash_hmac( 'sha256', (string) $user_id . ':' . $action, wp_salt( 'auth' ) );
 
 		// When a persistent object cache (Redis/Memcached) is active, use its
 		// atomic increment operation so concurrent requests cannot race past the
@@ -345,7 +347,9 @@ class Telex_Auth {
 	 */
 	private static function encrypt( string $plaintext ): string {
 		$key = self::get_encryption_key();
-		$iv  = openssl_random_pseudo_bytes( self::GCM_IV_LENGTH );
+		// random_bytes() is PHP 7+'s CSPRNG — always cryptographically strong,
+		// unlike openssl_random_pseudo_bytes() which can signal weakness via $strong.
+		$iv  = random_bytes( self::GCM_IV_LENGTH );
 		$tag = '';
 
 		$ciphertext = openssl_encrypt(

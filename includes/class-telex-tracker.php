@@ -146,11 +146,23 @@ class Telex_Tracker {
 	// Reconciliation — remove entries whose files no longer exist on disk
 	// -------------------------------------------------------------------------
 
+	/** Transient key used to rate-limit reconcile() to once per minute. */
+	private const TRANSIENT_RECONCILE_LOCK = 'telex_reconcile_lock';
+
 	/**
 	 * Removes stale tracker entries where the plugin/theme directory is gone.
 	 * Safe to call on `admin_init` or from WP-CLI.
+	 *
+	 * Rate-limited to once per minute via a short-lived transient so that
+	 * rapid REST requests (e.g. React hot-reload) don't issue N filesystem
+	 * stat calls for every admin page view.
 	 */
 	public static function reconcile(): void {
+		if ( get_transient( self::TRANSIENT_RECONCILE_LOCK ) ) {
+			return;
+		}
+		set_transient( self::TRANSIENT_RECONCILE_LOCK, 1, MINUTE_IN_SECONDS );
+
 		$all     = self::get_all();
 		$changed = false;
 

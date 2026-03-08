@@ -14,15 +14,37 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Telex_Installer {
 
-	/** File extensions that must never appear in a downloaded build. */
+	/**
+	 * File extensions that must never appear in a downloaded build.
+	 *
+	 * Includes PHP execution aliases (phtml, php3–php8, phps, pht) that some
+	 * Apache / nginx / LiteSpeed configs treat as PHP, PHAR archives that the
+	 * PHP runtime can execute directly, legacy SSI types, and server-side
+	 * scripting languages / shell interpreters that should never live inside a
+	 * WordPress plugin or theme directory.
+	 */
 	private const BLOCKED_EXTENSIONS = [
+		// PHP execution aliases.
 		'phtml',
-		'phar',
-		'php5',
-		'shtml',
 		'php3',
 		'php4',
+		'php5',
 		'php7',
+		'php8',
+		'phps',
+		'pht',
+		// PHP archive — executable by the PHP runtime.
+		'phar',
+		// Server-Side Includes.
+		'shtml',
+		'shtm',
+		// Other server-side scripting / shell interpreters.
+		'cgi',
+		'pl',
+		'py',
+		'rb',
+		'sh',
+		'bash',
 	];
 
 	/**
