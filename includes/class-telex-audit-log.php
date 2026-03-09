@@ -191,7 +191,11 @@ class Telex_Audit_Log {
 			$where_values[] = $user_id;
 		}
 
-		$cache_key_base = 'filtered_' . md5( wp_json_encode( [ $action, $project_id, $search, $date_from, $date_to, $user_id, $columns ] ) );
+		$cache_key_payload = wp_json_encode( [ $action, $project_id, $search, $date_from, $date_to, $user_id, $columns ] );
+		if ( false === $cache_key_payload ) {
+			$cache_key_payload = '';
+		}
+		$cache_key_base = 'filtered_' . md5( $cache_key_payload );
 		$count_key      = $cache_key_base . '_count';
 		$rows_key       = $cache_key_base . '_rows_' . $offset . '_' . $per_page;
 
