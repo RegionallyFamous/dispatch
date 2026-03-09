@@ -4,18 +4,22 @@
 
 ## [Unreleased]
 
+---
+
+## [1.5.0] — 2026-03-09
+
+### Fixed
+
+- Resolved a REST fatal that could break project loading with "Could not fetch
+  projects". The `/telex/v1/users` endpoint now maps lightweight `get_users()`
+  rows safely instead of hard-typing entries as `WP_User`.
+
 ### Changed
 
-- Documentation overhaul focused on site-owner workflows: rewritten `README.md`,
-  tightened WP-CLI examples, and updated `readme.txt` command usage for required
-  flags.
-- Added docs governance artifacts under `docs/` (coverage matrix, quality
-  standard, wiki architecture map, troubleshooting error catalog, versioning
-  policy, CLI verification notes, and release checklist).
-- Added automated documentation quality checks to CI (`docs-quality` job) and
-  local commands (`npm run lint:docs:markdown`, `npm run lint:docs:links`).
-- Updated contributor and policy docs (`CONTRIBUTING.md`, `SECURITY.md`, PR
-  template) to enforce docs synchronization on behavior changes.
+- Notification settings panel layout refined into a clearer two-column form
+  with better grouping of alert conditions and delivery channels.
+- Documentation and wiki structure refreshed for launch readiness, including
+  IA updates and draft cleanup under `docs/`.
 
 ---
 
@@ -161,10 +165,9 @@ what it updated, so there are no surprises.
 
 ### Notification channels — know when things happen
 
-Configure email digests and Slack webhooks for install, update, and removal
-events. The digest batches events so you're not getting pinged for every
-single background update. Slack notifications include the project name, the
-action taken, and who triggered it.
+Configure notifications for install, update, and removal events. Digesting
+batches events so you're not getting pinged for every single background update.
+Notifications include the project name, the action taken, and who triggered it.
 
 ### Project health dashboard
 
@@ -183,9 +186,8 @@ which ones were tried once and forgotten.
 ### Project groups — organize your library
 
 Named groups let you organize your Telex projects however makes sense for your
-workflow. Tag a project to multiple groups, filter by group in the search bar,
-and use group names in WP-CLI filters. Stored per-user, so each team member
-can have their own organization.
+workflow. Tag a project to multiple groups and filter by group in the search
+bar. Stored per-user, so each team member can have their own organization.
 
 ### GDPR / Privacy framework integration
 
@@ -455,7 +457,8 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/regionallyfamous/dispatch/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/regionallyfamous/dispatch/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/regionallyfamous/dispatch/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/regionallyfamous/dispatch/compare/v1.3.1...v1.3.2

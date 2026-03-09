@@ -1547,98 +1547,25 @@ class Telex_REST {
 	 * @return \WP_REST_Response
 	 */
 	public static function get_audit_log( \WP_REST_Request $request ): \WP_REST_Response {
-		global $wpdb;
+		$per_page = max( 1, min( 100, (int) $request->get_param( 'per_page' ) ) );
+		$page     = max( 1, (int) $request->get_param( 'page' ) );
 
-		$per_page   = (int) $request->get_param( 'per_page' );
-		$page       = (int) $request->get_param( 'page' );
-		$action     = (string) $request->get_param( 'action' );
-		$project_id = (string) $request->get_param( 'project_id' );
-		$search     = (string) $request->get_param( 'search' );
-		$date_from  = (string) $request->get_param( 'date_from' );
-		$date_to    = (string) $request->get_param( 'date_to' );
-		$user_id    = (int) $request->get_param( 'user_id' );
-		$offset     = ( $page - 1 ) * $per_page;
-		$table      = Telex_Audit_Log::table_name();
-
-		// Build optional WHERE clauses (using an allowlist — never raw user input in SQL).
-		$valid_actions = [ 'install', 'update', 'remove', 'connect', 'disconnect', 'activate', 'deactivate', 'auto_update' ];
-		$where_parts   = [];
-		$where_values  = [];
-
-		if ( '' !== $action && in_array( strtolower( $action ), $valid_actions, true ) ) {
-			$where_parts[]  = 'action = %s';
-			$where_values[] = strtolower( $action );
-		}
-
-		if ( '' !== $project_id ) {
-			$where_parts[]  = 'public_id = %s';
-			$where_values[] = $project_id;
-		}
-
-		if ( '' !== $search ) {
-			$where_parts[]  = '(public_id LIKE %s OR context LIKE %s)';
-			$like           = '%' . $wpdb->esc_like( $search ) . '%';
-			$where_values[] = $like;
-			$where_values[] = $like;
-		}
-
-		if ( '' !== $date_from ) {
-			$ts = strtotime( $date_from );
-			if ( false !== $ts ) {
-				$where_parts[]  = 'created_at >= %s';
-				$where_values[] = gmdate( 'Y-m-d 00:00:00', $ts );
-			}
-		}
-
-		if ( '' !== $date_to ) {
-			$ts = strtotime( $date_to );
-			if ( false !== $ts ) {
-				$where_parts[]  = 'created_at <= %s';
-				$where_values[] = gmdate( 'Y-m-d 23:59:59', $ts );
-			}
-		}
-
-		if ( $user_id > 0 ) {
-			$where_parts[]  = 'user_id = %d';
-			$where_values[] = $user_id;
-		}
-
-		$where_sql = '';
-		if ( ! empty( $where_parts ) ) {
-			$where_sql = 'WHERE ' . implode( ' AND ', $where_parts );
-		}
-
-		// $table is derived from $wpdb->prefix, which is trusted. $where_sql is
-		// built exclusively from an allowlist of column names and %s/%d placeholders
-		// (never from user input), so interpolation here is safe.
-		//
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		if ( '' !== $where_sql ) {
-			$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where_sql}", ...$where_values ) );
-		} else {
-			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
-		}
-
-		// Fetch page of rows — omit the context blob since the REST response
-		// only surfaces id, action, public_id, user_id, created_at, and _user_name.
-		$limit_values = array_merge( $where_values, [ $per_page, $offset ] );
-		$rows         = $wpdb->get_results(
-			$wpdb->prepare( "SELECT id, action, public_id, user_id, created_at FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", ...$limit_values ),
-			ARRAY_A
+		$result = Telex_Audit_Log::get_filtered(
+			[
+				'action'     => (string) $request->get_param( 'action' ),
+				'project_id' => (string) $request->get_param( 'project_id' ),
+				'search'     => (string) $request->get_param( 'search' ),
+				'date_from'  => (string) $request->get_param( 'date_from' ),
+				'date_to'    => (string) $request->get_param( 'date_to' ),
+				'user_id'    => (int) $request->get_param( 'user_id' ),
+				'per_page'   => $per_page,
+				'page'       => $page,
+				'columns'    => 'id, action, public_id, user_id, created_at',
+			]
 		);
-		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 
-		$rows = is_array( $rows ) ? $rows : [];
+		$total = $result['total'];
+		$rows  = $result['rows'];
 
 		// Batch-resolve user display names to avoid N+1 get_userdata() calls.
 		$user_ids  = array_unique(
@@ -2156,7 +2083,7 @@ class Telex_REST {
 		);
 
 		$data = array_map(
-			static fn( \WP_User $u ) => [
+			static fn( $u ) => [
 				'id'   => (int) $u->ID,
 				'name' => (string) $u->display_name,
 			],

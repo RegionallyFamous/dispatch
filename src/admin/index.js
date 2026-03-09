@@ -152,8 +152,8 @@ function ProjectAvatar( { name, publicId } ) {
 						'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 					userSelect: 'none',
 				} }
-		>
-			{ initial }
+			>
+				{ initial }
 			</text>
 		</svg>
 	);
@@ -372,11 +372,11 @@ function StatusBadge( { publicId, remoteVersion, installed } ) {
 		select( 'telex/admin' ).getInstallStatus( publicId )
 	);
 
-		const busyLabels = {
-			building: __( 'Building…', 'dispatch' ),
-			installing: __( 'Installing…', 'dispatch' ),
-			removing: __( 'Removing…', 'dispatch' ),
-		};
+	const busyLabels = {
+		building: __( 'Building…', 'dispatch' ),
+		installing: __( 'Installing…', 'dispatch' ),
+		removing: __( 'Removing…', 'dispatch' ),
+	};
 
 	const isBusy = installStatus in busyLabels;
 	let variantClass;
@@ -1164,53 +1164,53 @@ async function installWithPolling(
 	// Server queued a build — poll until ready then retry.
 	onBuilding?.( data.poll_interval || 5 );
 
-				const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
+	const MAX_POLLS = 24; // ~2 minutes at the default 5 s interval
 	// Cap the server-supplied interval so a misconfigured response can't stall
 	// the UI indefinitely.
 	const MAX_POLL_INTERVAL = 30;
 	let pollInterval = Math.min( data.poll_interval || 5, MAX_POLL_INTERVAL );
 
-				for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
+	for ( let attempt = 0; attempt < MAX_POLLS; attempt++ ) {
 		// Bail out immediately if the component unmounted or the user navigated away.
 		if ( cancelSignal?.cancelled ) {
 			throw new Error( __( 'Installation was cancelled.', 'dispatch' ) );
 		}
 
-					// eslint-disable-next-line no-await-in-loop
+		// eslint-disable-next-line no-await-in-loop
 		await new Promise( ( r ) => setTimeout( r, pollInterval * 1000 ) );
 
 		if ( cancelSignal?.cancelled ) {
 			throw new Error( __( 'Installation was cancelled.', 'dispatch' ) );
 		}
 
-					// eslint-disable-next-line no-await-in-loop
+		// eslint-disable-next-line no-await-in-loop
 		const buildStatus = await fetch( {
 			url: `${ url }/projects/${ publicId }/build`,
-					} );
+		} );
 
-					if ( buildStatus.poll_interval ) {
+		if ( buildStatus.poll_interval ) {
 			pollInterval = Math.min(
 				buildStatus.poll_interval,
 				MAX_POLL_INTERVAL
 			);
-					}
+		}
 
-					if ( ! buildStatus.ready ) {
-						continue;
-					}
+		if ( ! buildStatus.ready ) {
+			continue;
+		}
 
-					// eslint-disable-next-line no-await-in-loop
+		// eslint-disable-next-line no-await-in-loop
 		data = await doInstall();
 		return data;
-				}
+	}
 
-					throw new Error(
-						__(
-							'The build is taking longer than expected. Try again in a moment.',
-							'dispatch'
-						)
-					);
-				}
+	throw new Error(
+		__(
+			'The build is taking longer than expected. Try again in a moment.',
+			'dispatch'
+		)
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Project card
@@ -1572,11 +1572,11 @@ function ProjectCard( {
 				setConflictData( err.data );
 			} else {
 				onToast( {
-				type: 'error',
-				message:
-					err.message ||
-					__( "That didn't work. Try again?", 'dispatch' ),
-			} );
+					type: 'error',
+					message:
+						err.message ||
+						__( "That didn't work. Try again?", 'dispatch' ),
+				} );
 			}
 		}
 	}
@@ -1633,7 +1633,7 @@ function ProjectCard( {
 							() =>
 								setInstallStatus( removedPublicId, 'building' )
 						);
-			await onRefresh();
+						await onRefresh();
 						setInstallStatus( removedPublicId, 'idle' );
 						onToast( {
 							type: 'success',
@@ -1794,10 +1794,10 @@ function ProjectCard( {
 			</Tooltip>
 			{ /* Identity — avatar + name + type */ }
 			<div className="telex-row-identity">
-					<ProjectAvatar
-						name={ project.name }
-						publicId={ project.publicId }
-					/>
+				<ProjectAvatar
+					name={ project.name }
+					publicId={ project.publicId }
+				/>
 				<div className="telex-row-name">
 					<button
 						type="button"
@@ -1809,9 +1809,9 @@ function ProjectCard( {
 							project.name
 						) }
 					>
-							{ project.name }
+						{ project.name }
 					</button>
-						<TypeBadge type={ typeStr } />
+					<TypeBadge type={ typeStr } />
 					{ isPinned && (
 						<Tooltip
 							text={ sprintf(
@@ -1828,12 +1828,12 @@ function ProjectCard( {
 								) }
 							>
 								<Icon icon={ lockSmall } size={ 14 } />
-							{ sprintf(
-								/* translators: %s: version number */
+								{ sprintf(
+									/* translators: %s: version number */
 									__( 'v%s', 'dispatch' ),
 									pinInfo?.version || ''
-							) }
-						</span>
+								) }
+							</span>
 						</Tooltip>
 					) }
 					{ usageCount !== null && usageCount > 0 && (
@@ -1879,7 +1879,7 @@ function ProjectCard( {
 						</span>
 					) }
 				</div>
-				</div>
+			</div>
 
 			{ /* Meta — one clear state, no duplication with the actions zone */ }
 			<div className="telex-row-meta">
@@ -1910,13 +1910,13 @@ function ProjectCard( {
 			{ /* Actions — primary + icon-only secondary */ }
 			<div
 				className="telex-row-actions"
-					role="group"
-					aria-label={ sprintf(
-						/* translators: %s: project name */
-						__( 'Actions for %s', 'dispatch' ),
-						project.name
-					) }
-				>
+				role="group"
+				aria-label={ sprintf(
+					/* translators: %s: project name */
+					__( 'Actions for %s', 'dispatch' ),
+					project.name
+				) }
+			>
 				{ isNetworkAdmin ? (
 					<Tooltip
 						text={ __( 'Push to all network sites', 'dispatch' ) }
@@ -1933,7 +1933,7 @@ function ProjectCard( {
 					</Tooltip>
 				) : (
 					<>
-					{ ! isInstalled && (
+						{ ! isInstalled && (
 							<Button
 								variant="primary"
 								onClick={ handleInstall }
@@ -1946,8 +1946,8 @@ function ProjectCard( {
 							>
 								{ __( 'Install', 'dispatch' ) }
 							</Button>
-					) }
-					{ isInstalled && needsUpdate && (
+						) }
+						{ isInstalled && needsUpdate && (
 							<Button
 								variant="primary"
 								onClick={ () => setShowChangelog( true ) }
@@ -1993,9 +1993,9 @@ function ProjectCard( {
 						<Tooltip
 							text={ __( 'Activate on this site', 'dispatch' ) }
 						>
-						<Button
-							variant="secondary"
-							icon={ check }
+							<Button
+								variant="secondary"
+								icon={ check }
 								onClick={ async () => {
 									try {
 										await apiFetch( {
@@ -2030,18 +2030,18 @@ function ProjectCard( {
 									'Activate on this site',
 									'dispatch'
 								) }
-							__next40pxDefaultSize
+								__next40pxDefaultSize
 							/>
 						</Tooltip>
 					) }
 					{ isInstalled &&
 						isActive === true &&
 						project.type !== 'theme' && (
-						<Tooltip
-							text={ __(
+							<Tooltip
+								text={ __(
 									'Deactivate on this site',
-								'dispatch'
-							) }
+									'dispatch'
+								) }
 							>
 								<Button
 									variant="tertiary"
@@ -2228,7 +2228,7 @@ function ProjectCard( {
 							}
 							__next40pxDefaultSize
 						/>
-						</Tooltip>
+					</Tooltip>
 				</div>
 			</div>
 			{ /* Inline note editor */ }
@@ -2287,7 +2287,7 @@ function ProjectCard( {
 						>
 							×
 						</button>
-				</div>
+					</div>
 					<div className="telex-row-tag-chips">
 						{ tags.map( ( t ) => (
 							<span
@@ -2401,45 +2401,45 @@ function ProjectCard( {
 				</Modal>
 			) }
 			{ /* Modals */ }
-				{ confirmRemove === project.publicId && (
-					<Modal
-						title={ sprintf(
+			{ confirmRemove === project.publicId && (
+				<Modal
+					title={ sprintf(
+						/* translators: %s: project name */
+						__( 'Remove "%s"?', 'dispatch' ),
+						project.name
+					) }
+					onRequestClose={ () => setConfirmRemove( null ) }
+					aria-describedby="telex-remove-warning"
+				>
+					<p id="telex-remove-warning">
+						{ sprintf(
 							/* translators: %s: project name */
-							__( 'Remove "%s"?', 'dispatch' ),
+							__(
+								'%s will be removed from your site. You can reinstall it any time.',
+								'dispatch'
+							),
 							project.name
 						) }
-						onRequestClose={ () => setConfirmRemove( null ) }
-					aria-describedby="telex-remove-warning"
-					>
-					<p id="telex-remove-warning">
-							{ sprintf(
-								/* translators: %s: project name */
-								__(
-								'%s will be removed from your site. You can reinstall it any time.',
-									'dispatch'
-								),
-								project.name
-							) }
-						</p>
-						<div className="telex-modal-actions">
-							<Button
-								variant="primary"
-								isDestructive
-								onClick={ handleRemove }
-								__next40pxDefaultSize
-							>
-								{ __( 'Yes, remove it', 'dispatch' ) }
-							</Button>
-							<Button
-								variant="secondary"
-								onClick={ () => setConfirmRemove( null ) }
-								__next40pxDefaultSize
-							>
-								{ __( 'Keep it', 'dispatch' ) }
-							</Button>
-						</div>
-					</Modal>
-				) }
+					</p>
+					<div className="telex-modal-actions">
+						<Button
+							variant="primary"
+							isDestructive
+							onClick={ handleRemove }
+							__next40pxDefaultSize
+						>
+							{ __( 'Yes, remove it', 'dispatch' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ () => setConfirmRemove( null ) }
+							__next40pxDefaultSize
+						>
+							{ __( 'Keep it', 'dispatch' ) }
+						</Button>
+					</div>
+				</Modal>
+			) }
 			{ showDetail && (
 				<ProjectDetailModal
 					project={ project }
@@ -3052,13 +3052,13 @@ function ProjectsApp() {
 					await fetchData( false );
 					return;
 				} else {
-				setError(
-					err.message ||
-						__(
-							"Couldn't load your projects. Check your connection and try again.",
-							'dispatch'
-						)
-				);
+					setError(
+						err.message ||
+							__(
+								"Couldn't load your projects. Check your connection and try again.",
+								'dispatch'
+							)
+					);
 				}
 			} finally {
 				fetchInFlightRef.current = false;
@@ -3481,25 +3481,25 @@ function ProjectsApp() {
 		( tabName ) =>
 			sortProjects(
 				projects
-			.filter( ( p ) => {
-				const t = p.projectType?.toLowerCase() || 'block';
-				if ( tabName === 'updates' ) {
+					.filter( ( p ) => {
+						const t = p.projectType?.toLowerCase() || 'block';
+						if ( tabName === 'updates' ) {
 							return p._needs_update;
-				}
-				if ( tabName === 'blocks' ) {
-					return t !== 'theme';
-				}
-				if ( tabName === 'themes' ) {
-					return t === 'theme';
-				}
+						}
+						if ( tabName === 'blocks' ) {
+							return t !== 'theme';
+						}
+						if ( tabName === 'themes' ) {
+							return t === 'theme';
+						}
 						if ( tabName === 'failed' ) {
 							return p._failed;
 						}
-				return true;
-			} )
-			.filter(
-				( p ) =>
-					! searchQuery ||
+						return true;
+					} )
+					.filter(
+						( p ) =>
+							! searchQuery ||
 							p.name
 								?.toLowerCase()
 								.includes( searchQuery.toLowerCase() )
@@ -3530,31 +3530,31 @@ function ProjectsApp() {
 
 	const tabs = useMemo(
 		() => [
-		{
-			name: 'all',
-			title: projects.length
-				? `${ __( 'All', 'dispatch' ) } (${ projects.length })`
-				: __( 'All', 'dispatch' ),
-		},
-		{
-			name: 'updates',
-			title: updatesCount
-				? `${ __( 'Updates', 'dispatch' ) } (${ updatesCount })`
-				: __( 'Updates', 'dispatch' ),
-			className: updatesCount > 0 ? 'telex-tab--has-updates' : '',
-		},
-		{
-			name: 'blocks',
-			title: blocksCount
-				? `${ __( 'Blocks', 'dispatch' ) } (${ blocksCount })`
-				: __( 'Blocks', 'dispatch' ),
-		},
-		{
-			name: 'themes',
-			title: themesCount
-				? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
-				: __( 'Themes', 'dispatch' ),
-		},
+			{
+				name: 'all',
+				title: projects.length
+					? `${ __( 'All', 'dispatch' ) } (${ projects.length })`
+					: __( 'All', 'dispatch' ),
+			},
+			{
+				name: 'updates',
+				title: updatesCount
+					? `${ __( 'Updates', 'dispatch' ) } (${ updatesCount })`
+					: __( 'Updates', 'dispatch' ),
+				className: updatesCount > 0 ? 'telex-tab--has-updates' : '',
+			},
+			{
+				name: 'blocks',
+				title: blocksCount
+					? `${ __( 'Blocks', 'dispatch' ) } (${ blocksCount })`
+					: __( 'Blocks', 'dispatch' ),
+			},
+			{
+				name: 'themes',
+				title: themesCount
+					? `${ __( 'Themes', 'dispatch' ) } (${ themesCount })`
+					: __( 'Themes', 'dispatch' ),
+			},
 			{
 				name: 'activity',
 				title: __( 'Activity', 'dispatch' ),
@@ -3773,9 +3773,9 @@ function ProjectsApp() {
 				</div>
 
 				<div className="telex-unified-bar__search" role="search">
-				<SearchControl
+					<SearchControl
 						ref={ searchInputRef }
-					label={ __( 'Search projects', 'dispatch' ) }
+						label={ __( 'Search projects', 'dispatch' ) }
 						value={ localSearchQuery }
 						onChange={ ( value ) => {
 							setLocalSearchQuery( value );
@@ -3785,8 +3785,8 @@ function ProjectsApp() {
 								150
 							);
 						} }
-					__nextHasNoMarginBottom
-				/>
+						__nextHasNoMarginBottom
+					/>
 				</div>
 
 				<div className="telex-unified-bar__actions">
@@ -4510,7 +4510,7 @@ function ProjectsApp() {
 							id={ `telex-tabpanel-${ activeTab }` }
 							role="tabpanel"
 							aria-labelledby={ `telex-tab-${ activeTab }` }
-					className="telex-tab-panel"
+							className="telex-tab-panel"
 						>
 							{ /* Pending auto-update approval queue */ }
 							{ activeTab === 'updates' &&
@@ -4537,8 +4537,8 @@ function ProjectsApp() {
 															p.publicId ===
 															item.publicId
 													);
-						return (
-							<div
+													return (
+														<div
 															key={
 																item.publicId
 															}
@@ -4680,11 +4680,11 @@ function ProjectsApp() {
 									/>
 								) : (
 									paginated.map( ( project ) => (
-											<ProjectCard
+										<ProjectCard
 											key={ project.publicId }
-												project={ project }
-												restUrl={ restUrl }
-												onRefresh={ fetchData }
+											project={ project }
+											restUrl={ restUrl }
+											onRefresh={ fetchData }
 											onToast={ addToast }
 											isNetworkAdmin={ isNetworkAdmin }
 											showCheckbox={ showCheckboxes }
@@ -4704,7 +4704,7 @@ function ProjectsApp() {
 								perPage={ perPage }
 								onPageChange={ setCurrentPage }
 							/>
-							</div>
+						</div>
 					);
 				} )() }
 

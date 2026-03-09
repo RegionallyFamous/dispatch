@@ -3,7 +3,7 @@
  * Plugin Name:       Dispatch for Telex
  * Plugin URI:        https://telex.automattic.ai
  * Description:       Telex builds the block. Dispatch ships it. Install, update, and remove Telex-generated blocks and themes from wp-admin — no zip files, no upload forms.
- * Version:           1.4.1
+ * Version:           1.5.0
  * Requires at least: 6.7
  * Tested up to:      6.8
  * Requires PHP:      8.2
@@ -26,7 +26,7 @@ if ( defined( 'TELEX_LOADED' ) ) {
 }
 define( 'TELEX_LOADED', true );
 
-define( 'TELEX_PLUGIN_VERSION', '1.4.1' );
+define( 'TELEX_PLUGIN_VERSION', '1.5.0' );
 define( 'TELEX_PLUGIN_FILE', __FILE__ );
 define( 'TELEX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TELEX_PUBLIC_URL', 'https://telex.automattic.ai' );

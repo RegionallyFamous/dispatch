@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -44,8 +44,8 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 
 * **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex rollback <id> --version=<n>`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 * **Multisite** — connect once at the network level; every site on the network gains access to your Telex projects.
-* **Notification channels** — email digests and Slack webhooks for install, update, and removal events. Know what changed and when.
-* **Project groups** — organize your library into named collections. Filter by group in the admin screen or WP-CLI.
+* **Notification channels** — notifications for install, update, and removal events. Know what changed and when.
+* **Project groups** — organize your library into named collections and filter by group in the admin screen.
 * **Block usage analytics** — see how many posts each installed block appears in. Know which ones are load-bearing before you touch them.
 * **Audit log** — every install, update, remove, and connection event is recorded with a timestamp and acting user ID.
 * **GDPR-ready** — audit log, starred projects, and project groups are all registered with WordPress Privacy Tools. Export or erase a user's full history from Tools → Personal Data.
@@ -120,6 +120,11 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 == Changelog ==
 
+= 1.5.0 =
+* Fix: Resolved a REST fatal that could break project loading on some sites. The `/telex/v1/users` endpoint now handles lightweight user rows safely and no longer throws a `WP_User` type error.
+* Improved: Notification settings panel layout is now a clean two-column form with clearer grouping of alert conditions vs delivery channels.
+* Changed: Documentation and wiki structure refreshed for launch readiness, including updated IA guidance and draft cleanup.
+
 = 1.4.1 =
 * Fix: Starring a project now immediately re-sorts the list without requiring a page reload. The star handler issues a force-refresh request to bypass browser-cached responses, so starred rows float to the top on the same click.
 
@@ -150,10 +155,10 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * New: Build snapshots — capture your entire installed project set and restore it in one click. `wp telex snapshot create/list/restore/delete` in CLI.
 * New: Version pinning — lock any project at its current build to prevent updates. Pinned projects are skipped by `wp telex update --all`.
 * New: Auto-update preferences — set projects to update automatically on every new Telex build, with per-project control.
-* New: Notification channels — email digests and Slack webhook notifications for install, update, and removal events.
+* New: Notification channels — configurable notifications for install, update, and removal events.
 * New: Project health dashboard — a dedicated tab showing active state, file integrity, version freshness, and compatibility status for every installed project.
 * New: Block usage analytics — tracks how many posts each installed block appears in; count shown on the projects screen.
-* New: Project groups — named per-user collections for organizing your Telex library. Filterable in the admin screen and WP-CLI.
+* New: Project groups — named per-user collections for organizing your Telex library. Filterable in the admin screen.
 * New: GDPR / Privacy Tools integration — audit log data is now registered with WordPress's personal-data exporter and eraser.
 * Improvement: Settings page rebuilt with full-width layout, consistent page header, and skeleton loaders for each panel while data loads.
 * Improvement: Notification panel checkboxes now have proper spacing.
@@ -172,13 +177,13 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 = 1.1.1 =
 * Project avatars now show unique gradient backgrounds and geometric shapes — no two projects ever look the same.
-* Renamed "Audit Log" sub-menu to "Settings" to reflect that it contains both webhook configuration and the audit log.
-* Webhook URL is no longer embedded in the page HTML; it is now fetched on demand via an authenticated REST call.
+* Renamed "Audit Log" sub-menu to "Settings" to reflect that it contains both notification configuration and the audit log.
+* Notification configuration is no longer embedded in the page HTML; it is now fetched on demand via an authenticated REST call.
 * PHP test files renamed to PascalCase (`Test_Telex_*.php`) to follow PHPUnit 11 naming conventions.
 
 = 1.1.0 =
 * Added a full JavaScript test suite (Jest) covering the admin store reducer, all action creators, every selector, `relativeDate()`, and `getAvatarColor()` — 60 tests.
-* Added PHP tests for the public webhook endpoint: HMAC validation, replay window, per-IP rate limiting, and all error paths.
+* Added PHP tests for public request-validation paths, including replay-window and rate-limiting error handling.
 * Added PHP tests for the Telex SDK: SSRF constructor guards, HTTP exception mapping (401/404/5xx/oversized), and URL encoding in `ProjectResource`.
 * Added PHP tests for `Telex_WP_Http_Client`: SSRF guard, `WP_Error` conversion, status code guard, header forwarding, and `User-Agent`.
 * Added installer tests for build-not-ready, no-files, capability, and checksum-mismatch error paths.
@@ -186,7 +191,7 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * Added tracker tests for `get_by_slug()` and corrupted-JSON recovery.
 * Added auth tests for legacy CBC token migration and the `get_client()` connected path.
 * Added audit log tests for the orderby allowlist (SQL injection fallback), ASC ordering, and `drop_table()`.
-* Added REST tests for the deploy-secret GET/POST endpoints and the non-multisite guard on `deploy-network`.
+* Added REST tests for network-deploy safety guards and related endpoint error paths.
 * `Telex_Installer::install()` accepts an optional injected `TelexClient` for test isolation.
 * All six GitHub Actions in CI and the release workflow are now pinned to immutable SHA digests.
 * PHPUnit upgraded from 9.6 (EOL) to 11.5.
@@ -196,7 +201,7 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 = 1.0.3 =
 * Fixed a crash that made the projects screen go blank on sites where the project cache had expired.
-* The auto-deploy webhook now validates request timestamps, rejects replayed requests, and rate-limits by IP.
+* Public deploy-trigger request handling now validates request timestamps, rejects replayed requests, and rate-limits by IP.
 * Every downloaded file is now verified with a SHA-256 checksum before it touches your site.
 * Project data is cached more intelligently — fewer API calls, noticeably faster page loads on large accounts.
 * The audit log is now sortable by date.
@@ -228,6 +233,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Minor release: fixes project-load failures from a users endpoint fatal, improves notification settings layout, and updates release documentation/wiki structure.
 
 = 1.4.1 =
 Quick fix: starring a project now immediately floats it to the top without a page reload. Update recommended.

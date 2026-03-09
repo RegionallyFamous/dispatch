@@ -51,15 +51,24 @@ class Telex_Audit_Log {
 			[ '%s', '%s', '%d', '%s', '%s' ]
 		);
 
-		// Invalidate the count cache so the list table shows the correct total
+		// Invalidate caches so the list table shows the correct total
 		// immediately after a new event is written.
 		delete_transient( self::TRANSIENT_COUNT );
+		if ( function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_group' ) ) {
+			wp_cache_flush_group( self::CACHE_GROUP );
+		}
 	}
 
 	/** Columns that may be used as ORDER BY targets. */
 	private const SORTABLE_COLUMNS = [ 'id', 'action', 'created_at' ];
 
 	private const TRANSIENT_COUNT = 'telex_audit_count';
+
+	private const CACHE_GROUP = 'telex_audit_log';
+	private const CACHE_TTL   = 30;
+
+	/** Allowed action values for filtered queries. */
+	private const VALID_ACTIONS = [ 'install', 'update', 'remove', 'connect', 'disconnect', 'activate', 'deactivate', 'auto_update' ];
 
 	/**
 	 * Returns the total number of audit log entries.
@@ -118,6 +127,112 @@ class Telex_Audit_Log {
 		$rows = $wpdb->get_results( $sql, ARRAY_A );
 
 		return is_array( $rows ) ? $rows : [];
+	}
+
+	/**
+	 * Returns filtered, paginated audit log entries with optional caching.
+	 *
+	 * Uses wp_cache for both count and rows (30s TTL) to satisfy Plugin Check.
+	 * Cache is invalidated when log() writes a new entry.
+	 *
+	 * @param array<string, mixed> $args Filter and pagination args.
+	 * @return array{total: int, rows: array<int, array<string, mixed>>}
+	 */
+	public static function get_filtered( array $args ): array {
+		global $wpdb;
+
+		$action     = (string) ( $args['action'] ?? '' );
+		$project_id = (string) ( $args['project_id'] ?? '' );
+		$search     = (string) ( $args['search'] ?? '' );
+		$date_from  = (string) ( $args['date_from'] ?? $args['since'] ?? '' );
+		$date_to    = (string) ( $args['date_to'] ?? $args['until'] ?? '' );
+		$user_id    = (int) ( $args['user_id'] ?? 0 );
+		$per_page   = max( 1, min( 10000, (int) ( $args['per_page'] ?? $args['limit'] ?? 50 ) ) );
+		$page       = max( 1, (int) ( $args['page'] ?? 1 ) );
+		$offset     = ( $page - 1 ) * $per_page;
+		$columns    = (string) ( $args['columns'] ?? 'id, action, public_id, user_id, created_at' );
+		$allowed    = [ 'id, action, public_id, user_id, created_at', 'id, action, public_id, user_id, context, created_at' ];
+		$columns    = in_array( $columns, $allowed, true ) ? $columns : 'id, action, public_id, user_id, created_at';
+
+		$where_parts  = [];
+		$where_values = [];
+		$table        = self::table_name();
+
+		if ( '' !== $action && in_array( strtolower( $action ), self::VALID_ACTIONS, true ) ) {
+			$where_parts[]  = 'action = %s';
+			$where_values[] = strtolower( $action );
+		}
+		if ( '' !== $project_id ) {
+			$where_parts[]  = 'public_id = %s';
+			$where_values[] = $project_id;
+		}
+		if ( '' !== $search ) {
+			$where_parts[]  = '(public_id LIKE %s OR context LIKE %s)';
+			$like           = '%' . $wpdb->esc_like( $search ) . '%';
+			$where_values[] = $like;
+			$where_values[] = $like;
+		}
+		if ( '' !== $date_from ) {
+			$ts = strtotime( $date_from );
+			if ( false !== $ts ) {
+				$where_parts[]  = 'created_at >= %s';
+				$where_values[] = gmdate( 'Y-m-d H:i:s', $ts );
+			}
+		}
+		if ( '' !== $date_to ) {
+			$ts = strtotime( $date_to );
+			if ( false !== $ts ) {
+				$where_parts[]  = 'created_at <= %s';
+				$where_values[] = gmdate( 'Y-m-d 23:59:59', $ts );
+			}
+		}
+		if ( $user_id > 0 ) {
+			$where_parts[]  = 'user_id = %d';
+			$where_values[] = $user_id;
+		}
+
+		$cache_key_base = 'filtered_' . md5( wp_json_encode( [ $action, $project_id, $search, $date_from, $date_to, $user_id, $columns ] ) );
+		$count_key      = $cache_key_base . '_count';
+		$rows_key       = $cache_key_base . '_rows_' . $offset . '_' . $per_page;
+
+		$total = wp_cache_get( $count_key, self::CACHE_GROUP );
+		if ( false === $total ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,PluginCheck.Security.DirectDB.UnescapedDBParameter
+			if ( empty( $where_parts ) ) {
+				$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+			} else {
+				$where_sql = 'WHERE ' . implode( ' AND ', $where_parts );
+				$total     = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where_sql}", ...$where_values ) );
+			}
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,PluginCheck.Security.DirectDB.UnescapedDBParameter
+			wp_cache_set( $count_key, $total, self::CACHE_GROUP, self::CACHE_TTL );
+		}
+
+		$rows = wp_cache_get( $rows_key, self::CACHE_GROUP );
+		if ( false === $rows ) {
+			$limit_values = array_merge( $where_values, [ $per_page, $offset ] );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,PluginCheck.Security.DirectDB.UnescapedDBParameter
+			if ( empty( $where_parts ) ) {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare( "SELECT {$columns} FROM {$table} ORDER BY id DESC LIMIT %d OFFSET %d", $per_page, $offset ),
+					ARRAY_A
+				);
+			} else {
+				$where_sql = 'WHERE ' . implode( ' AND ', $where_parts );
+				$rows      = $wpdb->get_results(
+					$wpdb->prepare( "SELECT {$columns} FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d OFFSET %d", ...$limit_values ),
+					ARRAY_A
+				);
+			}
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,PluginCheck.Security.DirectDB.UnescapedDBParameter
+			$rows = is_array( $rows ) ? $rows : [];
+			wp_cache_set( $rows_key, $rows, self::CACHE_GROUP, self::CACHE_TTL );
+		}
+
+		return [
+			'total' => (int) $total,
+			'rows'  => $rows,
+		];
 	}
 
 	/**

@@ -22,14 +22,12 @@ Use task-first routing from the wiki home page:
 ### Daily use
 
 - `Managing-Projects`
-- `Notification-Channels`
 - `Multisite-Setup` (if multisite user path is common)
 
 ### Operations and recovery
 
 - `Site-Health-and-Diagnostics`
 - `Troubleshooting`
-- `Webhook-and-Auto-Deploy`
 
 ### Reference
 

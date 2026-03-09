@@ -624,8 +624,6 @@ class Telex_CLI extends \WP_CLI_Command {
 	 * @param array<string, mixed>     $assoc_args  Associative arguments.
 	 */
 	public function audit_log( array $_args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundBeforeLastUsed
-		global $wpdb;
-
 		$limit  = max( 1, min( 10000, (int) ( $assoc_args['limit'] ?? 50 ) ) );
 		$action = sanitize_text_field( (string) ( $assoc_args['action'] ?? '' ) );
 		$since  = sanitize_text_field( (string) ( $assoc_args['since'] ?? '' ) );
@@ -634,33 +632,7 @@ class Telex_CLI extends \WP_CLI_Command {
 		$export = (string) ( $assoc_args['export'] ?? '' );
 		$format = (string) ( $assoc_args['format'] ?? ( '' !== $export ? 'csv' : 'table' ) );
 
-		$valid_actions = [ 'install', 'update', 'remove', 'connect', 'disconnect', 'activate', 'deactivate', 'auto_update' ];
-		$where_parts   = [];
-		$where_values  = [];
-		$table         = Telex_Audit_Log::table_name();
-
-		if ( '' !== $action && in_array( strtolower( $action ), $valid_actions, true ) ) {
-			$where_parts[]  = 'action = %s';
-			$where_values[] = strtolower( $action );
-		}
-
-		if ( '' !== $since ) {
-			$ts = strtotime( $since );
-			if ( false !== $ts ) {
-				$where_parts[]  = 'created_at >= %s';
-				$where_values[] = gmdate( 'Y-m-d H:i:s', $ts );
-			}
-		}
-
-		if ( '' !== $until ) {
-			$ts = strtotime( $until );
-			if ( false !== $ts ) {
-				$where_parts[]  = 'created_at <= %s';
-				$where_values[] = gmdate( 'Y-m-d 23:59:59', $ts );
-			}
-		}
-
-		// Resolve user login to user_id.
+		$user_id = 0;
 		if ( '' !== $user ) {
 			$user_obj = get_user_by( 'login', $user );
 			if ( ! $user_obj ) {
@@ -673,35 +645,22 @@ class Telex_CLI extends \WP_CLI_Command {
 				);
 				return;
 			}
-			$where_parts[]  = 'user_id = %d';
-			$where_values[] = (int) $user_obj->ID;
+			$user_id = (int) $user_obj->ID;
 		}
 
-		$where_sql = ! empty( $where_parts )
-			? 'WHERE ' . implode( ' AND ', $where_parts )
-			: '';
+		$result = Telex_Audit_Log::get_filtered(
+			[
+				'action'  => $action,
+				'since'   => $since,
+				'until'   => $until,
+				'user_id' => $user_id,
+				'limit'   => $limit,
+				'page'    => 1,
+				'columns' => 'id, action, public_id, user_id, created_at',
+			]
+		);
 
-		$values = array_merge( $where_values, [ $limit ] );
-
-		// $table is from $wpdb->prefix (trusted); $where_sql uses only allowlisted
-		// column names and %s/%d placeholders — never raw user input.
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		$rows = '' !== $where_sql
-			? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} {$where_sql} ORDER BY id DESC LIMIT %d", ...$values ), ARRAY_A )
-			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY id DESC LIMIT %d", $limit ), ARRAY_A );
-		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
-
-		$rows = is_array( $rows ) ? $rows : [];
+		$rows = $result['rows'];
 
 		if ( empty( $rows ) ) {
 			\WP_CLI::log( __( 'No audit log entries found.', 'dispatch' ) );

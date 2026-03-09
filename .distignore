@@ -10,6 +10,7 @@
 .cursor/
 .vscode/
 .idea/
+.markdownlint.json
 
 # GitHub-specific (includes screenshots, CI workflows, etc.)
 .github/
@@ -45,6 +46,7 @@ tests/
 
 # Documentation source
 docs/
+CODE_OF_CONDUCT.md
 
 # Generated / local
 # build/ is intentionally NOT excluded — npm run build:production compiles

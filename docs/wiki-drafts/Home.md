@@ -11,8 +11,6 @@ Use this wiki for all user-facing product documentation.
 
 - [Managing Projects](https://github.com/RegionallyFamous/dispatch/wiki/Managing-Projects)  
   Install, update, remove, pin, snapshot, and organize projects.
-- [Notification Channels](https://github.com/RegionallyFamous/dispatch/wiki/Notification-Channels)  
-  Configure email and Slack notifications.
 
 ## Operations and recovery
 

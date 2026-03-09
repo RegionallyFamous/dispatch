@@ -5,7 +5,7 @@
 **Install and operate Telex projects in WordPress without zip uploads.**
 
 [![CI](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml/badge.svg)](https://github.com/RegionallyFamous/dispatch/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.4.1-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
 [![WordPress](https://img.shields.io/badge/WordPress-6.7%2B-0073aa?logo=wordpress&logoColor=white&labelColor=1e293b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-7c3aed?logo=php&logoColor=white&labelColor=1e293b)](https://php.net)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-22c55e?labelColor=1e293b)](https://www.gnu.org/licenses/gpl-2.0.html)

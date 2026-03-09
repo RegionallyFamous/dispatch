@@ -198,6 +198,41 @@ class Test_Telex_REST extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// GET /users
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Asserts GET /users returns id/name rows without WP_User fatals.
+	 *
+	 * @return void
+	 */
+	public function test_get_users_returns_id_name_rows(): void {
+		$admin_id = self::factory()->user->create(
+			[
+				'role'         => 'administrator',
+				'display_name' => 'Admin User',
+			]
+		);
+		self::factory()->user->create(
+			[
+				'role'         => 'editor',
+				'display_name' => 'Editor User',
+			]
+		);
+		wp_set_current_user( $admin_id );
+
+		$request  = new WP_REST_Request( 'GET', '/telex/v1/users' );
+		$response = $this->server->dispatch( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertIsArray( $data );
+		$this->assertNotEmpty( $data );
+		$this->assertArrayHasKey( 'id', $data[0] );
+		$this->assertArrayHasKey( 'name', $data[0] );
+	}
+
+	// -------------------------------------------------------------------------
 	// GET /installed
 	// -------------------------------------------------------------------------
 
