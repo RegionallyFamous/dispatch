@@ -14,6 +14,8 @@
         "clean": "rm -rf build *.zip",
         "lint:js": "wp-scripts lint-js",
         "lint:css": "wp-scripts lint-style",
+        "lint:docs:markdown": "markdownlint \"**/*.md\" --ignore node_modules --ignore vendor --ignore coverage --ignore .cursor",
+        "lint:docs:links": "markdown-link-check README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md CODE_OF_CONDUCT.md docs/*.md",
         "lint": "npm run lint:js && npm run lint:css",
         "lint:php": "composer lint",
         "test:php": "composer test",
@@ -31,7 +33,9 @@
     },
     "devDependencies": {
         "@wordpress/icons": "^11.8.0",
-        "@wordpress/scripts": "^31.0"
+        "@wordpress/scripts": "^31.0",
+        "markdown-link-check": "^3.14.2",
+        "markdownlint-cli": "^0.48.0"
     },
     "wp-scripts": {
         "webpack-config": "webpack.config.js"

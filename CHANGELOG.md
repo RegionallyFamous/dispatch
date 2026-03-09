@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation overhaul focused on site-owner workflows: rewritten `README.md`,
+  tightened WP-CLI examples, and updated `readme.txt` command usage for required
+  flags.
+- Added docs governance artifacts under `docs/` (coverage matrix, quality
+  standard, wiki architecture map, troubleshooting error catalog, versioning
+  policy, CLI verification notes, and release checklist).
+- Added automated documentation quality checks to CI (`docs-quality` job) and
+  local commands (`npm run lint:docs:markdown`, `npm run lint:docs:links`).
+- Updated contributor and policy docs (`CONTRIBUTING.md`, `SECURITY.md`, PR
+  template) to enforce docs synchronization on behavior changes.
+
 ---
 
 ## [1.4.1] — 2026-03-08
@@ -453,5 +466,5 @@ or ever opening a terminal. Dispatch handles everything.
 [1.1.0]: https://github.com/regionallyfamous/dispatch/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/regionallyfamous/dispatch/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/regionallyfamous/dispatch/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/regionallyfamous/dispatch/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/regionallyfamous/dispatch/releases/tag/v1.0.0
+[1.0.1]: https://github.com/RegionallyFamous/dispatch/releases
+[1.0.0]: https://github.com/RegionallyFamous/dispatch/releases

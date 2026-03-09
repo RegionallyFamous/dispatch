@@ -42,7 +42,7 @@ Dispatch eliminates the entire loop. Connect your site to your Telex account onc
 
 === Built for Teams and CI/CD ===
 
-* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex rollback <id>`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+* **WP-CLI** — `wp telex install`, `wp telex update --all`, `wp telex rollback <id> --version=<n>`, `wp telex snapshot create`. Automate everything. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 * **Multisite** — connect once at the network level; every site on the network gains access to your Telex projects.
 * **Notification channels** — email digests and Slack webhooks for install, update, and removal events. Know what changed and when.
 * **Project groups** — organize your library into named collections. Filter by group in the admin screen or WP-CLI.
@@ -96,11 +96,11 @@ No. Blocks installed by Dispatch are self-contained and live in `wp-content/plug
 
 = Can I use Dispatch in a CI/CD pipeline? =
 
-Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update --all`, `wp telex rollback <id>`, etc.) is designed for automated workflows. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
+Yes. The full WP-CLI surface (`wp telex connect`, `wp telex install`, `wp telex update --all`, `wp telex rollback <id> --version=<n>`, etc.) is designed for automated workflows. Drop `wp telex update --all` into your deployment script and every environment stays current on every deploy.
 
 = Can I roll back a project to a previous version? =
 
-Yes. Run `wp telex rollback <project-id>` from the command line, or use the rollback option in the Dispatch admin screen. This reinstalls the project and is useful for quickly recovering from a bad update.
+Yes. Run `wp telex rollback <project-id> --version=<n>` from the command line, or use snapshots for full-environment recovery (`wp telex snapshot restore <id>`). Snapshots are the safer option when multiple projects changed.
 
 = What happens if the Telex API is unavailable? =
 

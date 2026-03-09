@@ -16,6 +16,8 @@ build: ## Compile JS/CSS for production
 
 lint: ## Run all linters (JS, CSS, PHP) + PHPStan static analysis
 	npm run lint
+	npm run lint:docs:markdown
+	npm run lint:docs:links
 	npm run lint:php
 	php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
 

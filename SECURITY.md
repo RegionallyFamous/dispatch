@@ -7,9 +7,8 @@ branches receive critical patches at maintainer discretion.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.3.x   | Yes (latest)       |
-| 1.2.x   | Critical only      |
-| < 1.2   | No                 |
+| Latest stable release | Yes |
+| Older releases | Critical patches at maintainer discretion |
 
 ## Reporting a Vulnerability
 
@@ -18,9 +17,9 @@ branches receive critical patches at maintainer discretion.
 If you discover a security vulnerability in Dispatch for Telex, please report it
 using one of the following channels:
 
-1. **GitHub Private Vulnerability Reporting** — use the
-   [Report a vulnerability](../../security/advisories/new) button on the Security
-   tab of this repository. This is the preferred channel.
+1. **GitHub Private Vulnerability Reporting** — open the repository
+   [Security tab](https://github.com/RegionallyFamous/dispatch/security) and use
+   the **Report a vulnerability** button. This is the preferred channel.
 
 2. **Email** — send details to `security@regionallyfamous.com`. If the disclosure
    is sensitive, please encrypt your message using our PGP key (available on
@@ -77,4 +76,5 @@ anonymous.
 
 For an overview of the security controls built into this plugin (AES-256-GCM
 token encryption, circuit breaker, audit log, SSRF protection, rate limiting),
-see [docs/architecture.md](docs/architecture.md).
+see the [Security Model wiki page](https://github.com/RegionallyFamous/dispatch/wiki/Security-Model)
+and [Architecture wiki page](https://github.com/RegionallyFamous/dispatch/wiki/Architecture).
