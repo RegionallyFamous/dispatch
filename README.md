@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/badge/version-1.6.1-0073aa?labelColor=1e293b)](https://github.com/RegionallyFamous/dispatch/releases)
 [![WordPress](https://img.shields.io/badge/WordPress-6.7%2B-0073aa?logo=wordpress&logoColor=white&labelColor=1e293b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-7c3aed?logo=php&logoColor=white&labelColor=1e293b)](https://php.net)
-[![License](https://img.shields.io/badge/license-GPL--2.0--or--later-22c55e?labelColor=1e293b)](https://www.gnu.org/licenses/gpl-2.0.html)
+[![License](https://img.shields.io/badge/license-GPL--2.0--or--later-22c55e?labelColor=1e293b)](https://spdx.org/licenses/GPL-2.0-or-later.html)
 
 [**Try it in WordPress Playground**](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/RegionallyFamous/dispatch/main/blueprint.json)
 
@@ -103,5 +103,5 @@ Repo-local docs define quality and maintenance standards for contributors:
 ---
 
 <div align="center">
-Built by [Regionally Famous](https://regionallyfamous.com) · [GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html) · [Changelog](CHANGELOG.md)
+Built by [Regionally Famous](https://regionallyfamous.com) · [GPL-2.0-or-later](https://spdx.org/licenses/GPL-2.0-or-later.html) · [Changelog](CHANGELOG.md)
 </div>
