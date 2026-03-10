@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -119,6 +119,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 1. The Dispatch projects screen — browse, install, update, and remove your Telex blocks and themes from a single admin page. The stats bar shows total projects, how many are installed, and whether any updates are waiting.
 
 == Changelog ==
+
+= 1.6.1 =
+* Changed: Release tagging — ensure latest code is published as a release.
 
 = 1.6.0 =
 * Changed: npm overrides for deprecated transitive dependencies (rimraf, glob) to reduce install warnings and use supported versions.
@@ -236,6 +239,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.6.1 =
+Release update: no functional changes. Ensures latest build is available from GitHub Releases.
 
 = 1.6.0 =
 Maintenance release: npm overrides for deprecated transitive dependencies (rimraf, glob). No functional changes.
