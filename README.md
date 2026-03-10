@@ -12,6 +12,8 @@
 
 [**Try it in WordPress Playground**](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/RegionallyFamous/dispatch/main/blueprint.json)
 
+![Dispatch admin screen](.github/assets/screenshot-1.png)
+
 </div>
 
 ---
