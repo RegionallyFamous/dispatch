@@ -1,6 +1,6 @@
 {
     "name": "telex",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "description": "Install blocks and themes from your Telex projects.",
     "private": true,
     "license": "GPL-2.0-or-later",
@@ -39,5 +39,9 @@
     },
     "wp-scripts": {
         "webpack-config": "webpack.config.js"
+    },
+    "overrides": {
+        "rimraf": "^5.0.10",
+        "glob": "^10.4.5"
     }
 }

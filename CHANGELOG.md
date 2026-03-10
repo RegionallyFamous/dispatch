@@ -6,6 +6,14 @@
 
 ---
 
+## [1.6.0] — 2026-03-09
+
+### Changed
+
+- npm overrides for deprecated transitive dependencies (rimraf, glob) to reduce install warnings and use supported versions.
+
+---
+
 ## [1.5.0] — 2026-03-09
 
 ### Fixed
@@ -457,7 +465,8 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/regionallyfamous/dispatch/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/regionallyfamous/dispatch/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/regionallyfamous/dispatch/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/regionallyfamous/dispatch/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/regionallyfamous/dispatch/compare/v1.3.2...v1.4.0

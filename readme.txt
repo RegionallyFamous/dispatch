@@ -3,7 +3,7 @@ Contributors: regionallyfamous
 Tags: blocks, themes, installer, telex, ai
 Requires at least: 6.7
 Tested up to: 6.8
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 Requires PHP: 8.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -120,6 +120,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 
 == Changelog ==
 
+= 1.6.0 =
+* Changed: npm overrides for deprecated transitive dependencies (rimraf, glob) to reduce install warnings and use supported versions.
+
 = 1.5.0 =
 * Fix: Resolved a REST fatal that could break project loading on some sites. The `/telex/v1/users` endpoint now handles lightweight user rows safely and no longer throws a `WP_User` type error.
 * Improved: Notification settings panel layout is now a clean two-column form with clearer grouping of alert conditions vs delivery channels.
@@ -233,6 +236,9 @@ Open an issue at [github.com/regionallyfamous/dispatch](https://github.com/regio
 * PHP 8.2+ throughout: backed enums, readonly classes, match expressions.
 
 == Upgrade Notice ==
+
+= 1.6.0 =
+Maintenance release: npm overrides for deprecated transitive dependencies (rimraf, glob). No functional changes.
 
 = 1.5.0 =
 Minor release: fixes project-load failures from a users endpoint fatal, improves notification settings layout, and updates release documentation/wiki structure.
