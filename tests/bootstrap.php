@@ -7,6 +7,18 @@
 
 $telex_tests_dir = getenv( 'WP_TESTS_DIR' ) !== false ? getenv( 'WP_TESTS_DIR' ) : '/tmp/wordpress-tests-lib';
 
+// PHPUnit Polyfills are required by the WP test bootstrap.
+// Prefer an explicit env/constant override; fall back to the Composer-installed copy.
+if ( ! defined( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' ) ) {
+	$_polyfills_path = getenv( 'WP_TESTS_PHPUNIT_POLYFILLS_PATH' );
+	define(
+		'WP_TESTS_PHPUNIT_POLYFILLS_PATH',
+		false !== $_polyfills_path
+			? $_polyfills_path
+			: dirname( __DIR__ ) . '/vendor/yoast/phpunit-polyfills'
+	);
+}
+
 if ( ! file_exists( $telex_tests_dir . '/includes/functions.php' ) ) {
 	echo "Could not find {$telex_tests_dir}/includes/functions.php\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 	echo "Run: bash bin/install-wp-tests.sh wordpress_test root '' localhost latest\n"; // phpcs:ignore WordPress.Security.EscapeOutput

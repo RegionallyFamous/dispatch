@@ -6,6 +6,20 @@
 
 ---
 
+## [1.6.2] — 2026-03-28
+
+### Changed
+
+- Refreshed Composer and npm dependencies (PHPStan, `@wordpress/scripts` / `@wordpress/icons`, WP-CLI transitive packages).
+- Bumped GitHub Actions pins: Codecov, CodeQL, `shivammathur/setup-php`, `softprops/action-gh-release`.
+- Raised Makefile PHPStan memory limit to 2G so local `make lint` matches CI and avoids OOM after tooling upgrades.
+
+### Fixed
+
+- PHPUnit bootstrap defines `WP_TESTS_PHPUNIT_POLYFILLS_PATH` when the WordPress test suite loads Composer-installed PHPUnit polyfills.
+
+---
+
 ## [1.6.1] — 2026-03-09
 
 ### Changed
@@ -473,7 +487,8 @@ or ever opening a terminal. Dispatch handles everything.
 
 ---
 
-[Unreleased]: https://github.com/RegionallyFamous/dispatch/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/RegionallyFamous/dispatch/compare/v1.6.2...HEAD
+[1.6.2]: https://github.com/RegionallyFamous/dispatch/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/RegionallyFamous/dispatch/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/RegionallyFamous/dispatch/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/RegionallyFamous/dispatch/compare/v1.4.1...v1.5.0

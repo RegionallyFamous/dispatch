@@ -15,7 +15,7 @@
             "step": "installPlugin",
             "pluginData": {
                 "resource": "url",
-                "url": "https://github.com/RegionallyFamous/dispatch/releases/download/v1.6.1/dispatch-for-telex-1.6.1.zip"
+                "url": "https://github.com/RegionallyFamous/dispatch/releases/download/v1.6.2/dispatch-for-telex-1.6.2.zip"
             },
             "options": {
                 "activate": true

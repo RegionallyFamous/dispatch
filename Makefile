@@ -19,10 +19,10 @@ lint: ## Run all linters (JS, CSS, PHP) + PHPStan static analysis
 	npm run lint:docs:markdown
 	npm run lint:docs:links
 	npm run lint:php
-	php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
+	php -d memory_limit=2G vendor/bin/phpstan analyse --no-progress --memory-limit=2G
 
 stan: ## Run PHPStan static analysis only
-	php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
+	php -d memory_limit=2G vendor/bin/phpstan analyse --no-progress --memory-limit=2G
 
 test: ## Run PHP unit tests
 	npm run test:php

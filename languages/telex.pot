@@ -1,23 +1,2881 @@
-# Copyright (C) 2025 Automattic
-# This file is distributed under the GPL v2 or later.
+# Copyright (C) 2026 Regionally Famous
+# This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Telex 1.0.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/telex\n"
+"Project-Id-Version: Dispatch for Telex 1.6.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/dispatch\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-01-01T00:00:00+00:00\n"
+"POT-Creation-Date: 2026-03-28T15:40:42+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.x\n"
-"Domain: dispatch\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: dispatch\n"
 
 #. Plugin Name of the plugin
-msgid "Telex"
+#: telex.php
+#: includes/class-telex-privacy.php:45
+#: includes/class-telex-privacy.php:194
+#: includes/class-telex-privacy.php:289
+#: includes/class-telex-privacy.php:300
+msgid "Dispatch for Telex"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: telex.php
+msgid "https://telex.automattic.ai"
 msgstr ""
 
 #. Description of the plugin
-msgid "Install blocks and themes from your Telex projects."
+#: telex.php
+msgid "Telex builds the block. Dispatch ships it. Install, update, and remove Telex-generated blocks and themes from wp-admin — no zip files, no upload forms."
+msgstr ""
+
+#. Author of the plugin
+#: telex.php
+msgid "Regionally Famous"
+msgstr ""
+
+#. Author URI of the plugin
+#: telex.php
+msgid "https://regionallyfamous.com"
+msgstr ""
+
+#: includes/class-telex-admin.php:76
+#: includes/class-telex-admin.php:93
+#: includes/class-telex-admin.php:94
+#: build/admin.js:7
+#: build/admin.js:59
+#: src/admin/index.js:320
+#: src/admin/index.js:5412
+msgid "Projects"
+msgstr ""
+
+#: includes/class-telex-admin.php:77
+#: includes/class-telex-admin.php:198
+#: includes/class-telex-admin.php:852
+#: includes/class-telex-admin.php:884
+#: includes/class-telex-admin.php:925
+#: includes/class-telex-admin.php:1040
+#: includes/class-telex-admin.php:1053
+#: includes/class-telex-admin.php:1065
+#: includes/class-telex-admin.php:1087
+#: includes/class-telex-admin.php:1107
+#: includes/class-telex-admin.php:1120
+#: includes/class-telex-admin.php:1159
+#: includes/class-telex-admin.php:1170
+msgid "Dispatch"
+msgstr ""
+
+#: includes/class-telex-admin.php:101
+#: includes/class-telex-admin.php:102
+#: includes/class-telex-admin.php:290
+msgid "Settings"
+msgstr ""
+
+#: includes/class-telex-admin.php:118
+msgid "Projects per page"
+msgstr ""
+
+#: includes/class-telex-admin.php:168
+msgid "Disconnected from Telex. Connect again whenever you're ready."
+msgstr ""
+
+#: includes/class-telex-admin.php:194
+#: includes/class-telex-admin.php:893
+msgid "Connected"
+msgstr ""
+
+#: includes/class-telex-admin.php:194
+#: includes/class-telex-admin.php:894
+msgid "Not connected"
+msgstr ""
+
+#: includes/class-telex-admin.php:275
+msgid "You do not have permission to view this page."
+msgstr ""
+
+#: includes/class-telex-admin.php:346
+msgid "Audit Log"
+msgstr ""
+
+#: includes/class-telex-admin.php:349
+msgid "A full history of installs, updates, removals, and account changes."
+msgstr ""
+
+#: includes/class-telex-admin.php:355
+#: build/admin.js:51
+#: src/admin/index.js:4201
+msgid "Export CSV"
+msgstr ""
+
+#. translators: %s: constant name
+#: includes/class-telex-admin.php:603
+#, php-format
+msgid "<strong>Dispatch for Telex</strong>: The <code>%s</code> constant is set on this server. Installing and removing projects is disabled. Contact your host or remove the constant from <code>wp-config.php</code> to enable file modifications."
+msgstr ""
+
+#: includes/class-telex-admin.php:671
+msgid "You do not have permission to export the audit log."
+msgstr ""
+
+#: includes/class-telex-admin.php:675
+msgid "Security check failed."
+msgstr ""
+
+#: includes/class-telex-admin.php:708
+msgid "Could not open output stream for CSV export."
+msgstr ""
+
+#. translators: %d: number of available updates
+#: includes/class-telex-admin.php:859
+#, php-format
+msgid "%d Dispatch update available"
+msgid_plural "%d Dispatch updates available"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-telex-admin.php:887
+msgid "Plugin version"
+msgstr ""
+
+#: includes/class-telex-admin.php:891
+msgid "Connection status"
+msgstr ""
+
+#: includes/class-telex-admin.php:897
+msgid "Installed projects"
+msgstr ""
+
+#: includes/class-telex-admin.php:901
+msgid "API circuit breaker"
+msgstr ""
+
+#: includes/class-telex-admin.php:962
+msgid "ago"
+msgstr ""
+
+#: includes/class-telex-admin.php:962
+msgid "No activity yet"
+msgstr ""
+
+#: includes/class-telex-admin.php:968
+#: build/admin.js:7
+#: src/admin/index.js:326
+msgid "Installed"
+msgstr ""
+
+#: includes/class-telex-admin.php:972
+#: build/admin.js:7
+#: build/admin.js:48
+#: src/admin/index.js:336
+#: src/admin/index.js:3542
+#: src/admin/index.js:3543
+msgid "Updates"
+msgstr ""
+
+#: includes/class-telex-admin.php:976
+msgid "API"
+msgstr ""
+
+#. translators: %s: relative time since last activity
+#: includes/class-telex-admin.php:986
+#, php-format
+msgid "Last activity: %s"
+msgstr ""
+
+#: includes/class-telex-admin.php:992
+msgid "Open Dispatch →"
+msgstr ""
+
+#: includes/class-telex-admin.php:1010
+#: includes/class-telex-admin.php:1167
+msgid "Telex API is reachable"
+msgstr ""
+
+#: includes/class-telex-admin.php:1015
+msgid "Dispatch circuit breaker"
+msgstr ""
+
+#: includes/class-telex-admin.php:1020
+msgid "Dispatch installed projects"
+msgstr ""
+
+#: includes/class-telex-admin.php:1037
+msgid "Dispatch circuit breaker is open — API calls are paused"
+msgstr ""
+
+#: includes/class-telex-admin.php:1043
+msgid "The Dispatch circuit breaker is open due to repeated API failures. Calls are paused until the next recovery window. Check your Telex connection."
+msgstr ""
+
+#: includes/class-telex-admin.php:1050
+msgid "Dispatch circuit breaker is recovering"
+msgstr ""
+
+#: includes/class-telex-admin.php:1056
+msgid "The Dispatch circuit breaker is in recovery mode. It will fully reopen after the next successful API call."
+msgstr ""
+
+#: includes/class-telex-admin.php:1062
+msgid "Dispatch circuit breaker is healthy"
+msgstr ""
+
+#: includes/class-telex-admin.php:1068
+msgid "The circuit breaker is closed. All API calls are flowing normally."
+msgstr ""
+
+#: includes/class-telex-admin.php:1084
+msgid "No projects installed via Dispatch"
+msgstr ""
+
+#: includes/class-telex-admin.php:1090
+msgid "No projects are currently installed via Dispatch."
+msgstr ""
+
+#. translators: 1: error count, 2: total count
+#: includes/class-telex-admin.php:1104
+#, php-format
+msgid "Dispatch: %1$d of %2$d installed projects have health issues"
+msgstr ""
+
+#: includes/class-telex-admin.php:1110
+msgid "One or more installed projects have health warnings. Open Dispatch to review them."
+msgstr ""
+
+#. translators: %d: installed project count
+#: includes/class-telex-admin.php:1117
+#, php-format
+msgid "Dispatch: %d installed project(s) healthy"
+msgstr ""
+
+#: includes/class-telex-admin.php:1123
+msgid "All installed Dispatch projects are healthy."
+msgstr ""
+
+#: includes/class-telex-admin.php:1156
+msgid "Telex API is unreachable"
+msgstr ""
+
+#: includes/class-telex-admin.php:1173
+msgid "Your site can talk to the Telex API. All good!"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:30
+msgid "Audit Event"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:31
+msgid "Audit Events"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:44
+#: build/admin.js:8
+#: build/admin.js:51
+#: src/admin/index.js:470
+#: src/admin/index.js:4226
+msgid "Date"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:45
+#: includes/class-telex-privacy.php:109
+#: build/admin.js:8
+#: build/admin.js:51
+#: src/admin/index.js:467
+#: src/admin/index.js:4211
+msgid "Action"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:46
+#: build/admin.js:8
+#: build/admin.js:51
+#: build/admin.js:52
+#: src/admin/index.js:468
+#: src/admin/index.js:503
+#: src/admin/index.js:4217
+#: src/admin/index.js:4344
+msgid "Project"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:47
+#: build/admin.js:8
+#: build/admin.js:51
+#: src/admin/index.js:469
+#: src/admin/index.js:4099
+#: src/admin/index.js:4223
+msgid "User"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:126
+msgid "Unknown"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:168
+msgid "No project"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:180
+#: includes/class-telex-rest.php:1593
+msgid "(system)"
+msgstr ""
+
+#: includes/class-telex-audit-log-table.php:210
+msgid "No audit events recorded yet."
+msgstr ""
+
+#: includes/class-telex-auth.php:269
+msgid "Failed to start device flow."
+msgstr ""
+
+#: includes/class-telex-cli.php:67
+#: includes/class-telex-cli.php:339
+#: includes/class-telex-cli.php:1032
+msgid "Not connected. Run: wp telex connect"
+msgstr ""
+
+#: includes/class-telex-cli.php:73
+#: includes/class-telex-cli.php:230
+#: includes/class-telex-cli.php:1038
+#: includes/class-telex-rest.php:1855
+msgid "Could not initialise Telex client."
+msgstr ""
+
+#: includes/class-telex-cli.php:107
+msgid "No projects found."
+msgstr ""
+
+#: includes/class-telex-cli.php:142
+msgid "No projects matched the specified filters."
+msgstr ""
+
+#: includes/class-telex-cli.php:174
+#: includes/class-telex-cli.php:328
+#: includes/class-telex-cli.php:390
+#: includes/class-telex-cli.php:755
+#: includes/class-telex-cli.php:800
+msgid "Please provide a project ID."
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:182
+#, php-format
+msgid "Installing %s…"
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:196
+#, php-format
+msgid "%s installed!"
+msgstr ""
+
+#: includes/class-telex-cli.php:222
+msgid "Provide a project ID, or use --all to update everything."
+msgstr ""
+
+#: includes/class-telex-cli.php:257
+msgid "Everything is up to date!"
+msgstr ""
+
+#: includes/class-telex-cli.php:262
+msgid "Updating projects"
+msgstr ""
+
+#. translators: %d: count
+#: includes/class-telex-cli.php:278
+#, php-format
+msgid "Updated %d project(s)!"
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:290
+#, php-format
+msgid "%s updated!"
+msgstr ""
+
+#: includes/class-telex-cli.php:334
+msgid "Please provide a valid --version number (integer ≥ 1)."
+msgstr ""
+
+#. translators: 1: project ID, 2: version number
+#: includes/class-telex-cli.php:346
+#, php-format
+msgid "Roll back %1$s to version %2$d?"
+msgstr ""
+
+#. translators: 1: project ID, 2: version number
+#: includes/class-telex-cli.php:365
+#, php-format
+msgid "Rolled back %1$s to version %2$d."
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:396
+#, php-format
+msgid "Remove %s from this site?"
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:411
+#, php-format
+msgid "%s removed!"
+msgstr ""
+
+#: includes/class-telex-cli.php:426
+msgid "Already connected!"
+msgstr ""
+
+#. translators: 1: verification URL, 2: user code
+#: includes/class-telex-cli.php:439
+#, php-format
+msgid ""
+"Visit %1$s and enter code: %2$s\n"
+""
+msgstr ""
+
+#: includes/class-telex-cli.php:449
+msgid "Waiting for you to approve in Telex…"
+msgstr ""
+
+#: includes/class-telex-cli.php:462
+msgid "Connected! You're all set."
+msgstr ""
+
+#: includes/class-telex-cli.php:472
+msgid "Code expired. Run the command again to get a new one."
+msgstr ""
+
+#. translators: %d: number of installed projects
+#: includes/class-telex-cli.php:493
+#, php-format
+msgid "You have %d project installed via Telex. Disconnecting will not remove it, but updates and installs will stop working until you reconnect. Continue?"
+msgid_plural "You have %d projects installed via Telex. Disconnecting will not remove them, but updates and installs will stop working until you reconnect. Continue?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/class-telex-cli.php:506
+msgid "Disconnected!"
+msgstr ""
+
+#: includes/class-telex-cli.php:526
+msgid "Authentication"
+msgstr ""
+
+#: includes/class-telex-cli.php:542
+msgid "Circuit Breaker"
+msgstr ""
+
+#: includes/class-telex-cli.php:552
+msgid "File Modifications"
+msgstr ""
+
+#: includes/class-telex-cli.php:565
+#: includes/class-telex-cli.php:570
+msgid "API Reachability"
+msgstr ""
+
+#: includes/class-telex-cli.php:581
+msgid "Project Cache"
+msgstr ""
+
+#: includes/class-telex-cli.php:590
+msgid "All checks passed."
+msgstr ""
+
+#: includes/class-telex-cli.php:592
+msgid "One or more checks failed. See above for details."
+msgstr ""
+
+#. translators: %s: user login
+#: includes/class-telex-cli.php:642
+#, php-format
+msgid "User not found: %s"
+msgstr ""
+
+#: includes/class-telex-cli.php:666
+msgid "No audit log entries found."
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-cli.php:707
+#, php-format
+msgid "Could not open file for writing: %s"
+msgstr ""
+
+#. translators: 1: row count, 2: file path
+#: includes/class-telex-cli.php:726
+#, php-format
+msgid "Exported %1$d entries to %2$s"
+msgstr ""
+
+#: includes/class-telex-cli.php:761
+msgid "A --reason is required when pinning a project."
+msgstr ""
+
+#: includes/class-telex-cli.php:767
+msgid "That project is not installed on this site."
+msgstr ""
+
+#. translators: 1: project ID, 2: version number
+#: includes/class-telex-cli.php:778
+#, php-format
+msgid "Pinned %1$s at v%2$d."
+msgstr ""
+
+#. translators: %s: project ID
+#: includes/class-telex-cli.php:808
+#, php-format
+msgid "Unpinned %s — updates are now enabled."
+msgstr ""
+
+#. translators: 1: snapshot name, 2: snapshot ID
+#: includes/class-telex-cli.php:859
+#, php-format
+msgid "Snapshot \"%1$s\" created (ID: %2$s)."
+msgstr ""
+
+#: includes/class-telex-cli.php:870
+msgid "No snapshots found."
+msgstr ""
+
+#: includes/class-telex-cli.php:889
+msgid "Provide a snapshot ID to restore."
+msgstr ""
+
+#: includes/class-telex-cli.php:894
+#: includes/class-telex-cli.php:942
+#: includes/class-telex-rest.php:2329
+#: includes/class-telex-rest.php:2345
+msgid "Snapshot not found."
+msgstr ""
+
+#. translators: 1: project count, 2: snapshot name
+#: includes/class-telex-cli.php:901
+#, php-format
+msgid "This will reinstall %1$d project(s) from snapshot \"%2$s\". Continue?"
+msgstr ""
+
+#: includes/class-telex-cli.php:908
+msgid "Restoring snapshot"
+msgstr ""
+
+#. translators: %d: error count
+#: includes/class-telex-cli.php:925
+#, php-format
+msgid "Restored with %d error(s). See warnings above."
+msgstr ""
+
+#: includes/class-telex-cli.php:930
+msgid "Snapshot restored successfully."
+msgstr ""
+
+#: includes/class-telex-cli.php:938
+msgid "Provide a snapshot ID to delete."
+msgstr ""
+
+#: includes/class-telex-cli.php:945
+#: build/admin.js:61
+#: src/admin/index.js:5328
+msgid "Snapshot deleted."
+msgstr ""
+
+#. translators: %s: unknown subcommand
+#: includes/class-telex-cli.php:952
+#, php-format
+msgid "Unknown snapshot subcommand: \"%s\". Use: create, list, restore, or delete."
+msgstr ""
+
+#: includes/class-telex-cli.php:975
+msgid "Circuit breaker reset."
+msgstr ""
+
+#: includes/class-telex-cli.php:1007
+msgid "Cache cleared."
+msgstr ""
+
+#. translators: %d: project count
+#: includes/class-telex-cli.php:1017
+#, php-format
+msgid "Cache is warm: %d project(s) cached."
+msgstr ""
+
+#: includes/class-telex-cli.php:1022
+msgid "Cache is cold (no cached projects)."
+msgstr ""
+
+#: includes/class-telex-cli.php:1025
+msgid "Usage: wp telex cache [status|warm|clear]"
+msgstr ""
+
+#: includes/class-telex-cli.php:1042
+msgid "Warming cache…"
+msgstr ""
+
+#. translators: %d: project count
+#: includes/class-telex-cli.php:1079
+#, php-format
+msgid "Cache warmed with %d project(s)."
+msgstr ""
+
+#. translators: %s: unknown subcommand
+#: includes/class-telex-cli.php:1089
+#, php-format
+msgid "Unknown cache subcommand: \"%s\". Use: status, warm, or clear."
+msgstr ""
+
+#: includes/class-telex-cli.php:1152
+msgid "Failed to encode config as JSON."
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-cli.php:1161
+#, php-format
+msgid "Could not write to \"%s\". Check permissions."
+msgstr ""
+
+#. translators: 1: project count, 2: file path
+#: includes/class-telex-cli.php:1171
+#, php-format
+msgid "Exported %1$d project configuration(s) to %2$s."
+msgstr ""
+
+#: includes/class-telex-cli.php:1182
+msgid "Please specify a file path. Usage: wp telex config import <file>"
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-cli.php:1190
+#, php-format
+msgid "File not found: %s"
+msgstr ""
+
+#: includes/class-telex-cli.php:1200
+msgid "Could not read the file."
+msgstr ""
+
+#: includes/class-telex-cli.php:1206
+msgid "Invalid config file. Must be a valid dispatch-config.json."
+msgstr ""
+
+#. translators: 1: project count, 2: file path
+#: includes/class-telex-cli.php:1236
+#, php-format
+msgid "Imported %1$d project configuration(s) from %2$s."
+msgstr ""
+
+#. translators: %s: unknown subcommand
+#: includes/class-telex-cli.php:1247
+#, php-format
+msgid "Unknown config subcommand: \"%s\". Use: export or import."
+msgstr ""
+
+#: includes/class-telex-installer.php:77
+msgid "File modifications are disabled on this server (DISALLOW_FILE_MODS is set). Contact your host to enable installing plugins, or remove the constant from wp-config.php."
+msgstr ""
+
+#: includes/class-telex-installer.php:83
+msgid "You're not connected. Link your account from the Dispatch page."
+msgstr ""
+
+#: includes/class-telex-installer.php:93
+msgid "This project is already being installed. Please wait a moment and try again."
+msgstr ""
+
+#: includes/class-telex-installer.php:104
+msgid "You don't have permission to install this type of project."
+msgstr ""
+
+#: includes/class-telex-installer.php:112
+msgid "This build isn't ready yet — give it a second and try again."
+msgstr ""
+
+#: includes/class-telex-installer.php:116
+msgid "This build looks empty. Contact the project author."
+msgstr ""
+
+#. translators: %s: error message
+#: includes/class-telex-installer.php:207
+#, php-format
+msgid "Installation failed: %s"
+msgstr ""
+
+#: includes/class-telex-installer.php:232
+msgid "File modifications are disabled on this server (DISALLOW_FILE_MODS is set). Contact your host to enable removing plugins, or remove the constant from wp-config.php."
+msgstr ""
+
+#: includes/class-telex-installer.php:242
+msgid "This project is already being removed. Please wait a moment and try again."
+msgstr ""
+
+#: includes/class-telex-installer.php:251
+#: includes/class-telex-rest.php:1627
+#: includes/class-telex-rest.php:1692
+msgid "This project isn't installed on your site."
+msgstr ""
+
+#: includes/class-telex-installer.php:258
+msgid "You don't have permission to remove this type of project."
+msgstr ""
+
+#: includes/class-telex-installer.php:265
+msgid "That's your active theme! Switch themes first, then remove this one."
+msgstr ""
+
+#: includes/class-telex-installer.php:339
+#: includes/class-telex-installer.php:349
+msgid "Could not create temporary directory."
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:362
+#, php-format
+msgid "Unsafe file path rejected: %s"
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:376
+#, php-format
+msgid "Blocked file extension in: %s"
+msgstr ""
+
+#. translators: %s: directory path
+#: includes/class-telex-installer.php:391
+#, php-format
+msgid "Could not create directory: %s"
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:407
+#, php-format
+msgid "File path escapes project directory: %s"
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:421
+#, php-format
+msgid "Failed to download file: %s"
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:434
+#, php-format
+msgid "Checksum mismatch for file: %s — the download may be corrupted."
+msgstr ""
+
+#: includes/class-telex-installer.php:458
+msgid "Could not create zip archive."
+msgstr ""
+
+#: includes/class-telex-installer.php:507
+msgid "Installation failed. Check your connection and try again."
+msgstr ""
+
+#. translators: 1: expected count, 2: actual count
+#: includes/class-telex-installer.php:550
+#, php-format
+msgid "Package integrity check failed: expected %1$d files, found %2$d."
+msgstr ""
+
+#. translators: %s: file path
+#: includes/class-telex-installer.php:574
+#, php-format
+msgid "Blocked file extension found in package: %s"
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-telex-notifications.php:73
+#, php-format
+msgid "This is a test notification from Dispatch on %s. If you received this, your notification channels are configured correctly."
+msgstr ""
+
+#. translators: %s: site name
+#: includes/class-telex-notifications.php:81
+#, php-format
+msgid "[Dispatch] Test notification from %s"
+msgstr ""
+
+#. translators: %s: email address
+#: includes/class-telex-notifications.php:88
+#, php-format
+msgid "Email sent to %s."
+msgstr ""
+
+#: includes/class-telex-notifications.php:92
+msgid "Email failed (check wp_mail configuration)."
+msgstr ""
+
+#: includes/class-telex-notifications.php:100
+msgid "Slack message sent."
+msgstr ""
+
+#: includes/class-telex-notifications.php:102
+msgid "Slack notification failed (check webhook URL)."
+msgstr ""
+
+#: includes/class-telex-notifications.php:107
+msgid "No channels are enabled. Enable email or Slack first."
+msgstr ""
+
+#. translators: 1: count, 2: site name
+#: includes/class-telex-notifications.php:180
+#, php-format
+msgid "[Dispatch] %1$d update available on %2$s"
+msgid_plural "[Dispatch] %1$d updates available on %2$s"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: count, 2: site name
+#: includes/class-telex-notifications.php:192
+#, php-format
+msgid "%1$d project has an update available on %2$s:"
+msgid_plural "%1$d projects have updates available on %2$s:"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: site name
+#: includes/class-telex-notifications.php:238
+#, php-format
+msgid "[Dispatch] Circuit breaker OPEN on %s"
+msgstr ""
+
+#: includes/class-telex-notifications.php:242
+msgid "The Dispatch circuit breaker is OPEN, meaning the Telex API is not responding. Installs and updates are temporarily paused. It will automatically retry in a few minutes."
+msgstr ""
+
+#: includes/class-telex-privacy.php:104
+msgid "Dispatch Audit Log"
+msgstr ""
+
+#: includes/class-telex-privacy.php:105
+msgid "A record of actions this user performed in the Dispatch plugin."
+msgstr ""
+
+#: includes/class-telex-privacy.php:113
+msgid "Project ID"
+msgstr ""
+
+#: includes/class-telex-privacy.php:117
+msgid "Date (UTC)"
+msgstr ""
+
+#: includes/class-telex-privacy.php:135
+msgid "Dispatch Starred Projects"
+msgstr ""
+
+#: includes/class-telex-privacy.php:136
+msgid "Projects this user has starred in the Dispatch admin."
+msgstr ""
+
+#: includes/class-telex-privacy.php:140
+msgid "Starred Project IDs"
+msgstr ""
+
+#: includes/class-telex-privacy.php:155
+msgid "Dispatch Project Groups"
+msgstr ""
+
+#: includes/class-telex-privacy.php:156
+msgid "Named project collections this user created in the Dispatch admin."
+msgstr ""
+
+#: includes/class-telex-privacy.php:160
+msgid "Group Name"
+msgstr ""
+
+#: includes/class-telex-privacy.php:164
+msgid "Project IDs"
+msgstr ""
+
+#: includes/class-telex-privacy.php:168
+msgid "Created At (UTC)"
+msgstr ""
+
+#: includes/class-telex-privacy.php:290
+msgid "This plugin stores the following data on your server:"
+msgstr ""
+
+#: includes/class-telex-privacy.php:292
+msgid "An encrypted OAuth 2.0 access token used to authenticate with the Telex API. This token is stored in the WordPress options table and is encrypted with AES-256-GCM using a per-site key derived from your WordPress secret keys. No personal data is included in the token itself."
+msgstr ""
+
+#: includes/class-telex-privacy.php:293
+msgid "An audit log table recording every install, update, and removal of Telex projects. Each entry stores: the action type, the project identifier, the WordPress user ID of the admin who performed the action, and a UTC timestamp. This data is never transmitted off-site — it lives only in your WordPress database."
+msgstr ""
+
+#: includes/class-telex-privacy.php:294
+msgid "Per-user starred/favourite project IDs stored in WordPress user_meta (key: telex_favorites). This data is personal because it reflects choices made by a specific admin user."
+msgstr ""
+
+#: includes/class-telex-privacy.php:295
+msgid "Per-user project group collections stored in WordPress user_meta (key: telex_user_groups). Each group includes a name, a list of project IDs, and a creation timestamp."
+msgstr ""
+
+#: includes/class-telex-privacy.php:297
+msgid "Dispatch for Telex does not collect or transmit any visitor or customer data. It only stores administrator action records as described above."
+msgstr ""
+
+#: includes/class-telex-rest.php:60
+msgid "Slow down! Give it a moment and try again."
+msgstr ""
+
+#: includes/class-telex-rest.php:1006
+#: includes/class-telex-rest.php:1225
+#: includes/class-telex-rest.php:1347
+#: includes/class-telex-rest.php:1850
+#: includes/class-telex-rest.php:1900
+msgid "You're not connected. Head to Dispatch to link your account."
+msgstr ""
+
+#: includes/class-telex-rest.php:1017
+msgid "Your session expired — head to Dispatch to reconnect."
+msgstr ""
+
+#: includes/class-telex-rest.php:1021
+msgid "Could not fetch projects. Please try again."
+msgstr ""
+
+#: includes/class-telex-rest.php:1232
+#: includes/class-telex-rest.php:1907
+msgid "Could not retrieve build information. Please try again."
+msgstr ""
+
+#. translators: 1: project slug, 2: existing plugin/theme name
+#: includes/class-telex-rest.php:1292
+#, php-format
+msgid "A %1$s named \"%2$s\" with the same slug is already installed from another source. Remove it first to avoid conflicts."
+msgstr ""
+
+#. translators: %s: project public ID
+#: includes/class-telex-rest.php:1330
+#, php-format
+msgid "Project %s installed successfully."
+msgstr ""
+
+#: includes/class-telex-rest.php:1356
+msgid "Could not retrieve build status. Please try again."
+msgstr ""
+
+#: includes/class-telex-rest.php:1440
+msgid "No sign-in in progress. Start again from the Dispatch page."
+msgstr ""
+
+#: includes/class-telex-rest.php:1659
+msgid "Plugin file not found on disk."
+msgstr ""
+
+#: includes/class-telex-rest.php:1701
+msgid "Themes can't be deactivated — switch to a different theme instead."
+msgstr ""
+
+#: includes/class-telex-rest.php:1864
+msgid "Could not retrieve project details. Please try again."
+msgstr ""
+
+#: includes/class-telex-rest.php:1891
+msgid "Network deploy is only available on multisite installs."
+msgstr ""
+
+#: includes/class-telex-rest.php:2013
+#: includes/class-telex-rest.php:2028
+#: includes/class-telex-rest.php:2045
+#: includes/class-telex-rest.php:2059
+msgid "You need to be logged in to do that."
+msgstr ""
+
+#: includes/class-telex-rest.php:2017
+#: includes/class-telex-rest.php:2063
+msgid "You don't have permission to do that."
+msgstr ""
+
+#: includes/class-telex-rest.php:2034
+msgid "You don't have permission to install projects."
+msgstr ""
+
+#: includes/class-telex-rest.php:2049
+msgid "You don't have permission to remove projects."
+msgstr ""
+
+#: includes/class-telex-rest.php:2111
+msgid "A reason is required when pinning a project."
+msgstr ""
+
+#: includes/class-telex-rest.php:2116
+msgid "That project is not installed."
+msgstr ""
+
+#: includes/class-telex-rest.php:2175
+msgid "Unpin this project before enabling auto-updates."
+msgstr ""
+
+#: includes/class-telex-rest.php:2228
+#: includes/class-telex-rest.php:2243
+#: includes/class-telex-rest.php:2260
+#: includes/class-telex-rest.php:2277
+msgid "Group not found."
+msgstr ""
+
+#: includes/class-telex-rest.php:2561
+msgid "No failure record found for that project."
+msgstr ""
+
+#: includes/class-telex-rest.php:2620
+msgid "Invalid config file. Missing version field."
+msgstr ""
+
+#. translators: %d: number of project configs imported
+#: includes/class-telex-rest.php:2656
+#, php-format
+msgid "%d project configuration(s) imported."
+msgstr ""
+
+#. translators: %s: project name
+#: includes/class-telex-updater.php:238
+#, php-format
+msgid "%s — managed by Dispatch for Telex"
+msgstr ""
+
+#. translators: %s: public ID
+#: includes/class-telex-updater.php:244
+#, php-format
+msgid "Managed by Dispatch. Telex project ID: %s"
+msgstr ""
+
+#. translators: 1: version number, 2: update URL
+#: includes/class-telex-updater.php:291
+#, php-format
+msgid "Update available! v%1$s is ready in Dispatch. <a href=\"%2$s\">Update now</a>."
+msgstr ""
+
+#. translators: %s: URL to the Dispatch admin page
+#: includes/class-telex-updater.php:342
+#, php-format
+msgid "This project is managed by Dispatch for Telex. <a href=\"%s\">Update it from the Dispatch screen.</a>"
+msgstr ""
+
+#: includes/Enums/ProjectType.php:63
+#: build/admin.js:7
+#: src/admin/index.js:361
+msgid "Block"
+msgstr ""
+
+#: includes/Enums/ProjectType.php:64
+#: build/admin.js:7
+#: src/admin/index.js:361
+msgid "Theme"
+msgstr ""
+
+#. translators: %s: current PHP version
+#: telex.php:87
+#, php-format
+msgid "Dispatch needs PHP 8.2 or later. Your server is running PHP&nbsp;%s — ask your host to upgrade."
+msgstr ""
+
+#. translators: %s: current WordPress version
+#: telex.php:105
+#, php-format
+msgid "Dispatch needs WordPress 6.7 or later. You're on&nbsp;%s — time to update!"
+msgstr ""
+
+#: telex.php:120
+msgid "The PHP <code>openssl</code> extension is missing. Ask your host to enable it — Dispatch needs it for secure token storage."
+msgstr ""
+
+#: telex.php:133
+msgid "The PHP <code>zip</code> extension is missing. Ask your host to enable it — Dispatch needs it to install projects."
+msgstr ""
+
+#. translators: %s: composer install command
+#: telex.php:148
+#, php-format
+msgid "Composer dependencies are missing. Run %s in the plugin directory, or install from the pre-built release ZIP rather than cloning the repository directly."
+msgstr ""
+
+#. translators: %s: comma-separated list of missing file paths
+#: telex.php:201
+#, php-format
+msgid "The plugin installation is incomplete — the following files are missing. Please reinstall from the release ZIP: <code>%s</code>"
+msgstr ""
+
+#. translators: %s: error message
+#: telex.php:293
+#, php-format
+msgid "<strong>Dispatch for Telex</strong> encountered an unexpected error during startup and could not initialise: %s"
+msgstr ""
+
+#. translators: %s: error message
+#: telex.php:321
+#, php-format
+msgid "<strong>Dispatch for Telex</strong> could not register its REST API routes: %s"
+msgstr ""
+
+#: build/admin.js:1
+#: src/admin/utils.js:83
+msgid "Just now"
+msgstr ""
+
+#. translators: %d: number of minutes
+#: build/admin.js:2
+#: src/admin/utils.js:89
+#, js-format
+msgid "%d minute ago"
+msgid_plural "%d minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of hours
+#: build/admin.js:3
+#: src/admin/utils.js:97
+#, js-format
+msgid "%d hour ago"
+msgid_plural "%d hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of days
+#: build/admin.js:4
+#: src/admin/utils.js:105
+#, js-format
+msgid "%d day ago"
+msgid_plural "%d days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of months
+#: build/admin.js:5
+#: src/admin/utils.js:113
+#, js-format
+msgid "%d month ago"
+msgid_plural "%d months ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of years
+#: build/admin.js:6
+#: src/admin/utils.js:120
+#, js-format
+msgid "%d year ago"
+msgid_plural "%d years ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/admin.js:6
+#: src/admin/index.js:189
+msgid "Downloading build files…"
+msgstr ""
+
+#: build/admin.js:6
+#: src/admin/index.js:190
+msgid "Validating package…"
+msgstr ""
+
+#: build/admin.js:6
+#: build/admin.js:7
+#: src/admin/index.js:191
+#: src/admin/index.js:377
+msgid "Installing…"
+msgstr ""
+
+#: build/admin.js:6
+#: src/admin/index.js:192
+msgid "Activating…"
+msgstr ""
+
+#: build/admin.js:6
+#: src/admin/index.js:258
+msgid "Pagination"
+msgstr ""
+
+#. translators: 1: first item number, 2: last item number, 3: total
+#: build/admin.js:7
+#: src/admin/index.js:267
+#, js-format
+msgid "%1$d–%2$d of %3$d"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:278
+msgid "Go to previous page"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:281
+msgid "‹ Previous"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:287
+msgid "Go to next page"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:290
+msgid "Next ›"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:315
+msgid "Projects summary"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:376
+msgid "Building…"
+msgstr ""
+
+#: build/admin.js:7
+#: src/admin/index.js:378
+msgid "Removing…"
+msgstr ""
+
+#. translators: 1: installed version, 2: available version
+#. translators: 1: installed version number, 2: available version number
+#: build/admin.js:8
+#: build/admin.js:15
+#: src/admin/index.js:407
+#: src/admin/index.js:940
+#, js-format
+msgid "v%1$s → v%2$s"
+msgstr ""
+
+#: build/admin.js:8
+#: src/admin/index.js:423
+msgid "Up to date"
+msgstr ""
+
+#: build/admin.js:8
+#: build/admin.js:52
+#: src/admin/index.js:504
+#: src/admin/index.js:4350
+msgid "Active"
+msgstr ""
+
+#: build/admin.js:8
+#: build/admin.js:52
+#: src/admin/index.js:505
+#: src/admin/index.js:4356
+msgid "PHP Compat"
+msgstr ""
+
+#: build/admin.js:8
+#: build/admin.js:52
+#: src/admin/index.js:506
+#: src/admin/index.js:4362
+msgid "Block Registered"
+msgstr ""
+
+#: build/admin.js:8
+#: build/admin.js:52
+#: src/admin/index.js:507
+#: src/admin/index.js:4368
+msgid "Error Log"
+msgstr ""
+
+#: build/admin.js:8
+#: build/admin.js:52
+#: src/admin/index.js:508
+#: src/admin/index.js:4374
+msgid "Status"
+msgstr ""
+
+#: build/admin.js:8
+#: src/admin/index.js:551
+msgid "No matches"
+msgstr ""
+
+#. translators: %s: search query
+#: build/admin.js:9
+#: src/admin/index.js:555
+#, js-format
+msgid "Nothing matched \"%s\". Give something else a try."
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:569
+msgid "Nothing here yet"
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:570
+msgid "Head over to Telex and create a project — it will show up right here."
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:577
+msgid "Everything is up to date"
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:578
+msgid "All your installed projects are running the latest build."
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:586
+msgid "No block projects yet"
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:587
+msgid "You haven't built any block projects in Telex yet."
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:594
+msgid "No theme projects yet"
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:595
+msgid "You haven't built any theme projects in Telex yet."
+msgstr ""
+
+#: build/admin.js:9
+#: src/admin/index.js:671
+msgid "Undo"
+msgstr ""
+
+#. translators: %s: notification message
+#: build/admin.js:10
+#: src/admin/index.js:682
+#, js-format
+msgid "Dismiss: %s"
+msgstr ""
+
+#: build/admin.js:10
+#: build/admin.js:57
+#: src/admin/index.js:709
+#: src/admin/index.js:4886
+#: src/admin/index.js:4952
+msgid "Notifications"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:723
+msgid "Refresh projects"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:724
+msgid "Focus search"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:725
+msgid "Clear search / close modal"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:726
+msgid "Show this shortcuts list"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:727
+msgid "Switch tabs"
+msgstr ""
+
+#: build/admin.js:10
+#: src/admin/index.js:730
+msgid "Update all (when updates available)"
+msgstr ""
+
+#: build/admin.js:10
+#: build/admin.js:51
+#: src/admin/index.js:742
+#: src/admin/index.js:3916
+msgid "Keyboard shortcuts"
+msgstr ""
+
+#. translators: %s: version number
+#: build/admin.js:11
+#: src/admin/index.js:816
+#, js-format
+msgid "v%s installed"
+msgstr ""
+
+#. translators: %s: version number
+#: build/admin.js:12
+#: src/admin/index.js:825
+#, js-format
+msgid "Latest: v%s"
+msgstr ""
+
+#. translators: 1: installed version, 2: available version
+#: build/admin.js:13
+#: src/admin/index.js:842
+#, js-format
+msgid "Update available: v%1$s → v%2$s"
+msgstr ""
+
+#: build/admin.js:13
+#: src/admin/index.js:858
+msgid "View in Telex →"
+msgstr ""
+
+#: build/admin.js:13
+#: build/admin.js:32
+#: build/admin.js:51
+#: src/admin/index.js:872
+#: src/admin/index.js:1947
+#: src/admin/index.js:4053
+msgid "Install"
+msgstr ""
+
+#: build/admin.js:13
+#: build/admin.js:32
+#: build/admin.js:51
+#: src/admin/index.js:885
+#: src/admin/index.js:1961
+#: src/admin/index.js:4060
+msgid "Update"
+msgstr ""
+
+#: build/admin.js:13
+#: build/admin.js:51
+#: src/admin/index.js:899
+#: src/admin/index.js:4067
+msgid "Remove"
+msgstr ""
+
+#: build/admin.js:13
+#: build/admin.js:17
+#: src/admin/index.js:907
+#: src/admin/index.js:1118
+msgid "Close"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:14
+#: src/admin/index.js:931
+#, js-format
+msgid "Update %s"
+msgstr ""
+
+#: build/admin.js:15
+#: src/admin/index.js:949
+msgid "About this project"
+msgstr ""
+
+#: build/admin.js:15
+#: src/admin/index.js:959
+msgid "See what's new in Telex →"
+msgstr ""
+
+#: build/admin.js:15
+#: src/admin/index.js:970
+msgid "Update now"
+msgstr ""
+
+#: build/admin.js:15
+#: src/admin/index.js:977
+msgid "Not yet"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:16
+#: src/admin/index.js:1022
+#, js-format
+msgid "Deploy \"%s\" across the network"
+msgstr ""
+
+#: build/admin.js:16
+#: src/admin/index.js:1030
+msgid "This will install or update this project on every site in your network. Sites that already have the latest build will be skipped."
+msgstr ""
+
+#: build/admin.js:16
+#: src/admin/index.js:1044
+msgid "Deploy to all sites"
+msgstr ""
+
+#: build/admin.js:16
+#: build/admin.js:39
+#: build/admin.js:45
+#: build/admin.js:50
+#: build/admin.js:51
+#: build/admin.js:57
+#: build/admin.js:61
+#: build/admin.js:62
+#: build/device-flow.js:2
+#: src/admin/index.js:1051
+#: src/admin/index.js:2398
+#: src/admin/index.js:2745
+#: src/admin/index.js:2773
+#: src/admin/index.js:2800
+#: src/admin/index.js:3720
+#: src/admin/index.js:3950
+#: src/admin/index.js:5191
+#: src/admin/index.js:5485
+#: src/admin/index.js:5519
+#: src/device-flow/index.js:566
+msgid "Cancel"
+msgstr ""
+
+#. translators: 1: success count, 2: total count
+#: build/admin.js:17
+#: src/admin/index.js:1068
+#, js-format
+msgid "%1$d of %2$d sites updated successfully."
+msgstr ""
+
+#: build/admin.js:17
+#: src/admin/index.js:1090
+msgid "Done"
+msgstr ""
+
+#: build/admin.js:17
+#: build/admin.js:48
+#: src/admin/index.js:1107
+#: src/admin/index.js:3570
+msgid "Failed"
+msgstr ""
+
+#: build/admin.js:17
+#: src/admin/index.js:1176
+#: src/admin/index.js:1183
+msgid "Installation was cancelled."
+msgstr ""
+
+#: build/admin.js:17
+#: src/admin/index.js:1208
+msgid "The build is taking longer than expected. Try again in a moment."
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:18
+#: src/admin/index.js:1362
+#, js-format
+msgid "%s pinned."
+msgstr ""
+
+#: build/admin.js:18
+#: src/admin/index.js:1370
+msgid "Could not pin project."
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:19
+#: src/admin/index.js:1390
+#, js-format
+msgid "%s unpinned."
+msgstr ""
+
+#: build/admin.js:19
+#: src/admin/index.js:1398
+msgid "Could not unpin project."
+msgstr ""
+
+#: build/admin.js:19
+#: src/admin/index.js:1422
+msgid "Could not save auto-update setting."
+msgstr ""
+
+#: build/admin.js:19
+#: src/admin/index.js:1467
+msgid "Could not save tags."
+msgstr ""
+
+#: build/admin.js:19
+#: src/admin/index.js:1578
+msgid "That didn't work. Try again?"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:20
+#: src/admin/index.js:1588
+#, js-format
+msgid "%s is installed!"
+msgstr ""
+
+#. translators: %s: relative time
+#: build/admin.js:21
+#: src/admin/index.js:1687
+#, js-format
+msgid "Updated %s"
+msgstr ""
+
+#. translators: %s: relative time
+#: build/admin.js:22
+#: src/admin/index.js:1694
+#, js-format
+msgid "Installed %s"
+msgstr ""
+
+#. translators: %s: relative time
+#: build/admin.js:23
+#: src/admin/index.js:1701
+#, js-format
+msgid "Built %s"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:24
+#: src/admin/index.js:1740
+#, js-format
+msgid "Select %s"
+msgstr ""
+
+#: build/admin.js:24
+#: src/admin/index.js:1761
+msgid "Remove from favorites"
+msgstr ""
+
+#: build/admin.js:24
+#: src/admin/index.js:1762
+msgid "Add to favorites"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:25
+#: src/admin/index.js:1778
+#, js-format
+msgid "Unstar %s"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:26
+#: src/admin/index.js:1783
+#, js-format
+msgid "Star %s"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:27
+#: src/admin/index.js:1808
+#, js-format
+msgid "View details for %s"
+msgstr ""
+
+#. translators: %s: pin reason
+#: build/admin.js:28
+#: src/admin/index.js:1819
+#, js-format
+msgid "Pinned: %s"
+msgstr ""
+
+#: build/admin.js:28
+#: src/admin/index.js:1825
+msgid "Version pinned"
+msgstr ""
+
+#. translators: %s: version number
+#: build/admin.js:29
+#: build/admin.js:33
+#: build/admin.js:34
+#: src/admin/index.js:1833
+#: src/admin/index.js:1978
+#: src/admin/index.js:1987
+#, js-format
+msgid "v%s"
+msgstr ""
+
+#. translators: %d: post count
+#: build/admin.js:30
+#: src/admin/index.js:1843
+#, js-format
+msgid "Used in %d posts/pages"
+msgstr ""
+
+#: build/admin.js:30
+#: src/admin/index.js:1855
+msgid "Auto-update queued, waiting out soak period"
+msgstr ""
+
+#. translators: %s: time remaining
+#: build/admin.js:31
+#: src/admin/index.js:1864
+#, js-format
+msgid "%s left"
+msgstr ""
+
+#: build/admin.js:31
+#: src/admin/index.js:1872
+msgid "Inactive"
+msgstr ""
+
+#: build/admin.js:31
+#: src/admin/index.js:1878
+msgid "Install failed"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:32
+#: src/admin/index.js:1916
+#, js-format
+msgid "Actions for %s"
+msgstr ""
+
+#: build/admin.js:32
+#: src/admin/index.js:1922
+msgid "Push to all network sites"
+msgstr ""
+
+#: build/admin.js:32
+#: src/admin/index.js:1931
+msgid "Deploy"
+msgstr ""
+
+#: build/admin.js:34
+#: src/admin/index.js:1994
+#: src/admin/index.js:2029
+msgid "Activate on this site"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:34
+#: src/admin/index.js:2009
+#, js-format
+msgid "%s activated."
+msgstr ""
+
+#: build/admin.js:34
+#: src/admin/index.js:2021
+msgid "Activation failed."
+msgstr ""
+
+#: build/admin.js:34
+#: src/admin/index.js:2041
+#: src/admin/index.js:2079
+msgid "Deactivate on this site"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:34
+#: src/admin/index.js:2059
+#, js-format
+msgid "%s deactivated."
+msgstr ""
+
+#: build/admin.js:34
+#: src/admin/index.js:2071
+msgid "Deactivation failed."
+msgstr ""
+
+#: build/admin.js:34
+#: src/admin/index.js:2090
+msgid "Close note"
+msgstr ""
+
+#: build/admin.js:34
+#: build/admin.js:35
+#: src/admin/index.js:2091
+#: src/admin/index.js:2105
+msgid "Add note"
+msgstr ""
+
+#. translators: %s: note text
+#: build/admin.js:35
+#: src/admin/index.js:2102
+#, js-format
+msgid "Note: %s"
+msgstr ""
+
+#: build/admin.js:35
+#: src/admin/index.js:2114
+#: src/admin/index.js:2130
+msgid "Unpin version"
+msgstr ""
+
+#: build/admin.js:35
+#: build/admin.js:39
+#: src/admin/index.js:2115
+#: src/admin/index.js:2131
+#: src/admin/index.js:2388
+msgid "Pin version"
+msgstr ""
+
+#: build/admin.js:35
+#: src/admin/index.js:2139
+#: src/admin/index.js:2141
+msgid "Auto-update"
+msgstr ""
+
+#: build/admin.js:35
+#: src/admin/index.js:2148
+msgid "Off"
+msgstr ""
+
+#: build/admin.js:35
+#: src/admin/index.js:2152
+msgid "Immediate"
+msgstr ""
+
+#: build/admin.js:35
+#: src/admin/index.js:2156
+msgid "Delayed 24h"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:36
+#: build/admin.js:37
+#: src/admin/index.js:2169
+#: src/admin/index.js:2180
+#, js-format
+msgid "Edit %s in Telex"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2189
+#: src/admin/index.js:2202
+msgid "Remove from your site"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2213
+#: src/admin/index.js:2223
+msgid "Edit tags"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2214
+#: src/admin/index.js:2224
+msgid "Add tags"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2239
+#: src/admin/index.js:2251
+msgid "Note"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2245
+msgid "Close note editor"
+msgstr ""
+
+#: build/admin.js:37
+#: build/admin.js:57
+#: src/admin/index.js:2268
+#: src/admin/index.js:5183
+msgid "Save"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2279
+msgid "Tags"
+msgstr ""
+
+#: build/admin.js:37
+#: src/admin/index.js:2286
+msgid "Close tag editor"
+msgstr ""
+
+#. translators: %s: tag name
+#: build/admin.js:38
+#: src/admin/index.js:2304
+#, js-format
+msgid "Remove tag %s"
+msgstr ""
+
+#: build/admin.js:38
+#: src/admin/index.js:2315
+msgid "Add tag"
+msgstr ""
+
+#: build/admin.js:38
+#: src/admin/index.js:2317
+msgid "e.g. client-a, beta"
+msgstr ""
+
+#: build/admin.js:38
+#: src/admin/index.js:2339
+msgid "Add"
+msgstr ""
+
+#. translators: 1: project name, 2: version number
+#: build/admin.js:39
+#: src/admin/index.js:2350
+#, js-format
+msgid "Pin \"%1$s\" at v%2$s"
+msgstr ""
+
+#: build/admin.js:39
+#: src/admin/index.js:2360
+msgid "Pinning prevents this project from being updated by auto-update or \"Update All\". You can unpin it at any time."
+msgstr ""
+
+#: build/admin.js:39
+#: src/admin/index.js:2366
+msgid "Reason for pinning (required)"
+msgstr ""
+
+#: build/admin.js:39
+#: src/admin/index.js:2373
+msgid "e.g. Client requested freeze before launch"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:40
+#: src/admin/index.js:2408
+#, js-format
+msgid "Remove \"%s\"?"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:41
+#: src/admin/index.js:2417
+#, js-format
+msgid "%s will be removed from your site. You can reinstall it any time."
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:42
+#: src/admin/index.js:1623
+#, js-format
+msgid "%s has been removed."
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:43
+#: src/admin/index.js:1642
+#, js-format
+msgid "%s has been reinstalled."
+msgstr ""
+
+#: build/admin.js:43
+#: src/admin/index.js:1652
+msgid "Reinstall didn't work. Try again?"
+msgstr ""
+
+#: build/admin.js:43
+#: src/admin/index.js:1666
+msgid "Couldn't remove it. Try again?"
+msgstr ""
+
+#: build/admin.js:43
+#: src/admin/index.js:2431
+msgid "Yes, remove it"
+msgstr ""
+
+#: build/admin.js:43
+#: src/admin/index.js:2438
+msgid "Keep it"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:44
+#: src/admin/index.js:1600
+#, js-format
+msgid "%s is updated!"
+msgstr ""
+
+#: build/admin.js:44
+#: src/admin/index.js:2473
+msgid "Conflict detected"
+msgstr ""
+
+#. translators: 1: Telex project name, 2: existing plugin/theme name
+#: build/admin.js:45
+#: src/admin/index.js:2479
+#, js-format
+msgid "\"%1$s\" cannot be installed because an existing plugin or theme named \"%2$s\" is already using the same folder name. Remove the existing one first, or rename the slug in Telex."
+msgstr ""
+
+#: build/admin.js:45
+#: src/admin/index.js:2493
+msgid "OK"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:1
+#: src/admin/index.js:2640
+#: src/device-flow/index.js:240
+msgid "Something went wrong — the code may have expired."
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:1
+#: src/admin/index.js:2603
+#: src/device-flow/index.js:186
+msgid "Couldn't get a code from Telex. Give it another try."
+msgstr ""
+
+#: build/admin.js:45
+#: src/admin/index.js:2683
+msgid "Connected! Refreshing your projects…"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:1
+#: src/admin/index.js:2693
+#: src/device-flow/index.js:467
+#: src/device-flow/index.js:471
+msgid "Getting your code…"
+msgstr ""
+
+#: build/admin.js:45
+#: src/admin/index.js:2702
+msgid "Enter this code at telex.automattic.ai to reconnect:"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:2
+#: src/admin/index.js:2718
+#: src/device-flow/index.js:522
+msgid "Copied!"
+msgstr ""
+
+#: build/admin.js:45
+#: src/admin/index.js:2719
+msgid "Copy"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:2
+#: src/admin/index.js:2732
+#: src/device-flow/index.js:537
+msgid "Open Telex and approve →"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:2
+#: src/admin/index.js:2737
+#: src/device-flow/index.js:557
+msgid "Waiting for approval…"
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:2
+#: src/admin/index.js:2756
+#: src/device-flow/index.js:588
+msgid "That code expired. Hit the button below to start over."
+msgstr ""
+
+#: build/admin.js:45
+#: build/device-flow.js:2
+#: src/admin/index.js:2766
+#: src/device-flow/index.js:598
+msgid "Start over"
+msgstr ""
+
+#: build/admin.js:45
+#: src/admin/index.js:2783
+msgid "Your session has expired. Complete the quick device flow below to reconnect without leaving this page."
+msgstr ""
+
+#: build/admin.js:45
+#: build/admin.js:57
+#: src/admin/index.js:2793
+#: src/admin/index.js:4755
+msgid "Reconnect to Telex"
+msgstr ""
+
+#. translators: %d: seconds until retry
+#: build/admin.js:46
+#: src/admin/index.js:3034
+#, js-format
+msgid "Rate limit reached. Try again in %ds."
+msgstr ""
+
+#: build/admin.js:46
+#: src/admin/index.js:3057
+msgid "Couldn't load your projects. Check your connection and try again."
+msgstr ""
+
+#: build/admin.js:46
+#: src/admin/index.js:3200
+msgid "Refresh Dispatch projects"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:47
+#: src/admin/index.js:3224
+#, js-format
+msgid "Update %s via Dispatch"
+msgstr ""
+
+#. translators: %s: comma-separated list of project names
+#: build/admin.js:48
+#: src/admin/index.js:3282
+#, js-format
+msgid "Update failed for: %s"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3289
+msgid "All updates installed!"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3536
+#: src/admin/index.js:3537
+msgid "All"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3549
+#: src/admin/index.js:3550
+msgid "Blocks"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3555
+#: src/admin/index.js:3556
+msgid "Themes"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3560
+msgid "Activity"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3564
+msgid "Health"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3647
+msgid "Your Telex connection has expired."
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3649
+msgid "Reconnect now"
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3662
+msgid "The Telex API is temporarily unavailable. Showing cached data."
+msgstr ""
+
+#: build/admin.js:48
+#: src/admin/index.js:3666
+msgid "The Telex API is recovering. Showing cached data."
+msgstr ""
+
+#. translators: %s: reset timestamp
+#: build/admin.js:49
+#: src/admin/index.js:3673
+#, js-format
+msgid "Auto-reset at %s."
+msgstr ""
+
+#: build/admin.js:49
+#: src/admin/index.js:3693
+msgid "Reset now"
+msgstr ""
+
+#. translators: 1: done count, 2: total count
+#: build/admin.js:50
+#: src/admin/index.js:3710
+#, js-format
+msgid "Updating %1$d of %2$d…"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3729
+msgid "Filter projects"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3778
+msgid "Search projects"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3798
+msgid "Group"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3805
+msgid "All groups"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3818
+#: src/admin/index.js:3824
+msgid "Manage project groups"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3837
+msgid "Tag"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3844
+msgid "All tags"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3858
+msgid "Sort"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3865
+msgid "Name A–Z"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3869
+msgid "Name Z–A"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3873
+msgid "Updated (newest)"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3877
+msgid "Installed (newest)"
+msgstr ""
+
+#: build/admin.js:50
+#: src/admin/index.js:3884
+msgid "Most used"
+msgstr ""
+
+#. translators: %d: number of updates
+#: build/admin.js:51
+#: src/admin/index.js:3899
+#, js-format
+msgid "Update %d"
+msgid_plural "Update %d"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3910
+msgid "Keyboard shortcuts (?)"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3927
+#: src/admin/index.js:3943
+msgid "Cancel selection"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3928
+#: src/admin/index.js:3944
+msgid "Select projects"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3951
+msgid "Select"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3964
+msgid "Check for new builds"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3970
+msgid "Refresh"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3978
+#: src/admin/index.js:4081
+msgid "Disconnect"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:3988
+msgid "Loading your projects…"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4020
+msgid "Search activity"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4037
+msgid "Filter by action"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4046
+msgid "All actions"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4074
+msgid "Connect"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4105
+msgid "All users"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4141
+msgid "From"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4169
+msgid "To"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4234
+msgid "No activity yet."
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4299
+msgid "Project Health"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4321
+msgid "Scanning…"
+msgstr ""
+
+#: build/admin.js:51
+#: src/admin/index.js:4322
+msgid "Scan now"
+msgstr ""
+
+#. translators: %s: scan timestamp
+#: build/admin.js:52
+#: src/admin/index.js:4333
+#, js-format
+msgid "Last checked: %s"
+msgstr ""
+
+#. translators: %d: line count
+#: build/admin.js:53
+#: src/admin/index.js:4441
+#, js-format
+msgid "%d lines"
+msgstr ""
+
+#: build/admin.js:53
+#: src/admin/index.js:4450
+msgid "Clean"
+msgstr ""
+
+#: build/admin.js:53
+#: src/admin/index.js:4474
+msgid "No installed projects to check."
+msgstr ""
+
+#: build/admin.js:53
+#: src/admin/index.js:4488
+msgid "Click \"Scan now\" to check the health of your installed projects."
+msgstr ""
+
+#. translators: %d: number of pending approvals
+#: build/admin.js:54
+#: src/admin/index.js:4523
+#, js-format
+msgid "%d update awaiting approval"
+msgid_plural "%d updates awaiting approval"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of hours
+#: build/admin.js:55
+#: src/admin/index.js:4554
+#, js-format
+msgid "Queued %dh ago"
+msgstr ""
+
+#. translators: %s: project name
+#: build/admin.js:56
+#: src/admin/index.js:4594
+#, js-format
+msgid "%s updated."
+msgstr ""
+
+#: build/admin.js:56
+#: src/admin/index.js:4609
+msgid "Update failed."
+msgstr ""
+
+#: build/admin.js:56
+#: src/admin/index.js:4621
+msgid "Approve"
+msgstr ""
+
+#: build/admin.js:56
+#: src/admin/index.js:4655
+msgid "Skip"
+msgstr ""
+
+#: build/admin.js:56
+#: src/admin/index.js:4671
+msgid "Dispatch projects"
+msgstr ""
+
+#: build/admin.js:56
+#: src/admin/index.js:4715
+msgid "Batch actions"
+msgstr ""
+
+#. translators: %d: number of selected projects
+#: build/admin.js:57
+#: src/admin/index.js:4720
+#, js-format
+msgid "%d selected"
+msgid_plural "%d selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4730
+msgid "Install selected"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4737
+msgid "Remove selected"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4740
+msgid "Clear"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4775
+#: src/admin/index.js:5154
+msgid "Project Groups"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4829
+msgid "Uh oh — something crashed."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4831
+msgid "Try reloading the page. If it keeps happening, check the browser console."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4839
+msgid "Technical details"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4888
+#: src/admin/index.js:4954
+msgid "Receive alerts when updates are available, circuit breakers open, or installs fail."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4961
+msgid "Notify on updates available"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4975
+msgid "Notify on circuit breaker open"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4989
+msgid "Notify on install failure"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5006
+msgid "Email"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5008
+msgid "Email address"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5014
+msgid "admin@example.com"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5023
+msgid "Slack"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5025
+msgid "Slack webhook URL"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4914
+msgid "Notification settings saved."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4920
+msgid "Could not save settings."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5046
+msgid "Save settings"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4936
+msgid "Test sent."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:4941
+msgid "Test failed."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5058
+msgid "Send test"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5156
+msgid "Organise your projects into named groups for faster filtering."
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5168
+msgid "Group name"
+msgstr ""
+
+#: build/admin.js:57
+#: src/admin/index.js:5126
+msgid "Could not update group."
+msgstr ""
+
+#. translators: %s: group name
+#: build/admin.js:58
+#: src/admin/index.js:5209
+#, js-format
+msgid "Edit group: %s"
+msgstr ""
+
+#: build/admin.js:58
+#: src/admin/index.js:5145
+msgid "Could not delete group."
+msgstr ""
+
+#. translators: %s: group name
+#: build/admin.js:59
+#: src/admin/index.js:5223
+#, js-format
+msgid "Delete group: %s"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5239
+msgid "New group name"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5242
+msgid "e.g. Client A, Core Blocks…"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5102
+msgid "Could not create group."
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5257
+msgid "Create group"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5369
+msgid "Build Snapshots"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5371
+msgid "Capture the current set of installed projects and their versions. Restore to roll back your entire build."
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5378
+msgid "Snapshot name"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5381
+msgid "e.g. Before v2 launch"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5305
+msgid "Snapshot created."
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5311
+msgid "Could not create snapshot."
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5392
+msgid "Create snapshot"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5404
+msgid "No snapshots yet."
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5411
+msgid "Name"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5413
+msgid "Created"
+msgstr ""
+
+#: build/admin.js:59
+#: src/admin/index.js:5414
+msgid "Actions"
+msgstr ""
+
+#: build/admin.js:59
+#: build/admin.js:62
+#: src/admin/index.js:5433
+#: src/admin/index.js:5512
+msgid "Restore"
+msgstr ""
+
+#. translators: %s: snapshot name
+#: build/admin.js:60
+#: src/admin/index.js:5446
+#, js-format
+msgid "Delete snapshot: %s"
+msgstr ""
+
+#. translators: %s: snapshot name
+#: build/admin.js:61
+#: src/admin/index.js:5464
+#, js-format
+msgid "Delete snapshot \"%s\"?"
+msgstr ""
+
+#: build/admin.js:61
+#: src/admin/index.js:5469
+msgid "This cannot be undone."
+msgstr ""
+
+#: build/admin.js:61
+#: src/admin/index.js:5334
+msgid "Could not delete snapshot."
+msgstr ""
+
+#: build/admin.js:61
+#: src/admin/index.js:5478
+msgid "Delete"
+msgstr ""
+
+#. translators: %s: snapshot name
+#: build/admin.js:62
+#: src/admin/index.js:5494
+#, js-format
+msgid "Restore snapshot \"%s\"?"
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5500
+msgid "This will reinstall all projects to the versions captured in this snapshot. The site will remain operational during the restore."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5351
+msgid "Snapshot restored. Projects are being reinstalled."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5359
+msgid "Restore failed."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5567
+msgid "Config exported."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5572
+msgid "Export failed."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5599
+msgid "Config imported successfully."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5604
+msgid "Import failed."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5619
+msgid "Config Export / Import"
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5621
+msgid "Export your pins, notes, tags, groups, and auto-update settings as a JSON file. Import on any site to replicate your setup."
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5634
+msgid "Export config"
+msgstr ""
+
+#: build/admin.js:62
+#: src/admin/index.js:5643
+msgid "Import config"
+msgstr ""
+
+#: build/commands.js:1
+#: src/admin/commands.js:25
+msgid "Open Dispatch"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:34
+msgid "Get a code"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:35
+msgid "Approve in Telex"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:36
+#: src/device-flow/index.js:337
+msgid "You're in!"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:46
+msgid "Telex"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:63
+msgid "Connection steps"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:339
+msgid "Your Telex account is connected. Taking you to your projects…"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:356
+msgid "Your Telex projects, live in WordPress."
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:362
+msgid "Build a block or theme in Telex. Deploy it here with one click — no zip files, no FTP, no round trips."
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:369
+msgid "Install any project in one click"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:373
+msgid "Snapshots, rollbacks & version pinning"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:377
+msgid "Health monitoring & auto-updates"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:381
+msgid "WP-CLI and CI/CD ready"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:396
+msgid "New to Telex? Start building →"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:405
+msgid "Link your account"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:407
+msgid "One-time setup. No passwords. Disconnect whenever you like."
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:420
+msgid "One-time setup — that's it"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:432
+msgid "No password to remember"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:441
+msgid "Disconnect whenever you like"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:452
+msgid "Connect to Telex →"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:484
+msgid "Enter this code in Telex"
+msgstr ""
+
+#: build/device-flow.js:1
+#: src/device-flow/index.js:486
+msgid "Open Telex in a new tab, paste the code below, and approve the connection."
+msgstr ""
+
+#. translators: %s: user code
+#: build/device-flow.js:2
+#: src/device-flow/index.js:502
+#, js-format
+msgid "Your device code is %s"
+msgstr ""
+
+#: build/device-flow.js:2
+#: src/device-flow/index.js:514
+msgid "Copy code to clipboard"
+msgstr ""
+
+#: build/device-flow.js:2
+#: src/device-flow/index.js:523
+msgid "Copy code"
+msgstr ""
+
+#: build/device-flow.js:2
+#: src/device-flow/index.js:539
+msgid "(opens in a new tab)"
+msgstr ""
+
+#: build/device-flow.js:2
+#: src/device-flow/index.js:544
+msgid "The verification link received from the server is invalid. Please try again."
 msgstr ""

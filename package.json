@@ -1,6 +1,6 @@
 {
     "name": "telex",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "description": "Install blocks and themes from your Telex projects.",
     "private": true,
     "license": "GPL-2.0-or-later",
@@ -32,8 +32,8 @@
         "@wordpress/i18n": "*"
     },
     "devDependencies": {
-        "@wordpress/icons": "^11.8.0",
-        "@wordpress/scripts": "^31.0",
+        "@wordpress/icons": "^12.0.0",
+        "@wordpress/scripts": "^31.7.0",
         "markdown-link-check": "^3.14.2",
         "markdownlint-cli": "^0.48.0"
     },
