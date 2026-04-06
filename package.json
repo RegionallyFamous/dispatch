@@ -32,8 +32,8 @@
         "@wordpress/i18n": "*"
     },
     "devDependencies": {
-        "@wordpress/icons": "^12.0.0",
-        "@wordpress/scripts": "^31.7.0",
+        "@wordpress/icons": "^12.1.0",
+        "@wordpress/scripts": "^31.8.0",
         "markdown-link-check": "^3.14.2",
         "markdownlint-cli": "^0.48.0"
     },
